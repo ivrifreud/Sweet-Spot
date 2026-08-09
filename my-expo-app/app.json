@@ -38,6 +38,12 @@
         "projectId": "39c5f20e-34a0-4499-aac0-652fa4990135"
       }
     },
-    "owner": "sweet-spot-baam"
+    "owner": "sweet-spot-baam",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/39c5f20e-34a0-4499-aac0-652fa4990135"
+    }
   }
 }
