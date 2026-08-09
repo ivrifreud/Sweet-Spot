@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18.x
+          node-version: 20.x
           cache: npm
           cache-dependency-path: my-expo-app/package-lock.json
 
@@ -30,4 +30,5 @@ jobs:
         working-directory: my-expo-app
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CI: 1
         run: eas update --auto --non-interactive
