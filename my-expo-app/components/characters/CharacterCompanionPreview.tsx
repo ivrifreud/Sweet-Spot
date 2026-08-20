@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
-import { characters, pickQuote, type CharacterId, type CompanionMoment, type CompanionMood } from '../../characters';
+import {
+  characters,
+  pickQuote,
+  type CharacterId,
+  type CompanionMoment,
+  type CompanionMood,
+} from '../../characters';
 import { ChippyAvatar } from './ChippyAvatar';
 import { CompanionBubble } from './CompanionBubble';
 import { ProfessorFoldAvatar } from './ProfessorFoldAvatar';
@@ -13,6 +19,30 @@ const MOMENTS: { id: CompanionMoment; label: string; mood: CompanionMood }[] = [
   { id: 'retry', label: 'ניסיון נוסף', mood: 'nudge' },
   { id: 'streak', label: 'רצף', mood: 'celebrate' },
 ];
+
+function TapButton({
+  onPress,
+  children,
+  style,
+}: {
+  onPress: () => void;
+  children: React.ReactNode;
+  style?: object;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      // RN Web sometimes needs an explicit cursor + hitSlop for reliable clicks
+      style={({ pressed }) => [
+        style,
+        Platform.OS === 'web' ? { cursor: 'pointer' as const } : null,
+        pressed ? { opacity: 0.85 } : null,
+      ]}>
+      {children}
+    </Pressable>
+  );
+}
 
 export function CharacterCompanionPreview() {
   const [selectedId, setSelectedId] = useState<CharacterId>('professor');
@@ -43,11 +73,14 @@ export function CharacterCompanionPreview() {
           const c = characters[id];
           const active = id === selectedId;
           return (
-            <Pressable
+            <TapButton
               key={id}
               onPress={() => setSelectedId(id)}
-              className="flex-1 rounded-2xl px-3 py-3"
               style={{
+                flex: 1,
+                borderRadius: 16,
+                paddingHorizontal: 12,
+                paddingVertical: 12,
                 backgroundColor: active ? c.palette.primary : '#FFFFFF',
                 borderWidth: 2,
                 borderColor: c.palette.primary,
@@ -57,12 +90,12 @@ export function CharacterCompanionPreview() {
                 style={{ color: active ? '#FFFFFF' : c.palette.primary }}>
                 {c.nameHe}
               </Text>
-            </Pressable>
+            </TapButton>
           );
         })}
       </View>
 
-      <View className="items-center py-2">
+      <View className="items-center py-2" pointerEvents="none">
         {selectedId === 'professor' ? (
           <ProfessorFoldAvatar size={200} mood={activeMoment.mood} />
         ) : (
@@ -72,7 +105,9 @@ export function CharacterCompanionPreview() {
 
       <CompanionBubble character={character} quote={quote} />
 
-      <Text className="mx-5 mt-4 text-right text-sm" style={{ color: character.palette.ink, opacity: 0.75 }}>
+      <Text
+        className="mx-5 mt-4 text-right text-sm"
+        style={{ color: character.palette.ink, opacity: 0.75 }}>
         {character.taglineHe}
       </Text>
 
@@ -80,14 +115,16 @@ export function CharacterCompanionPreview() {
         {MOMENTS.map((m) => {
           const active = m.id === moment;
           return (
-            <Pressable
+            <TapButton
               key={m.id}
               onPress={() => {
                 setMoment(m.id);
                 setQuoteSeed((s) => s + 1);
               }}
-              className="rounded-full px-3 py-2"
               style={{
+                borderRadius: 999,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
                 backgroundColor: active ? character.palette.accent : '#FFFFFF',
                 borderWidth: 1.5,
                 borderColor: character.palette.primary,
@@ -97,17 +134,22 @@ export function CharacterCompanionPreview() {
                 style={{ color: active ? '#FFFFFF' : character.palette.primary }}>
                 {m.label}
               </Text>
-            </Pressable>
+            </TapButton>
           );
         })}
       </View>
 
-      <Pressable
+      <TapButton
         onPress={() => setQuoteSeed((s) => s + 1)}
-        className="mx-4 mt-6 rounded-2xl py-3"
-        style={{ backgroundColor: character.palette.primary }}>
+        style={{
+          marginHorizontal: 16,
+          marginTop: 24,
+          borderRadius: 16,
+          paddingVertical: 12,
+          backgroundColor: character.palette.primary,
+        }}>
         <Text className="text-center text-base font-bold text-white">משפט עידוד חדש</Text>
-      </Pressable>
+      </TapButton>
     </View>
   );
 }
