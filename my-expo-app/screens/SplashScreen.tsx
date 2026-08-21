@@ -14,7 +14,7 @@ export function SplashScreen({ onPressStart }: Props) {
   return (
     <View style={styles.root}>
       <ImageBackground
-        source={require('../../assets/brand/casino-neon-bg.png')}
+        source={require('../assets/brand/casino-neon-bg.png')}
         style={styles.bg}
         resizeMode="cover">
         <View style={styles.dim} />
@@ -29,7 +29,7 @@ export function SplashScreen({ onPressStart }: Props) {
             },
           ]}>
           <Image
-            source={require('../../assets/brand/logo-example2.png')}
+            source={require('../assets/brand/logo-example2.png')}
             style={styles.logo}
             resizeMode="contain"
             accessibilityLabel="Sweet Spot logo"
