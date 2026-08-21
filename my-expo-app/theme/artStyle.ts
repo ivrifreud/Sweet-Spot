@@ -11,6 +11,10 @@ export const artStyle = {
     vibe: 'Wholesome nerdy poker students — clear glasses, sweater vest, big expressive faces.',
     referenceImage: require('../assets/brand/artstyle/characters-old-cartoon-hero.png'),
   },
+  chips: {
+    vibe: 'Gold metallic poker chip with spade cutout — round, beveled, classic casino token.',
+    referenceImage: require('../assets/brand/artstyle/chip-gold-spade-reference.png'),
+  },
   colors: {
     teal: '#0B6B6E',
     tealNeon: '#1AD1C7',
