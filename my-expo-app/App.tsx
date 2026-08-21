@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-
+import { View, StyleSheet, Text } from 'react-native';
+import { GoogleSignInButton } from './components/GoogleSignInButton';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,7 +26,23 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {session ? <CalibrationNavigator /> : <AuthNavigator />}
+      {session ? (
+        <View style={styles.authScreen}>
+          <Text>Signed in! Calibration goes here.</Text>
+        </View>
+      ) : (
+        <View style={styles.authScreen}>
+          <GoogleSignInButton />
+        </View>
+      )}
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  authScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
