@@ -1,22 +1,46 @@
 {
-    "cli": {
-      "version": ">= 5.9.0",
-      "appVersionSource": "remote"
-    },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rctnkflktfaywocdfvki.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjdG5rZmxrdGZheXdvY2RmdmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODIyNDgsImV4cCI6MjEwMjQ1ODI0OH0.qG_Tejk-FUheCf4Miurk29xcwzocTNpjT0mUNLNVutE"
       },
-      "preview": {
-        "distribution": "internal",
-        "channel": "pre-prod"
-      },
-      "production": {
-        "channel": "main"
+      "ios": {
+        "simulator": true
       }
     },
-    "submit": {
-      "production": {}
+    "preprod": {
+      "distribution": "internal",
+      "channel": "preprod",
+      "env": {
+        "APP_ENV": "preprod",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rctnkflktfaywocdfvki.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjdG5rZmxrdGZheXdvY2RmdmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODIyNDgsImV4cCI6MjEwMjQ1ODI0OH0.qG_Tejk-FUheCf4Miurk29xcwzocTNpjT0mUNLNVutE"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://mtgkkwmwufkfpfkyxkpm.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10Z2trd213dWZrZnBma3l4a3BtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMTk5NzEsImV4cCI6MjEwMTY5NTk3MX0.KtjlrarpG0AhB0eZ7Tfcq75PrBBlnYQLmlUVW5xNS1A"
+      },
+      "ios": {
+        "simulator": true
+      }
     }
   }
+}

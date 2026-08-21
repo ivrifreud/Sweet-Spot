@@ -3,6 +3,7 @@
     "name": "my-expo-app",
     "slug": "my-expo-app",
     "version": "1.0.0",
+    "scheme": "sweetspot",
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -25,7 +26,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sweetspotbaam.myexpoapp.preprod",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

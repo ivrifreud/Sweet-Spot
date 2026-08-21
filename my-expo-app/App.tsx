@@ -1,20 +1,31 @@
 import "./global.css";
 import { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
+
 
 export default function App() {
-  const [status, setStatus] = useState('Loading...');
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`)
-      .then((res) => res.json())
-      .then((data) => setStatus(JSON.stringify(data)))
-      .catch((err) => setStatus(`Error: ${err.message}`));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
+  if (loading) return null; // or a Splash component, per Splash → Auth → Calibration
+
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-lg">Backend says: {status}</Text>
-    </View>
+    <NavigationContainer>
+      {session ? <CalibrationNavigator /> : <AuthNavigator />}
+    </NavigationContainer>
   );
 }
