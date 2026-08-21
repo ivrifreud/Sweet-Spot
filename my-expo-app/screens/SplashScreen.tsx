@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
   },
   ctaWrap: {
     alignItems: 'center',
+    zIndex: 3,
   },
   cta: {
     color: brand.goldBright,
