@@ -62,6 +62,7 @@ studio's characters, silhouettes, or trademarks.
 ### Bodies and limbs
 
 - Arms and legs follow long C- and S-curves: the classic rubber-hose principle.
+- Limbs should read **thick and confident**, not thin spaghetti lines.
 - Joints bend smoothly; do not draw anatomical elbows or knees unless needed by a pose.
 - Hands use **thick period animation gloves** with three fingers plus thumb.
 - Gloves have chunky padded palms, full rounded fingers, sturdy cuffs, and one or
