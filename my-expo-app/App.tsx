@@ -1,20 +1,26 @@
-import "./global.css";
-import { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import './global.css';
+
+import { StatusBar } from 'expo-status-bar';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { PeekAndPitchTemplate } from '@/features/templates/peek-and-pitch';
 
 export default function App() {
-  const [status, setStatus] = useState('Loading...');
-
-  useEffect(() => {
-    fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`)
-      .then((res) => res.json())
-      .then((data) => setStatus(JSON.stringify(data)))
-      .catch((err) => setStatus(`Error: ${err.message}`));
-  }, []);
-
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-lg">Backend says: {status}</Text>
-    </View>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <StatusBar style="light" />
+        <PeekAndPitchTemplate />
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#07090d',
+  },
+});
