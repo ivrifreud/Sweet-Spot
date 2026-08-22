@@ -1,22 +1,22 @@
 {
-    "cli": {
-      "version": ">= 5.9.0",
-      "appVersionSource": "remote"
+  "cli": {
+    "version": ">= 5.9.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
-      },
-      "preview": {
-        "distribution": "internal",
-        "channel": "pre-prod"
-      },
-      "production": {
-        "channel": "main"
-      }
+    "preview": {
+      "distribution": "internal",
+      "channel": "pre-prod"
     },
-    "submit": {
-      "production": {}
+    "production": {
+      "channel": "main"
     }
+  },
+  "submit": {
+    "production": {}
   }
+}

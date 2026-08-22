@@ -1,0 +1,1 @@
+export { BennysGardenBackground } from './BennysGardenBackground';
