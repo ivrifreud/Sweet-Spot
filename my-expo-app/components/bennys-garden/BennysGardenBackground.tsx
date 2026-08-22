@@ -35,9 +35,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playArea: {
-    flex: 1,
-    paddingTop: '42%',
-    paddingBottom: '24%',
-    paddingHorizontal: '10%',
+    ...StyleSheet.absoluteFillObject,
   },
 });
