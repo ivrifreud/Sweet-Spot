@@ -7,6 +7,9 @@ import type { PokerTableState } from './types';
 
 type Props = PokerTableState;
 
+const BACKGROUND_WIDTH = 1024;
+const BACKGROUND_HEIGHT = 1536;
+
 export function PokerTableOverlay({ holeCards, board, chipCount, chipSide = 'right' }: Props) {
   const [canvas, setCanvas] = useState({ width: 0, height: 0 });
 
@@ -19,15 +22,20 @@ export function PokerTableOverlay({ holeCards, board, chipCount, chipSide = 'rig
     setCanvas({ width, height });
   };
 
+  const coverScale = Math.max(canvas.width / BACKGROUND_WIDTH, canvas.height / BACKGROUND_HEIGHT);
+  const renderedHeight = BACKGROUND_HEIGHT * coverScale;
+  const verticalCrop = (canvas.height - renderedHeight) / 2;
+  const artworkY = (normalizedY: number) => verticalCrop + renderedHeight * normalizedY;
+
   return (
     <View onLayout={onLayout} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.board, { top: canvas.height * 0.48, width: canvas.width }]}>
+      <View style={[styles.board, { top: artworkY(0.53), width: canvas.width }]}>
         {board.map((card, index) => (
           <PlayingCard key={`${card.rank}-${card.suit}-${index}`} card={card} />
         ))}
       </View>
 
-      <View style={[styles.holeCards, { top: canvas.height * 0.68, width: canvas.width }]}>
+      <View style={[styles.holeCards, { top: artworkY(0.7), width: canvas.width }]}>
         <PlayingCard card={holeCards[0]} size="hole" rotation={-8} />
         <View style={styles.secondHoleCard}>
           <PlayingCard card={holeCards[1]} size="hole" rotation={8} />
@@ -37,7 +45,7 @@ export function PokerTableOverlay({ holeCards, board, chipCount, chipSide = 'rig
       <View
         style={[
           styles.chips,
-          { top: canvas.height * 0.66 },
+          { top: artworkY(0.67) },
           chipSide === 'left' ? styles.chipsLeft : styles.chipsRight,
         ]}>
         <ChipStack count={chipCount} />
