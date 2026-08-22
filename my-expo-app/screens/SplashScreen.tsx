@@ -21,7 +21,7 @@ export function SplashScreen({ onPressStart }: Props) {
       accessibilityLabel="Press to play">
       {({ pressed }) => (
         <ImageBackground
-          source={require('../assets/brand/splash-hero.png')}
+          source={require('../assets/brand/splash-opener-approved.png')}
           style={styles.bg}
           resizeMode="cover">
           <FallingChips />
