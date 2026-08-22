@@ -12,8 +12,8 @@ export const artStyle = {
     referenceImage: require('../assets/brand/artstyle/characters-old-cartoon-hero.png'),
   },
   chips: {
-    vibe: 'Gold metallic poker chip with spade cutout — round, beveled, classic casino token.',
-    referenceImage: require('../assets/brand/artstyle/chip-gold-spade-reference.png'),
+    vibe: 'Realistic thick 3D casino chip — dark teal, gold edge inserts, beveled spade center.',
+    referenceImage: require('../assets/brand/artstyle/casino-chip-3d-reference.png'),
   },
   colors: {
     teal: '#0B6B6E',
