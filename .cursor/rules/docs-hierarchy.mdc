@@ -1,0 +1,22 @@
+---
+description: Sweet Spot product docs hierarchy — MVP wins; Sprint scopes current build
+alwaysApply: true
+---
+
+# Product docs hierarchy
+
+When specs conflict, resolve in this order (do not ask the user to restate it):
+
+1. `docs/mvp.md` — master product scope (wins all conflicts)
+2. `docs/sprint-current.md` (or `docs/sprint1.md`) — what to build this sprint only
+3. Feature docs under `docs/` — detail for the feature being implemented
+4. Psychology / Business / Multiplayer Arena — post-MVP or philosophy only; not build authority
+
+## Hard rules
+
+- Do not implement features listed in MVP Section 10 (out of scope).
+- Canonical names: "The Peek and Pitch" (not "The Swipe"); tagging tray items are "Badges" (not "Profile Tags").
+- Level templates: L1 Peek and Pitch, L2 Sniper Slider, L3 Detective Board.
+- Daily Challenge: Gold Coins only — never Elo, XP, or Chip cost on failure.
+- Bankroll never reads/writes Gold Coins, Chips, or Elo.
+- Prefer `@docs/mvp.md` + current sprint file over pasting full specs into chat.
