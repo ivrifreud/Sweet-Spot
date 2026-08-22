@@ -53,7 +53,8 @@ studio's characters, silhouettes, or trademarks.
 - Build heads from beans, circles, pears, and soft wedges.
 - Use **pie-cut eyes**: black oval pupils with a cream wedge highlight.
 - Keep eyes close enough to read as one expressive unit.
-- Noses are simple black beans, rounded wedges, or short ink curves.
+- Noses are small cream/skin-tone beans or rounded wedges defined by warm ink.
+  Avoid large solid-black button noses on human characters.
 - Mouths use large readable crescents; teeth and tongues are simple graphic shapes.
 - Eyebrows float and bend for clarity.
 - Avoid realistic anatomy, detailed eyelashes, pores, or facial rendering.
@@ -62,8 +63,9 @@ studio's characters, silhouettes, or trademarks.
 
 - Arms and legs follow long C- and S-curves: the classic rubber-hose principle.
 - Joints bend smoothly; do not draw anatomical elbows or knees unless needed by a pose.
-- Hands use **period animation gloves** with three fingers plus thumb.
-- Gloves have cuff lines and one or two simple palm marks.
+- Hands use **thick period animation gloves** with three fingers plus thumb.
+- Gloves have chunky padded palms, full rounded fingers, sturdy cuffs, and one or
+  two simple palm marks. Avoid delicate wrists or thin, tapered hands.
 - Shoes are oversized, rounded, and easy to read in silhouette.
 - Torsos use simple pear, bean, or barrel shapes.
 
