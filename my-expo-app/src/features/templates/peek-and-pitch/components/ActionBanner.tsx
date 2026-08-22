@@ -48,7 +48,7 @@ export function ActionBanner({
 
         {onOpenPicker ? (
           <GestureDetector gesture={pickerTap}>
-            <View style={styles.pickerButton}>
+            <View testID="open-card-picker" style={styles.pickerButton}>
               <Text style={styles.pickerButtonText}>{STRINGS.chooseCards}</Text>
             </View>
           </GestureDetector>

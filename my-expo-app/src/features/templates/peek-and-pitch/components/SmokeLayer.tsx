@@ -20,10 +20,9 @@ type Puff = {
 };
 
 const PUFFS: Puff[] = [
-  { x: 0.12, y: 0.46, size: 90, drift: 26, duration: 11000, delay: 0 },
-  { x: 0.18, y: 0.42, size: 64, drift: -18, duration: 9000, delay: 3200 },
-  { x: 0.74, y: 0.4, size: 78, drift: 20, duration: 12500, delay: 1600 },
-  { x: 0.5, y: 0.3, size: 120, drift: -30, duration: 15000, delay: 5200 },
+  { x: 0.16, y: 0.5, size: 80, drift: 24, duration: 11000, delay: 0 },
+  { x: 0.24, y: 0.44, size: 58, drift: -16, duration: 9000, delay: 3200 },
+  { x: 0.72, y: 0.42, size: 70, drift: 18, duration: 12500, delay: 1600 },
 ];
 
 type SmokeLayerProps = {
@@ -56,7 +55,7 @@ function SmokePuff({ puff, width, height }: { puff: Puff; width: number; height:
     const p = progress.value;
 
     return {
-      opacity: interpolate(p, [0, 0.25, 0.7, 1], [0, 0.16, 0.09, 0]),
+      opacity: interpolate(p, [0, 0.3, 0.72, 1], [0, 0.06, 0.03, 0]),
       transform: [
         { translateY: -p * height * 0.3 },
         { translateX: puff.drift * p },
@@ -77,7 +76,7 @@ function SmokePuff({ puff, width, height }: { puff: Puff; width: number; height:
         },
         style,
       ]}>
-      {[1, 0.72, 0.44].map((scale) => (
+      {[1, 0.82, 0.62, 0.4].map((scale) => (
         <View
           key={scale}
           style={[
@@ -102,6 +101,6 @@ const styles = StyleSheet.create({
   },
   ring: {
     position: 'absolute',
-    backgroundColor: 'rgba(226,232,240,0.5)',
+    backgroundColor: 'rgba(226,232,240,0.35)',
   },
 });

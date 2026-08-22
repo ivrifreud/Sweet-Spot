@@ -30,11 +30,11 @@ export function TableScene({ skin, focus, width, height }: TableSceneProps) {
   const config = SKINS[skin];
 
   const blurStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(focus.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(focus.value, [0, 1], [0, 0.9], Extrapolation.CLAMP),
   }));
 
   const tintStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(focus.value, [0, 1], [0, 0.42], Extrapolation.CLAMP),
+    opacity: interpolate(focus.value, [0, 1], [0, 0.24], Extrapolation.CLAMP),
   }));
 
   return (
@@ -44,13 +44,13 @@ export function TableScene({ skin, focus, width, height }: TableSceneProps) {
       <SmokeLayer width={width} height={height} />
 
       <LinearGradient
-        colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.8)']}
-        locations={[0, 0.28, 0.7, 1]}
+        colors={['rgba(0,0,0,0.42)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.7)']}
+        locations={[0, 0.22, 0.72, 1]}
         style={StyleSheet.absoluteFill}
       />
 
       <AnimatedBlurView
-        intensity={26}
+        intensity={20}
         tint="dark"
         experimentalBlurMethod="dimezisBlurView"
         style={[StyleSheet.absoluteFill, blurStyle]}

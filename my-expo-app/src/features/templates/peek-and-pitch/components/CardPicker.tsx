@@ -61,6 +61,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
             {draft.map((card, index) => (
               <Pressable
                 key={index}
+                testID={`card-slot-${index}`}
                 onPress={() => setActiveSlot(index as 0 | 1)}
                 style={[
                   styles.slot,
@@ -87,6 +88,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
             {RANKS.map((rank: Rank) => (
               <Pressable
                 key={rank}
+                testID={`rank-${rank}`}
                 onPress={() => setSlot({ rank })}
                 style={[styles.cell, draft[activeSlot].rank === rank && styles.cellActive]}>
                 <Text style={styles.cellText}>{rank}</Text>
@@ -99,6 +101,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
             {SUITS.map((suit: Suit) => (
               <Pressable
                 key={suit}
+                testID={`suit-${suit}`}
                 onPress={() => setSlot({ suit })}
                 style={[styles.cell, draft[activeSlot].suit === suit && styles.cellActive]}>
                 <Text style={[styles.cellText, isRedSuit(suit) && styles.cellTextRed]}>
@@ -113,6 +116,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
             {(Object.keys(SKINS) as TableSkin[]).map((key) => (
               <Pressable
                 key={key}
+                testID={`skin-${key}`}
                 onPress={() => setDraftSkin(key)}
                 style={[styles.wideCell, draftSkin === key && styles.cellActive]}>
                 <Text style={styles.cellText}>{SKINS[key].label}</Text>
@@ -122,6 +126,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
 
           <View style={styles.actions}>
             <Pressable
+              testID="picker-random"
               style={[styles.button, styles.buttonGhost]}
               onPress={() => {
                 setDraft(randomHoleCards());
@@ -131,6 +136,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
             </Pressable>
 
             <Pressable
+              testID="picker-apply"
               disabled={duplicate}
               style={[styles.button, styles.buttonPrimary, duplicate && styles.buttonDisabled]}
               onPress={() => onApply(draft, draftSkin)}>

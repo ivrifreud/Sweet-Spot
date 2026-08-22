@@ -199,48 +199,44 @@ type PeelWindowProps = {
 };
 
 /**
- * The lifted corner of the card. The panel hinges on its right edge so the left side
- * bends up towards the camera, uncovering the rank/suit index printed underneath.
+ * The bent half of the card. The player pins the far edge with a finger and lifts the near
+ * side, so the card folds along a vertical crease and the index underneath comes into view —
+ * the way a live player looks at their hole cards without showing the table.
  */
 function PeelWindow({ card, cardWidth, peek, muck }: PeelWindowProps) {
   const cardHeight = cardWidth * CARD_ASPECT;
-  const windowWidth = cardWidth * 0.64;
-  const windowHeight = cardHeight * 0.62;
+  const foldAt = cardWidth * 0.58;
 
   const panelStyle = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
 
     return {
-      opacity: interpolate(lift, [0, 0.06, 0.2], [0, 0.35, 1], Extrapolation.CLAMP),
+      opacity: interpolate(lift, [0, 0.04, 0.16], [0, 0.45, 1], Extrapolation.CLAMP),
       transform: [
-        { perspective: 420 },
-        { translateX: -lift * cardWidth * 0.04 },
+        { perspective: 340 },
+        { rotateY: `${lift * 34}deg` },
+        { rotateZ: `${-lift * 2.5}deg` },
         { translateY: -lift * cardHeight * 0.02 },
-        { rotateY: `${-lift * 34}deg` },
-        { rotateZ: `${-lift * 4}deg` },
       ],
     };
   });
 
-  const foldStyle = useAnimatedStyle(() => ({
+  const creaseStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       peek.value * (1 - muck.value),
-      [0, 0.3, 1],
-      [0, 0.5, 1],
+      [0, 0.2, 1],
+      [0, 0.45, 1],
       Extrapolation.CLAMP
     ),
   }));
 
   return (
     <>
+      {/* Shadow the fold throws onto the half of the card still flat on the felt. */}
       <Animated.View
-        style={[
-          styles.foldShadow,
-          { left: windowWidth - 2, width: cardWidth * 0.3, height: windowHeight },
-          foldStyle,
-        ]}>
+        style={[styles.crease, { left: foldAt, width: cardWidth * 0.26 }, creaseStyle]}>
         <LinearGradient
-          colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)']}
+          colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.16)', 'rgba(0,0,0,0)']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
@@ -251,19 +247,25 @@ function PeelWindow({ card, cardWidth, peek, muck }: PeelWindowProps) {
         style={[
           styles.peelPanel,
           {
-            width: windowWidth,
-            height: windowHeight,
+            width: foldAt,
             transformOrigin: '100% 50%',
-            paddingLeft: cardWidth * 0.08,
+            paddingLeft: cardWidth * 0.1,
+            paddingTop: cardHeight * 0.05,
           },
           panelStyle,
         ]}>
         <CardIndex card={card} width={cardWidth} />
         <LinearGradient
-          colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0.16)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, styles.sheen]}
+          colors={[
+            'rgba(255,255,255,0.5)',
+            'rgba(255,255,255,0.1)',
+            'rgba(0,0,0,0.1)',
+            'rgba(0,0,0,0.4)',
+          ]}
+          locations={[0, 0.35, 0.72, 1]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
       </Animated.View>
@@ -291,26 +293,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
+    bottom: 0,
     backgroundColor: '#f7f4ee',
     borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 3,
+    borderBottomLeftRadius: 8,
     borderTopRightRadius: 2,
     borderBottomRightRadius: 2,
-    justifyContent: 'center',
     alignItems: 'flex-start',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    shadowOffset: { width: -4, height: 4 },
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 9,
+    shadowOffset: { width: 4, height: 5 },
+    elevation: 9,
   },
-  foldShadow: {
+  crease: {
     position: 'absolute',
     top: 0,
+    bottom: 0,
     overflow: 'hidden',
-  },
-  sheen: {
-    borderRadius: 6,
   },
 });

@@ -38,8 +38,8 @@ export function CardIndex({ card, width }: CardFaceProps) {
 
   return (
     <View style={styles.indexOnly}>
-      <Text style={[styles.rank, { fontSize: width * 0.5, color }]}>{card.rank}</Text>
-      <Text style={[styles.suit, { fontSize: width * 0.4, color }]}>{SUIT_GLYPH[card.suit]}</Text>
+      <Text style={[styles.rank, { fontSize: width * 0.4, color }]}>{card.rank}</Text>
+      <Text style={[styles.suit, { fontSize: width * 0.32, color }]}>{SUIT_GLYPH[card.suit]}</Text>
     </View>
   );
 }

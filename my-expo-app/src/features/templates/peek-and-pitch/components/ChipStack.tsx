@@ -1,16 +1,19 @@
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useDerivedValue,
+  withSpring,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { Chip, type ChipTone } from './Chip';
 
-export const CHIP_SIZE = 68;
-export const CHIP_FLATTEN = 0.32;
+export const CHIP_SIZE = 58;
+export const CHIP_FLATTEN = 0.34;
 
 const COLUMNS: { tone: ChipTone; count: number }[] = [
-  { tone: 'red', count: 9 },
-  { tone: 'blue', count: 6 },
-  { tone: 'black', count: 4 },
+  { tone: 'red', count: 8 },
+  { tone: 'blue', count: 5 },
 ];
 
 type ChipStackProps = {
@@ -18,61 +21,51 @@ type ChipStackProps = {
   disabled: boolean;
   /** Chips already pushed into the pot — they disappear off the top of the stack. */
   pushed: number;
-  onRaise: () => void;
+  /** 1 while the player is holding the stack. Owned by the template's gesture layer. */
+  press: SharedValue<number>;
 };
 
 /**
  * The player's own stack in the foreground. Tapping it pushes chips towards the pot —
- * no sizing maths, the tap itself is the raise.
+ * no sizing maths, the tap itself is the raise. The tap gesture lives in the template so
+ * that a swipe starting on the chips can still muck the hand.
  */
-export function ChipStack({ stackLabel, disabled, pushed, onRaise }: ChipStackProps) {
-  const press = useSharedValue(0);
-
-  const tap = Gesture.Tap()
-    .enabled(!disabled)
-    .maxDuration(600)
-    .onBegin(() => {
-      press.value = withSpring(1, { damping: 18, stiffness: 320 });
-    })
-    .onEnd((_event, success) => {
-      if (success) {
-        onRaise();
-      }
-    })
-    .onFinalize(() => {
-      press.value = withSpring(0, { damping: 16, stiffness: 220 });
-    });
+export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProps) {
+  const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: press.value * 4 }, { scale: 1 - press.value * 0.03 }],
+    transform: [{ translateY: held.value * 4 }, { scale: 1 - held.value * 0.03 }],
   }));
 
   const chipStep = CHIP_SIZE * CHIP_FLATTEN * 0.42;
 
   return (
-    <GestureDetector gesture={tap}>
-      <Animated.View style={[styles.root, pressStyle]}>
-        <View style={styles.columns}>
-          {COLUMNS.map((column, columnIndex) => {
-            const remaining = columnIndex === 0 ? Math.max(2, column.count - pushed) : column.count;
+    <Animated.View style={[styles.root, pressStyle]}>
+      <View style={styles.columns}>
+        {COLUMNS.map((column, columnIndex) => {
+          const remaining = columnIndex === 0 ? Math.max(2, column.count - pushed) : column.count;
 
-            return (
-              <View key={column.tone} style={styles.column}>
-                {Array.from({ length: remaining }).map((_, chipIndex) => (
-                  <View key={chipIndex} style={{ marginBottom: chipIndex === 0 ? 0 : -chipStep }}>
-                    <Chip tone={column.tone} size={CHIP_SIZE} flatten={CHIP_FLATTEN} />
-                  </View>
-                ))}
-              </View>
-            );
-          })}
-        </View>
+          return (
+            <View key={column.tone} style={styles.column}>
+              {Array.from({ length: remaining }).map((_, chipIndex) => (
+                <View key={chipIndex} style={{ marginBottom: chipIndex === 0 ? 0 : -chipStep }}>
+                  <Chip
+                    tone={column.tone}
+                    size={CHIP_SIZE}
+                    flatten={CHIP_FLATTEN}
+                    cap={chipIndex === remaining - 1}
+                  />
+                </View>
+              ))}
+            </View>
+          );
+        })}
+      </View>
 
-        <View style={[styles.badge, disabled && styles.badgeDisabled]}>
-          <Text style={styles.badgeText}>{stackLabel}</Text>
-        </View>
-      </Animated.View>
-    </GestureDetector>
+      <View style={[styles.badge, disabled && styles.badgeDisabled]}>
+        <Text style={styles.badgeText}>{stackLabel}</Text>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -90,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badge: {
-    marginTop: 8,
+    marginTop: 6,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,

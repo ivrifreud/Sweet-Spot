@@ -18,6 +18,9 @@ export type ChipFlight = {
   from: { x: number; y: number };
   to: { x: number; y: number };
   delayMs: number;
+  durationMs: number;
+  /** Height of the toss, in pixels. Varied per chip so the push does not look rigid. */
+  arc: number;
   spin: number;
 };
 
@@ -42,14 +45,14 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
   useEffect(() => {
     progress.value = withDelay(
       flight.delayMs,
-      withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) })
+      withTiming(1, { duration: flight.durationMs, easing: Easing.out(Easing.cubic) })
     );
-  }, [flight.delayMs, progress]);
+  }, [flight.delayMs, flight.durationMs, progress]);
 
-  const size = CHIP_SIZE * 0.62;
+  const size = CHIP_SIZE * 0.85;
   const dx = flight.to.x - flight.from.x;
   const dy = flight.to.y - flight.from.y;
-  const arc = Math.max(60, Math.abs(dy) * 0.35);
+  const arc = flight.arc;
 
   const style = useAnimatedStyle(() => {
     const p = progress.value;
@@ -59,8 +62,9 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
       transform: [
         { translateX: dx * p },
         { translateY: dy * p - arc * Math.sin(Math.PI * p) },
-        { rotate: `${flight.spin * 200 * p}deg` },
-        { scale: 1 - 0.4 * p },
+        { rotate: `${flight.spin * 160 * p}deg` },
+        // Chips shrink as they travel away from the player's eye line.
+        { scale: 1 - 0.28 * p },
       ],
     };
   });
@@ -76,7 +80,7 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
         },
         style,
       ]}>
-      <Chip tone={flight.tone} size={size} flatten={CHIP_FLATTEN} />
+      <Chip tone={flight.tone} size={size} flatten={CHIP_FLATTEN} cap />
     </Animated.View>
   );
 }

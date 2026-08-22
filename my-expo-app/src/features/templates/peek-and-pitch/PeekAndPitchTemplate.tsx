@@ -27,7 +27,7 @@ import { GestureHints } from './components/GestureHints';
 import { HoleCards } from './components/HoleCards';
 import { CARD_ASPECT } from './components/PlayingCard';
 import { TableScene } from './components/TableScene';
-import { DEFAULT_SPOT, GESTURES, SKINS } from './config';
+import { DEFAULT_SPOT, GESTURES, SKINS, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
 
@@ -46,9 +46,24 @@ export type PeekAndPitchTemplateProps = {
   showAuthoringControls?: boolean;
 };
 
+type Rect = { x: number; y: number; width: number; height: number };
+
 function clampWorklet(value: number, min: number, max: number) {
   'worklet';
   return Math.min(Math.max(value, min), max);
+}
+
+/** Generous hit test so the stack is easy to hit with a thumb. */
+function insideStack(x: number, y: number, rect: Rect) {
+  'worklet';
+  const pad = 12;
+  return (
+    rect.width > 0 &&
+    x >= rect.x - pad &&
+    x <= rect.x + rect.width + pad &&
+    y >= rect.y - pad &&
+    y <= rect.y + rect.height + pad
+  );
 }
 
 /**
@@ -88,35 +103,38 @@ export function PeekAndPitchTemplate({
   const peekBase = useSharedValue(0);
   const gestureMode = useSharedValue(MODE_UNDECIDED);
   const startedLow = useSharedValue(0);
+  const stackPress = useSharedValue(0);
+  const stackRect = useSharedValue<Rect>({ x: 0, y: 0, width: 0, height: 0 });
 
   const skin = SKINS[activeSpot.skin];
 
-  const cardWidth = Math.min(width * 0.3, 128);
+  const cardWidth = Math.min(width * 0.27, 118);
   const cardHeight = cardWidth * CARD_ASPECT;
 
   const geometry = useMemo(() => {
-    const stackAnchor = {
-      x: width - 92,
-      y: height - insets.bottom - 78,
-    };
+    const screen = { width, height };
+    // Room kept below the cards for the rail: the muck swipe and the next-hand button.
+    const rail = Math.max(88, height * 0.12);
 
     return {
-      dealOrigin: { x: width * skin.dealOrigin.x, y: height * skin.dealOrigin.y },
-      tableCenter: { x: width * skin.tableCenter.x, y: height * skin.tableCenter.y },
+      dealOrigin: mapBackdropPoint(skin.dealOrigin, skin.backgroundSize, screen),
+      tableCenter: mapBackdropPoint(skin.tableCenter, skin.backgroundSize, screen),
       restCenter: {
-        x: width * 0.36,
-        y: height - insets.bottom - 56 - cardHeight / 2,
+        x: width * 0.34,
+        y: height - insets.bottom - rail - cardHeight / 2,
       },
-      stackAnchor,
+      stackAnchor: {
+        x: width - 74,
+        y: height - insets.bottom - rail + 20,
+      },
     };
   }, [
     cardHeight,
     height,
     insets.bottom,
-    skin.dealOrigin.x,
-    skin.dealOrigin.y,
-    skin.tableCenter.x,
-    skin.tableCenter.y,
+    skin.backgroundSize,
+    skin.dealOrigin,
+    skin.tableCenter,
     width,
   ]);
 
@@ -191,14 +209,16 @@ export function PeekAndPitchTemplate({
         id: `chip-${flightSeed.current}`,
         tone,
         from: {
-          x: stackAnchor.x + (Math.random() - 0.5) * 18,
-          y: stackAnchor.y - index * 5,
+          x: stackAnchor.x + (Math.random() - 0.5) * 26,
+          y: stackAnchor.y - index * 6,
         },
         to: {
-          x: tableCenter.x + (Math.random() - 0.5) * 66,
-          y: tableCenter.y + (Math.random() - 0.5) * 34,
+          x: tableCenter.x + (Math.random() - 0.5) * 78,
+          y: tableCenter.y + (Math.random() - 0.5) * 40,
         },
-        delayMs: index * 55,
+        delayMs: index * 85 + Math.random() * 40,
+        durationMs: 480 + Math.random() * 200,
+        arc: 55 + Math.random() * 70,
         spin: Math.random() > 0.5 ? 1 : -1,
       };
     });
@@ -275,6 +295,25 @@ export function PeekAndPitchTemplate({
       }
     });
 
+  // The stack tap lives on the same layer as the drags, otherwise the chips would swallow
+  // muck swipes that start on top of them.
+  const tapStack = Gesture.Tap()
+    .enabled(phase === 'live')
+    .maxDistance(14)
+    .onBegin((event) => {
+      stackPress.value = insideStack(event.x, event.y, stackRect.value) ? 1 : 0;
+    })
+    .onEnd((event, success) => {
+      if (success && insideStack(event.x, event.y, stackRect.value)) {
+        runOnJS(handleRaise)();
+      }
+    })
+    .onFinalize(() => {
+      stackPress.value = 0;
+    });
+
+  const tableGestures = Gesture.Race(tapStack, pan);
+
   const handLabel = describeHoleCards(cards);
 
   return (
@@ -295,22 +334,26 @@ export function PeekAndPitchTemplate({
         restCenter={geometry.restCenter}
       />
 
-      <GestureHints peek={peek} peeked={peeked} visible={phase === 'live'} />
-
-      <GestureDetector gesture={pan}>
-        <Animated.View style={StyleSheet.absoluteFill} collapsable={false} />
-      </GestureDetector>
-
       <View
-        style={[styles.stackHolder, { bottom: insets.bottom + 14, right: 16 }]}
-        pointerEvents="box-none">
+        style={[styles.stackHolder, { bottom: insets.bottom + 10, right: 12 }]}
+        pointerEvents="none"
+        onLayout={(event) => {
+          const { x, y, width: w, height: h } = event.nativeEvent.layout;
+          stackRect.value = { x, y, width: w, height: h };
+        }}>
         <ChipStack
           stackLabel={activeSpot.heroStackLabel}
           disabled={phase !== 'live'}
           pushed={pushedChips}
-          onRaise={handleRaise}
+          press={stackPress}
         />
       </View>
+
+      <GestureHints peek={peek} peeked={peeked} visible={phase === 'live'} />
+
+      <GestureDetector gesture={tableGestures}>
+        <Animated.View style={StyleSheet.absoluteFill} collapsable={false} />
+      </GestureDetector>
 
       <View style={[styles.bannerHolder, { top: insets.top + 10 }]} pointerEvents="box-none">
         <ActionBanner
@@ -325,8 +368,11 @@ export function PeekAndPitchTemplate({
       </View>
 
       {phase === 'resolved' ? (
-        <View style={[styles.footer, { bottom: insets.bottom + 18 }]} pointerEvents="box-none">
-          <Pressable style={styles.nextButton} onPress={() => dealHand(activeSpot)}>
+        <View style={[styles.footer, { bottom: insets.bottom + 24 }]} pointerEvents="box-none">
+          <Pressable
+            testID="deal-next-hand"
+            style={styles.nextButton}
+            onPress={() => dealHand(activeSpot)}>
             <Text style={styles.nextButtonText}>{STRINGS.nextHand}</Text>
           </Pressable>
         </View>
@@ -367,8 +413,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 16,
+    // Keeps clear of the chip stack in the bottom-right corner.
+    right: 148,
     alignItems: 'center',
   },
   nextButton: {
