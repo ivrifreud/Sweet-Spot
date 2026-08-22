@@ -79,7 +79,7 @@ export function BennysGardenPreviewScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.chipControls, { bottom: insets.bottom + 12 }]}>
+      <View style={[styles.chipControls, { top: insets.top + 72 }]}>
         <Pressable
           accessibilityLabel="Remove ten chips"
           onPress={() => setChipAdjustment((value) => value - 10)}
