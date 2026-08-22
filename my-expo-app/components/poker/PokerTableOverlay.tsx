@@ -8,25 +8,26 @@ import type { PokerTableState } from './types';
 type Props = PokerTableState;
 
 export function PokerTableOverlay({ holeCards, board, chipCount, chipSide = 'right' }: Props) {
-  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [canvas, setCanvas] = useState({ width: 0, height: 0 });
 
   if (board.length > 5) {
     throw new Error('A poker board cannot contain more than five cards.');
   }
 
   const onLayout = (event: LayoutChangeEvent) => {
-    setCanvasWidth(event.nativeEvent.layout.width);
+    const { width, height } = event.nativeEvent.layout;
+    setCanvas({ width, height });
   };
 
   return (
     <View onLayout={onLayout} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.board, { top: canvasWidth * 0.72, width: canvasWidth }]}>
+      <View style={[styles.board, { top: canvas.height * 0.48, width: canvas.width }]}>
         {board.map((card, index) => (
           <PlayingCard key={`${card.rank}-${card.suit}-${index}`} card={card} />
         ))}
       </View>
 
-      <View style={[styles.holeCards, { top: canvasWidth * 1.02, width: canvasWidth }]}>
+      <View style={[styles.holeCards, { top: canvas.height * 0.68, width: canvas.width }]}>
         <PlayingCard card={holeCards[0]} size="hole" rotation={-8} />
         <View style={styles.secondHoleCard}>
           <PlayingCard card={holeCards[1]} size="hole" rotation={8} />
@@ -36,7 +37,7 @@ export function PokerTableOverlay({ holeCards, board, chipCount, chipSide = 'rig
       <View
         style={[
           styles.chips,
-          { top: canvasWidth * 0.98 },
+          { top: canvas.height * 0.66 },
           chipSide === 'left' ? styles.chipsLeft : styles.chipsRight,
         ]}>
         <ChipStack count={chipCount} />
