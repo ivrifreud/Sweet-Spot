@@ -1,66 +1,43 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BennysGardenBackground } from '../components/bennys-garden';
-import { BENNYS_GARDEN_VARIANTS, type LightingMode } from '../theme/bennysGarden';
+import { type LightingMode } from '../theme/bennysGarden';
 import { artStyle } from '../theme/artStyle';
 
 export function BennysGardenPreviewScreen() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<LightingMode>('night');
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const activeVariant = BENNYS_GARDEN_VARIANTS[activeIndex];
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Benny&apos;s Garden</Text>
-        <Text style={styles.subtitle}>World 1 background theme — pick a layout</Text>
+    <View style={styles.root}>
+      <StatusBar style={mode === 'night' ? 'light' : 'dark'} />
+      <BennysGardenBackground mode={mode} />
 
-        <View style={styles.modeToggle}>
+      <View
+        style={[
+          styles.controls,
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12 },
+        ]}>
+        <Text style={styles.label}>Benny&apos;s Garden</Text>
+        <View style={styles.toggleRow}>
           {(['night', 'light'] as LightingMode[]).map((option) => {
-            const selected = mode === option;
+            const active = mode === option;
             return (
               <Pressable
                 key={option}
                 onPress={() => setMode(option)}
-                style={[styles.modeButton, selected && styles.modeButtonActive]}>
-                <Text style={[styles.modeLabel, selected && styles.modeLabelActive]}>
-                  {option === 'night' ? 'Night Mode' : 'Light Mode'}
+                style={[styles.toggle, active && styles.toggleActive]}>
+                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>
+                  {option === 'night' ? 'Night' : 'Light'}
                 </Text>
               </Pressable>
             );
           })}
         </View>
       </View>
-
-      <View style={styles.previewFrame}>
-        <BennysGardenBackground variantId={activeVariant.id} mode={mode} />
-        <View style={styles.previewBadge} pointerEvents="none">
-          <Text style={styles.previewBadgeText}>{activeVariant.name}</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.variantRow, { paddingBottom: insets.bottom + 12 }]}>
-        {BENNYS_GARDEN_VARIANTS.map((variant, index) => {
-          const selected = index === activeIndex;
-          return (
-            <Pressable
-              key={variant.id}
-              onPress={() => setActiveIndex(index)}
-              style={[styles.variantCard, selected && styles.variantCardActive]}>
-              <Text style={styles.variantNumber}>Example {index + 1}</Text>
-              <Text style={styles.variantName}>{variant.name}</Text>
-              <Text style={styles.variantDescription}>{variant.description}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
     </View>
   );
 }
@@ -72,104 +49,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.projectorBlack,
   },
-  header: {
+  controls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  title: {
-    color: colors.goldBright,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  subtitle: {
+  label: {
     color: colors.cream,
-    fontSize: 14,
-    opacity: 0.85,
+    fontSize: 15,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  modeToggle: {
+  toggleRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
   },
-  modeButton: {
+  toggle: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 2,
     borderColor: colors.tealFaded,
-    backgroundColor: 'rgba(11, 95, 93, 0.35)',
+    backgroundColor: 'rgba(17, 23, 20, 0.65)',
   },
-  modeButtonActive: {
+  toggleActive: {
     borderColor: colors.goldBright,
     backgroundColor: colors.teal,
   },
-  modeLabel: {
+  toggleText: {
     color: colors.cream,
     fontSize: 13,
     fontWeight: '600',
   },
-  modeLabelActive: {
+  toggleTextActive: {
     color: colors.goldBright,
-  },
-  previewFrame: {
-    flex: 1,
-    marginHorizontal: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: colors.tobacco,
-  },
-  previewBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(17, 23, 20, 0.72)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: colors.gold,
-  },
-  previewBadgeText: {
-    color: colors.cream,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  variantRow: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    gap: 10,
-  },
-  variantCard: {
-    width: 260,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.tealFaded,
-    backgroundColor: 'rgba(11, 95, 93, 0.25)',
-  },
-  variantCardActive: {
-    borderColor: colors.goldBright,
-    backgroundColor: 'rgba(11, 95, 93, 0.55)',
-  },
-  variantNumber: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  variantName: {
-    color: colors.cream,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  variantDescription: {
-    color: colors.cream,
-    fontSize: 12,
-    lineHeight: 17,
-    opacity: 0.85,
   },
 });
