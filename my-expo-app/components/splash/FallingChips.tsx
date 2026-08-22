@@ -22,6 +22,17 @@ type ChipSpec = {
   spinDir: 1 | -1;
 };
 
+export type GravityFallingChipsProps = {
+  /** Number of chips in the repeating rain. */
+  count?: number;
+  /** Smallest rendered chip in pixels. */
+  minSize?: number;
+  /** Milliseconds for the fastest fall. */
+  baseDuration?: number;
+  /** Layer order, so the effect can sit behind or above different UI. */
+  zIndex?: number;
+};
+
 function FallingChip({ chip }: { chip: ChipSpec }) {
   const progress = useSharedValue(0);
   const spin = useSharedValue(0);
@@ -52,17 +63,15 @@ function FallingChip({ chip }: { chip: ChipSpec }) {
     const opacity = interpolate(progress.value, [0, 0.03, 0.9, 1], [0, 1, 1, 0]);
 
     return {
-      transform: [
-        { translateY: y },
-        { translateX: xDrift },
-        { rotate: `${spin.value}deg` },
-      ],
+      transform: [{ translateY: y }, { translateX: xDrift }, { rotate: `${spin.value}deg` }],
       opacity,
     };
   });
 
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: chip.x, top: 0 }, style]}>
+    <Animated.View
+      pointerEvents="none"
+      style={[{ position: 'absolute', left: chip.x, top: 0 }, style]}>
       <Image
         source={CHIP_IMAGE}
         style={{ width: chip.size, height: chip.size, backgroundColor: 'transparent' }}
@@ -72,21 +81,32 @@ function FallingChip({ chip }: { chip: ChipSpec }) {
   );
 }
 
-export function FallingChips({ count = 12 }: { count?: number }) {
+/**
+ * Reusable reward-rain mechanic.
+ *
+ * The vertical position follows time², producing visible gravitational
+ * acceleration. Use it for splash, jackpots, stage completion, and streaks.
+ */
+export function GravityFallingChips({
+  count = 12,
+  minSize = 52,
+  baseDuration = 3600,
+  zIndex = 2,
+}: GravityFallingChipsProps) {
   const chips = useMemo<ChipSpec[]>(() => {
     return Array.from({ length: count }, (_, id) => ({
       id,
       x: 6 + ((id * 79) % Math.max(SCREEN_W - 70, 40)),
-      size: 52 + (id % 4) * 7,
+      size: minSize + (id % 4) * 7,
       delay: (id * 280) % 3600,
-      duration: 3600 + (id % 5) * 520,
+      duration: baseDuration + (id % 5) * 520,
       wobble: 16 + (id % 5) * 8,
       spinDir: id % 2 === 0 ? (1 as const) : (-1 as const),
     }));
-  }, [count]);
+  }, [baseDuration, count, minSize]);
 
   return (
-    <View pointerEvents="none" style={styles.layer}>
+    <View pointerEvents="none" style={[styles.layer, { zIndex }]}>
       {chips.map((chip) => (
         <FallingChip key={chip.id} chip={chip} />
       ))}
@@ -94,10 +114,14 @@ export function FallingChips({ count = 12 }: { count?: number }) {
   );
 }
 
+/** Splash-compatible name kept to avoid breaking the current screen. */
+export function FallingChips(props: GravityFallingChipsProps) {
+  return <GravityFallingChips {...props} />;
+}
+
 const styles = StyleSheet.create({
   layer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
     overflow: 'visible',
   },
 });
