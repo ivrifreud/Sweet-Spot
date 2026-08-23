@@ -28,10 +28,10 @@ export const SUIT_NAME: Record<Suit, string> = {
 
 /** Classic two-colour deck, matching the felt-and-smoke look of the table art. */
 export const SUIT_COLOR: Record<Suit, string> = {
-  s: '#16181d',
-  c: '#16181d',
-  h: '#c8102e',
-  d: '#c8102e',
+  s: '#111714',
+  c: '#111714',
+  h: '#A43E32',
+  d: '#A43E32',
 };
 
 export function isRedSuit(suit: Suit): boolean {

@@ -6,54 +6,62 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Chip, type ChipTone } from './Chip';
+import { Chip, CHIP_ART_ASPECT } from './Chip';
 
-export const CHIP_SIZE = 58;
-export const CHIP_FLATTEN = 0.34;
+export const CHIP_SIZE = 56;
+export const CHIP_STACK_STEP = 11;
 
-const COLUMNS: { tone: ChipTone; count: number }[] = [
-  { tone: 'red', count: 8 },
-  { tone: 'blue', count: 5 },
+const CHIP_HEIGHT = CHIP_SIZE * CHIP_ART_ASPECT;
+
+const COLUMNS: { count: number; rotate: number }[] = [
+  { count: 4, rotate: -6 },
+  { count: 5, rotate: 3 },
+  { count: 3, rotate: 9 },
 ];
 
 type ChipStackProps = {
   stackLabel: string;
   disabled: boolean;
-  /** Chips already pushed into the pot — they disappear off the top of the stack. */
   pushed: number;
-  /** 1 while the player is holding the stack. Owned by the template's gesture layer. */
   press: SharedValue<number>;
 };
 
-/**
- * The player's own stack in the foreground. Tapping it pushes chips towards the pot —
- * no sizing maths, the tap itself is the raise. The tap gesture lives in the template so
- * that a swipe starting on the chips can still muck the hand.
- */
 export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProps) {
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: held.value * 4 }, { scale: 1 - held.value * 0.03 }],
+    transform: [{ translateY: held.value * 5 }, { scale: 1 - held.value * 0.04 }],
   }));
-
-  const chipStep = CHIP_SIZE * CHIP_FLATTEN * 0.42;
 
   return (
     <Animated.View style={[styles.root, pressStyle]}>
       <View style={styles.columns}>
         {COLUMNS.map((column, columnIndex) => {
-          const remaining = columnIndex === 0 ? Math.max(2, column.count - pushed) : column.count;
+          const taken = columnIndex === 1 ? Math.min(pushed, column.count - 2) : 0;
+          const remaining = Math.max(2, column.count - taken);
+          const stackHeight = CHIP_HEIGHT + (remaining - 1) * CHIP_STACK_STEP;
 
           return (
-            <View key={column.tone} style={styles.column}>
+            <View
+              key={columnIndex}
+              style={[
+                styles.column,
+                { width: CHIP_SIZE, height: stackHeight },
+                columnIndex === 1 && styles.columnFront,
+                columnIndex === 2 && styles.columnRight,
+              ]}>
               {Array.from({ length: remaining }).map((_, chipIndex) => (
-                <View key={chipIndex} style={{ marginBottom: chipIndex === 0 ? 0 : -chipStep }}>
+                <View
+                  key={chipIndex}
+                  style={[
+                    styles.chipSlot,
+                    { bottom: chipIndex * CHIP_STACK_STEP, zIndex: chipIndex },
+                  ]}>
                   <Chip
-                    tone={column.tone}
                     size={CHIP_SIZE}
-                    flatten={CHIP_FLATTEN}
-                    cap={chipIndex === remaining - 1}
+                    rotate={column.rotate}
+                    shadow={chipIndex === 0}
+                    shadowStrength={0.85}
                   />
                 </View>
               ))}
@@ -76,14 +84,27 @@ const styles = StyleSheet.create({
   columns: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    columnGap: 6,
+    paddingLeft: 8,
   },
   column: {
-    flexDirection: 'column-reverse',
-    alignItems: 'center',
+    position: 'relative',
+  },
+  columnFront: {
+    marginLeft: -22,
+    marginBottom: 10,
+    zIndex: 3,
+  },
+  columnRight: {
+    marginLeft: -20,
+    marginBottom: 4,
+    zIndex: 2,
+  },
+  chipSlot: {
+    position: 'absolute',
+    left: 0,
   },
   badge: {
-    marginTop: 6,
+    marginTop: 4,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,

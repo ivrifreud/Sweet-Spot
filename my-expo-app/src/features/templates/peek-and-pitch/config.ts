@@ -15,26 +15,33 @@ type SkinConfig = {
   tableCenter: Point;
   feltTint: string;
   accent: string;
+  /**
+   * Colour used to cover the bottom of the backdrop. Garden art paints hero gloves
+   * into that strip; the overlay glove needs a clean rail to sit on.
+   */
+  railCover: [string, string];
 };
 
 export const SKINS: Record<TableSkin, SkinConfig> = {
   casino: {
     label: 'Local Casino',
-    background: require('../../../../assets/tables/pov-table-casino.jpg'),
-    backgroundSize: { width: 900, height: 1350 },
-    dealOrigin: { x: 0.5, y: 0.37 },
-    tableCenter: { x: 0.5, y: 0.52 },
-    feltTint: '#0d1420',
-    accent: '#f0c15c',
+    background: require('../../../../assets/tables/pov-table-casino-1930s.png'),
+    backgroundSize: { width: 1024, height: 1536 },
+    dealOrigin: { x: 0.5, y: 0.34 },
+    tableCenter: { x: 0.5, y: 0.48 },
+    feltTint: '#111714',
+    accent: '#C89B3C',
+    railCover: ['rgba(17,23,20,0)', 'rgba(12,18,16,0.72)'],
   },
   garden: {
     label: "Benny's Garden",
-    background: require('../../../../assets/tables/pov-table-garden.jpg'),
-    backgroundSize: { width: 900, height: 1350 },
-    dealOrigin: { x: 0.5, y: 0.38 },
-    tableCenter: { x: 0.47, y: 0.5 },
-    feltTint: '#14200f',
-    accent: '#8fd694',
+    background: require('../../../../assets/themes/bennys-garden/night-playable.png'),
+    backgroundSize: { width: 1024, height: 1536 },
+    dealOrigin: { x: 0.5, y: 0.36 },
+    tableCenter: { x: 0.5, y: 0.48 },
+    feltTint: '#14110c',
+    accent: '#E6C46A',
+    railCover: ['rgba(32,22,12,0)', 'rgba(22,16,10,0.94)'],
   },
 };
 
@@ -75,7 +82,7 @@ export const GESTURES = {
 
 export const DEFAULT_SPOT: PeekAndPitchSpot = {
   id: 'preflop-btn-vs-utg-open',
-  skin: 'casino',
+  skin: 'garden',
   heroCards: ['Ah', 'Ac'],
   position: 'BTN',
   actionLine: 'UTG opens to $15 \u00b7 2 callers',

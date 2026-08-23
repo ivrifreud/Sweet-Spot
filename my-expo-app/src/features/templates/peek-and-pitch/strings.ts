@@ -1,9 +1,9 @@
 /** All player-facing copy for the template, kept in one place for localisation. */
 export const STRINGS = {
-  peekHint: 'Drag down to peek',
-  peekHintHeld: 'Release to keep them up',
-  muckHint: 'Swipe up from the rail to muck',
-  raiseHint: 'Tap your stack to raise',
+  peekHint: 'Hold to peek',
+  peekHintHeld: 'Release to put them down',
+  muckHint: 'Swipe up to throw them in',
+  raiseHint: 'Tap your chips to raise',
   folded: 'Mucked',
   raised: 'Raise',
   nextHand: 'Deal next hand',
