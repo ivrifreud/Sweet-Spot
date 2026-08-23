@@ -13,6 +13,11 @@ import { PeekAndPitchTemplate } from '@/features/templates/peek-and-pitch';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { supabase } from './lib/supabase';
 
+/**
+ * Signed-in users land on Template 1 (Peek and Pitch).
+ * Benny's Garden theme + PokerQuestionScene live under components/theme for
+ * shared World 1 skinning across templates; they are not the App entry yet.
+ */
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
