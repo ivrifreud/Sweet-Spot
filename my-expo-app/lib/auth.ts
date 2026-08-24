@@ -1,10 +1,11 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { supabase } from './supabase';
+import { requireSupabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export async function signInWithGoogle() {
+  const supabase = requireSupabase();
   const redirectTo = Linking.createURL('auth/callback');
 
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -34,6 +35,6 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await requireSupabase().auth.signOut();
   if (error) throw error;
 }
