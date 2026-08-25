@@ -1,13 +1,18 @@
-import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
 import { requireSupabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
+/** Must match scheme in app.config.js. Linking.createURL / makeRedirectUri become localhost in Expo Go, which a physical phone cannot open. */
+function oauthRedirectTo() {
+  const scheme = process.env.APP_ENV === 'production' ? 'sweetspot' : 'sweetspot-preprod';
+  return `${scheme}://auth/callback`;
+}
+
 export async function signInWithGoogle() {
   const supabase = requireSupabase();
-  const redirectTo = Linking.createURL('auth/callback');
+  const redirectTo = oauthRedirectTo();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
