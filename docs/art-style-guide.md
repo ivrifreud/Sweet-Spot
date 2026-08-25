@@ -67,11 +67,52 @@ studio's characters, silhouettes, or trademarks.
 - Hands use **thick period animation gloves** with three fingers plus thumb.
 - Gloves have chunky padded palms, full rounded fingers, sturdy cuffs, and one or
   two simple palm marks. Avoid delicate wrists or thin, tapered hands.
-- Shoes are oversized, rounded, and easy to read in silhouette.
+- Shoes are oversized, rounded, and easy to read in silhouette. Hose legs stay
+  even-width tubes that plug into a thick ankle cuff; soles may show simple tread
+  when the foot kicks or skids. Canonical sheets:
+  `construction-hose-legs-shoes-shaded.png`, `construction-hose-legs-shoes-line.png`.
 - Torsos use simple pear, bean, or barrel shapes.
+- Adult figures are taller and lankier; younger or comic figures are shorter and
+  more compressed. Broad-shoulder, round, and thin body types are all allowed as
+  long as gloves, pie eyes, and hose limbs stay consistent.
 
 The glove convention is intentional. It replaces realistic finger counting with a
 consistent animation language across the whole product.
+
+### Glove-hand construction (from approved sheets)
+
+Build every visible hand in this order:
+
+1. **Palm:** a circle or rounded bean attached to a narrow wrist and a simple cuff.
+2. **Thumb:** a large, exaggerated base. The thumb mass is a character, not a leftover digit.
+3. **Fingers:** three sausage fingers. Group the middle pair as one block first, then
+   offset the pinky at a different angle so the silhouette is not a rake.
+4. **Finish:** three short stitch marks on the glove back are optional; keep them
+   graphic. Fingers should be unevenly spaced so the pose feels alive.
+
+Pose rules:
+
+- Prefer pointing, open-talking palms, fists, thumbs-up, grasping, and card-handling
+  over realistic anatomy studies.
+- At phone size, keep fingers short and pillowy. Long, tapered, five-fingered hands
+  are out of style.
+- When an arm is shown, it is a jointless ink tube with a cream cuff — no elbow bone.
+  Sleeve color follows the character wardrobe, not a mandatory navy fill.
+
+Canonical sheets live in `docs/moodboard/references/` (`construction-glove-hands-tutorial`,
+`hands-pose-library-full`, `hands-gesture-set-cuffed`, `arms-navy-white-gloves`).
+
+### Face construction (from approved sheets)
+
+- Default eyes are pie-cut ovals. Lids, winks, and half-closes are allowed; anime
+  highlights and detailed lashes are not.
+- Noses stay tiny: a bean, a short curve, or a small wedge.
+- Mouths are graphic crescents, blocky teeth, or simple O shapes. They must read
+  at ~40 px.
+- Build a reusable expression kit (idle, think, correct, miss, celebrate, surprise)
+  before animating a character. Do not invent a new face language per screen.
+
+Canonical sheets: `faces-expression-sheet-24.png`, `faces-feature-kit-modular.png`.
 
 ### Character archetypes
 
@@ -216,10 +257,24 @@ The current falling chip is an approved **tactile exception**:
 - a realistic thick 3D teal-and-gold chip may be used for reward rain and physics;
 - it must have a transparent background and no baked square or ground shadow;
 - its teal/gold materials must match the canonical palette;
-- illustrated chips inside character scenes should still use ink-and-cel treatment.
+- illustrated chips inside character scenes should still use ink-and-cel treatment
+  (woodcut stacks and line/hatch angle sheets in the moodboard).
 
 This exception keeps the reward object satisfying without changing character or
 environment art direction.
+
+### The Peek and Pitch illustration
+
+- Draw the Peek as a cream four-digit glove pinching the **near corner** of the
+  hole cards (see `peek-glove-corner-lift-card.png` and `peek-glove-pov-hole-cards.png`).
+- A packet slide (`peek-glove-slide-cards-sepia.png`) is the pickup / deal beat,
+  not the Peek itself.
+- Chip commit uses a hose-arm glove over inked stacks
+  (`pitch-glove-reach-chip-stacks.png`), not the 3D reward chip.
+- Camera blocking may follow the photoreal look-down sheets; the hand must stay
+  a period glove — never photoreal skin.
+- Gloves stay animation cream. Do not switch to yellow gloves or copy extras
+  (bulldogs, bartenders, whiskey).
 
 ## 9. Typography
 
@@ -297,12 +352,15 @@ Before approving any new asset:
 Use this as a starting block, then add the scene-specific action:
 
 > Authentic early-1930s rubber-hose theatrical cartoon, hand-inked variable black
-> outlines, pie-cut eyes, white period animation gloves, curved rubber-hose limbs,
-> bean-shaped heads, flat cel paint, muted casino teal, antique gold, animation
-> cream and oxblood accents, gouache Art Deco background, subtle paper tooth,
-> restrained film grain and registration drift. Wholesome poker-learning tone.
-> No modern 3D animation, no Pixar/Disney gloss, no anime, no cyberpunk neon,
-> no photorealism, no smartphone.
+> outlines, pie-cut eyes, white four-digit period animation gloves (circle palm,
+> exaggerated thumb, three uneven sausage fingers, simple cuff), curved rubber-hose
+> limbs with no anatomical elbows, bean-shaped heads, tiny graphic noses, large
+> readable mouths, oversized rounded shoes, flat cel paint, muted casino teal,
+> antique gold, animation cream and oxblood accents, gouache Art Deco background,
+> subtle paper tooth, restrained film grain and registration drift. Wholesome
+> poker-learning tone. No modern 3D animation, no Pixar/Disney gloss, no anime,
+> no cyberpunk neon, no photorealism, no smartphone, no five-fingered realistic
+> hands, no copying a recognizable existing cartoon character.
 
 Always specify the exact pose, prop, empty space, aspect ratio, and whether text
 must be omitted. Generated text should not be trusted for final UI.
@@ -322,5 +380,8 @@ Non-canonical:
 - previous modern 3D/Pixar-like character art;
 - cyberpunk casino backgrounds;
 - experiments labeled “old cartoon” that lack pie eyes, gloves, and ink construction;
-- photoreal chip reference images (except the approved reusable reward-chip asset);
+- photoreal chip catalogs, branded casino chips, and modern vector clip-art stacks
+  (except the approved reusable reward-chip asset and its turnaround sheet);
+- photoreal poker lifestyle photos as character or world art (Peek camera sheets
+  are composition-only);
 - generated alternatives not listed in the canonical moodboard.
