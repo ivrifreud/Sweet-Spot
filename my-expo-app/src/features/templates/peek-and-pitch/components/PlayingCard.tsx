@@ -34,11 +34,7 @@ export function CardFace({ card, width }: CardFaceProps) {
  * The previous overlay used a rank font larger than the flap, so the ace clipped away
  * and only the suit showed.
  */
-export function PeekIndex({
-  card,
-  width,
-  height,
-}: CardFaceProps & { height: number }) {
+export function PeekIndex({ card, width, height }: CardFaceProps & { height: number }) {
   const color = SUIT_COLOR[card.suit];
   const rank = card.rank === 'T' ? '10' : card.rank;
   const rankSize = Math.min(width * 0.5, height * 0.46);

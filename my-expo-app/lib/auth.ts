@@ -1,11 +1,12 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
-import { supabase } from './supabase';
+import { requireSupabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export async function signInWithGoogle() {
+  const supabase = requireSupabase();
   const redirectTo = Linking.createURL('auth/callback');
 
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -35,6 +36,7 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithEmail(email: string, password: string) {
+  const supabase = requireSupabase();
   const { error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
@@ -47,6 +49,7 @@ export async function signUpWithEmail(params: {
   password: string;
   username: string;
 }) {
+  const supabase = requireSupabase();
   const username = params.username.trim();
   const { data, error } = await supabase.auth.signUp({
     email: params.email.trim(),
@@ -68,7 +71,7 @@ export async function signUpWithEmail(params: {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await requireSupabase().auth.signOut();
   if (error) throw error;
 }
 

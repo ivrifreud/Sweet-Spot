@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GoogleSignInButton, PlaceholderSocialButton } from '../components/GoogleSignInButton';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { EnvelopeIcon, LockIcon, PersonIcon, SpadeMark } from '../components/auth/AuthIcons';
 import { AuthTextField } from '../components/auth/AuthTextField';
 import { FallingChips } from '../components/splash/FallingChips';
@@ -157,94 +157,94 @@ export function AuthScreen({ onContinue }: Props) {
           ) : null}
 
           <View style={styles.formBlock}>
-          <AuthTextField
-            label="Email"
-            icon={<EnvelopeIcon size={22} />}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="E-mail"
-            keyboardType="email-address"
-            autoComplete="email"
-            textContentType="emailAddress"
-            returnKeyType="next"
-            error={fieldErrors.email}
-            editable={!busy}
-          />
-
-          {isSignUp ? (
             <AuthTextField
-              label="Username"
-              icon={<PersonIcon size={22} />}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Username"
-              autoComplete="username"
-              textContentType="username"
+              label="Email"
+              icon={<EnvelopeIcon size={22} />}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="E-mail"
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
               returnKeyType="next"
-              error={fieldErrors.username}
+              error={fieldErrors.email}
               editable={!busy}
             />
-          ) : null}
 
-          <AuthTextField
-            label="Password"
-            icon={<LockIcon size={22} />}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            password
-            passwordVisible={passwordVisible}
-            onTogglePassword={() => setPasswordVisible((value) => !value)}
-            autoComplete={isSignUp ? 'password-new' : 'password'}
-            textContentType={isSignUp ? 'newPassword' : 'password'}
-            returnKeyType={isSignUp ? 'next' : 'go'}
-            onSubmitEditing={isSignUp ? undefined : () => void submit()}
-            error={fieldErrors.password}
-            editable={!busy}
-          />
+            {isSignUp ? (
+              <AuthTextField
+                label="Username"
+                icon={<PersonIcon size={22} />}
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Username"
+                autoComplete="username"
+                textContentType="username"
+                returnKeyType="next"
+                error={fieldErrors.username}
+                editable={!busy}
+              />
+            ) : null}
 
-          {isSignUp ? (
             <AuthTextField
-              label="Confirm password"
+              label="Password"
               icon={<LockIcon size={22} />}
-              value={confirm}
-              onChangeText={setConfirm}
-              placeholder="Confirm password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
               password
-              passwordVisible={confirmVisible}
-              onTogglePassword={() => setConfirmVisible((value) => !value)}
-              autoComplete="password-new"
-              textContentType="newPassword"
-              returnKeyType="go"
-              onSubmitEditing={() => void submit()}
-              error={fieldErrors.confirm}
+              passwordVisible={passwordVisible}
+              onTogglePassword={() => setPasswordVisible((value) => !value)}
+              autoComplete={isSignUp ? 'password-new' : 'password'}
+              textContentType={isSignUp ? 'newPassword' : 'password'}
+              returnKeyType={isSignUp ? 'next' : 'go'}
+              onSubmitEditing={isSignUp ? undefined : () => void submit()}
+              error={fieldErrors.password}
               editable={!busy}
             />
-          ) : null}
+
+            {isSignUp ? (
+              <AuthTextField
+                label="Confirm password"
+                icon={<LockIcon size={22} />}
+                value={confirm}
+                onChangeText={setConfirm}
+                placeholder="Confirm password"
+                password
+                passwordVisible={confirmVisible}
+                onTogglePassword={() => setConfirmVisible((value) => !value)}
+                autoComplete="password-new"
+                textContentType="newPassword"
+                returnKeyType="go"
+                onSubmitEditing={() => void submit()}
+                error={fieldErrors.confirm}
+                editable={!busy}
+              />
+            ) : null}
           </View>
 
           <View style={styles.primaryBlock}>
-          <Pressable
-            onPress={() => void submit()}
-            disabled={busy}
-            style={({ pressed }) => [
-              styles.primaryPressable,
-              pressed && !busy ? styles.pressed : null,
-              busy ? styles.disabled : null,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={isSignUp ? 'Sign up' : 'Sign in'}
-            accessibilityState={{ disabled: busy, busy }}>
-            <View style={styles.primaryChrome}>
-              {busy ? (
-                <ActivityIndicator color={artStyle.colors.projectorBlack} />
-              ) : (
-                <Text style={[styles.primaryText, display]}>
-                  {isSignUp ? 'SIGN UP' : 'SIGN IN'}
-                </Text>
-              )}
-            </View>
-          </Pressable>
+            <Pressable
+              onPress={() => void submit()}
+              disabled={busy}
+              style={({ pressed }) => [
+                styles.primaryPressable,
+                pressed && !busy ? styles.pressed : null,
+                busy ? styles.disabled : null,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={isSignUp ? 'Sign up' : 'Sign in'}
+              accessibilityState={{ disabled: busy, busy }}>
+              <View style={styles.primaryChrome}>
+                {busy ? (
+                  <ActivityIndicator color={artStyle.colors.projectorBlack} />
+                ) : (
+                  <Text style={[styles.primaryText, display]}>
+                    {isSignUp ? 'SIGN UP' : 'SIGN IN'}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
           </View>
 
           <View style={styles.orRow} accessibilityRole="none">
@@ -262,40 +262,27 @@ export function AuthScreen({ onContinue }: Props) {
                 setFormError(message);
               }}
             />
-            <PlaceholderSocialButton
-              provider="Apple"
-              disabled={busy}
-              onPress={() => {
-                setFormError(null);
-                setInfo('Apple sign-in is coming soon.');
-              }}
-            />
-            <PlaceholderSocialButton
-              provider="Facebook"
-              disabled={busy}
-              onPress={() => {
-                setFormError(null);
-                setInfo('Facebook sign-in is coming soon.');
-              }}
-            />
           </View>
 
           <View style={styles.footerDivider} />
 
           <View style={styles.footerBlock}>
-          <Pressable
-            onPress={() => switchMode(isSignUp ? 'signIn' : 'signUp')}
-            hitSlop={12}
-            style={({ pressed }) => [styles.footerPressable, pressed ? styles.footerPressed : null]}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'
-            }>
-            <Text style={styles.footerMuted}>
-              {isSignUp ? 'Already have an account? ' : 'Need an account? '}
-              <Text style={styles.footerLink}>{isSignUp ? 'Sign in' : 'Sign up'}</Text>
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={() => switchMode(isSignUp ? 'signIn' : 'signUp')}
+              hitSlop={12}
+              style={({ pressed }) => [
+                styles.footerPressable,
+                pressed ? styles.footerPressed : null,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'
+              }>
+              <Text style={styles.footerMuted}>
+                {isSignUp ? 'Already have an account? ' : 'Need an account? '}
+                <Text style={styles.footerLink}>{isSignUp ? 'Sign in' : 'Sign up'}</Text>
+              </Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

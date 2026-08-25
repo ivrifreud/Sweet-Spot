@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { authErrorMessage, signInWithGoogle } from '../lib/auth';
 import { artStyle } from '../theme/artStyle';
-import { AppleMark, FacebookMark, GoogleMark } from './auth/AuthIcons';
+import { GoogleMark } from './auth/AuthIcons';
 
 type Props = {
   onSuccess?: () => void;
@@ -27,29 +27,6 @@ export function GoogleSignInButton({ onSuccess, onError, disabled }: Props) {
           .catch((error) => onError?.(authErrorMessage(error)))
           .finally(() => setBusy(false));
       }}
-    />
-  );
-}
-
-type PlaceholderProps = {
-  provider: 'Apple' | 'Facebook';
-  disabled?: boolean;
-  onPress: () => void;
-};
-
-export function PlaceholderSocialButton({ provider, disabled, onPress }: PlaceholderProps) {
-  return (
-    <SocialAuthButton
-      label={`Continue with ${provider}`}
-      icon={
-        provider === 'Apple' ? (
-          <AppleMark size={22} color={artStyle.colors.projectorBlack} />
-        ) : (
-          <FacebookMark size={22} />
-        )
-      }
-      disabled={disabled}
-      onPress={onPress}
     />
   );
 }

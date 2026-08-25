@@ -79,12 +79,7 @@ export function EyeIcon({ size = 24, color = stroke }: IconProps) {
 export function EyeOffIcon({ size = 24, color = stroke }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden>
-      <Path
-        d="M4 5.2 19.8 21"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
+      <Path d="M4 5.2 19.8 21" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
       <Path
         d="M9.4 6.1A9.6 9.6 0 0 1 12 5.5C17.6 5.5 21 12 21 12a14 14 0 0 1-3.2 3.9M6.3 8.4A14 14 0 0 0 3 12s3.4 6.5 9 6.5c1.1 0 2.1-.2 3-.6"
         stroke={color}

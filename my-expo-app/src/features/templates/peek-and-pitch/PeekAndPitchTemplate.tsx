@@ -1,7 +1,14 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Easing, cancelAnimation, runOnJS, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import {
+  Easing,
+  cancelAnimation,
+  runOnJS,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -75,24 +82,6 @@ export function PeekAndPitchTemplate({
   const stackHit = useSharedValue<StackHitRect>({ x: 0, y: 0, width: 0, height: 0 });
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '473440' },
-      body: JSON.stringify({
-        sessionId: '473440',
-        runId: 'post-fix',
-        hypothesisId: 'A',
-        location: 'PeekAndPitchTemplate.tsx:mount',
-        message: 'PeekAndPitchTemplate mounted',
-        data: { phase, hasLiveEnabledInScope: false },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, []);
-  // #endregion
 
   const skin = SKINS[activeSpot.skin];
 

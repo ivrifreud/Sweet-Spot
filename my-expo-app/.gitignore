@@ -1,6 +1,9 @@
 node_modules/
 .expo/
+.agents/
+skills-lock.json
 dist/
+.tmp-export/
 npm-debug.*
 *.jks
 *.p8

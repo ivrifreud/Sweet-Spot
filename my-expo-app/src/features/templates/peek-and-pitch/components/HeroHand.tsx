@@ -65,7 +65,12 @@ export function HeroHand({
   const motion = useAnimatedStyle(() => {
     const entry = interpolate(deal.value, [0.4, 1], [0, 1], Extrapolation.CLAMP);
     const lift = peek.value * (1 - muck.value);
-    const pitch = interpolate(muck.value, [0, 0.42, 0.78, 1], [0, 1, 0.55, 0.08], Extrapolation.CLAMP);
+    const pitch = interpolate(
+      muck.value,
+      [0, 0.42, 0.78, 1],
+      [0, 1, 0.55, 0.08],
+      Extrapolation.CLAMP
+    );
     const grab = interpolate(commit.value, [0, 0.28, 0.46], [0, 1, 0], Extrapolation.CLAMP);
     const toss = interpolate(commit.value, [0.28, 0.55, 0.82], [0, 1, 0], Extrapolation.CLAMP);
     const reaching = interpolate(commit.value, [0, 0.16, 0.86, 1], [0, 1, 1, 0]);
@@ -126,7 +131,12 @@ const HELD = [
 /** Chips sit in the glove palm while it grabs the stack and flicks toward the pot. */
 function HeldChips({ commit }: { commit: SharedValue<number> }) {
   const motion = useAnimatedStyle(() => {
-    const shown = interpolate(commit.value, [0.08, 0.2, 0.5, 0.64], [0, 1, 1, 0], Extrapolation.CLAMP);
+    const shown = interpolate(
+      commit.value,
+      [0.08, 0.2, 0.5, 0.64],
+      [0, 1, 1, 0],
+      Extrapolation.CLAMP
+    );
     const tuck = interpolate(commit.value, [0.08, 0.22], [10, 0], Extrapolation.CLAMP);
     return {
       opacity: shown,

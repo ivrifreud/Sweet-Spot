@@ -21,7 +21,12 @@ export function Chip({ size, rotate = 0 }: ChipProps) {
         resizeMode="contain"
         style={[
           styles.art,
-          { width: size, height, backgroundColor: 'transparent', transform: [{ rotate: `${rotate}deg` }] },
+          {
+            width: size,
+            height,
+            backgroundColor: 'transparent',
+            transform: [{ rotate: `${rotate}deg` }],
+          },
         ]}
       />
     </View>

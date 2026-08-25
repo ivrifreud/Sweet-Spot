@@ -1,12 +1,5 @@
 import { type ReactNode, useId, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  type TextInputProps,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 
 import { artStyle } from '../../theme/artStyle';
 import { EyeIcon, EyeOffIcon } from './AuthIcons';

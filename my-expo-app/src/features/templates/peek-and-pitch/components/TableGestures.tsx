@@ -19,7 +19,11 @@ const MODE_UNDECIDED = 0;
 const MODE_MUCK = 2;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-const PEEK_SPRING = { duration: 400, dampingRatio: 0.9, reduceMotion: ReduceMotion.System } as const;
+const PEEK_SPRING = {
+  duration: 400,
+  dampingRatio: 0.9,
+  reduceMotion: ReduceMotion.System,
+} as const;
 const MUCK_THROW_MS = 920;
 
 export type StackHitRect = {
@@ -175,11 +179,15 @@ export function TableGestures({
             if (committed) {
               muckLocked.value = 1;
               flattenPeek(peek);
-              muck.value = withTiming(1, { duration: MUCK_THROW_MS, easing: EASE_OUT }, (finished) => {
-                if (finished) {
-                  runOnJS(fireMuck)();
+              muck.value = withTiming(
+                1,
+                { duration: MUCK_THROW_MS, easing: EASE_OUT },
+                (finished) => {
+                  if (finished) {
+                    runOnJS(fireMuck)();
+                  }
                 }
-              });
+              );
             } else {
               muck.value = withSpring(0, PEEK_SPRING);
               flattenPeek(peek);
