@@ -9,8 +9,6 @@ export const artStyle = {
   characters: {
     vibe: 'Wholesome 1930s poker nerds — pie eyes, clear glasses, four-digit animation gloves (circle palm, exaggerated thumb, three sausage fingers), curved hose limbs, expressive title-card poses.',
     referenceImage: require('../assets/brand/artstyle/characters-1930s-approved-opener.png'),
-    coachCorrect: require('../assets/brand/artstyle/coach-wave-correct.png'),
-    coachMiss: require('../assets/brand/artstyle/coach-wave-miss.png'),
   },
   chips: {
     vibe: 'Realistic thick 3D casino chip — dark teal, gold edge inserts, beveled spade center.',
