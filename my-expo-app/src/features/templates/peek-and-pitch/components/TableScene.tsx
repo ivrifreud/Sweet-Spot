@@ -18,7 +18,7 @@ type TableSceneProps = {
 export function TableScene({ skin, width, height }: TableSceneProps) {
   const config = SKINS[skin];
   const layout = getBackdropLayout(config.backgroundSize, { width, height }, config.fit);
-  const railHeight = height * 0.4;
+  const railHeight = height * 0.2;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">

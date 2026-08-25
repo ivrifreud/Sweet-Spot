@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -6,10 +7,12 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { PEEL_RISE, cornerPeel, type FeltPlaneConfig } from '../feltPlane';
 import { Chip } from './Chip';
 import { CHIP_SIZE } from './ChipStack';
 
 const REST = require('../../../../../assets/tables/hero-glove-rest.png');
+const PINCH = require('../../../../../assets/tables/hero-glove-pinch.png');
 const LIFT = require('../../../../../assets/tables/hero-glove-lift.png');
 
 const HAND_ASPECT = 0.8444;
@@ -23,6 +26,8 @@ type HeroHandProps = {
   tableCenter: Point;
   stackAnchor: Point;
   handWidth: number;
+  cardHeight: number;
+  plane: FeltPlaneConfig;
   deal: SharedValue<number>;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
@@ -30,14 +35,17 @@ type HeroHandProps = {
 };
 
 /**
- * First-person glove. Two poses only (rest → lift) so the phone does not
- * decode and composite four large PNGs every frame.
+ * First-person glove. Rest → pinch → lift so the fingers close on the near
+ * corner, then rise with the peel. Three aligned pose sheets, two visible
+ * at a time.
  */
 export function HeroHand({
   contact,
   tableCenter,
   stackAnchor,
   handWidth,
+  cardHeight,
+  plane,
   deal,
   peek,
   muck,
@@ -47,11 +55,11 @@ export function HeroHand({
   const left = contact.x - CONTACT.x * handWidth;
   const top = contact.y - CONTACT.y * handHeight;
 
-  const rest = { x: handWidth * 0.1, y: handWidth * 0.16 };
-  const offFrame = { x: handWidth * 0.3, y: handWidth * 0.38 };
+  const rest = { x: handWidth * 0.08, y: handWidth * 0.14 };
+  const offFrame = { x: handWidth * 0.26, y: handWidth * 0.34 };
   const throwTo = {
-    x: (tableCenter.x - contact.x) * 0.55,
-    y: (tableCenter.y - contact.y) * 0.55,
+    x: (tableCenter.x - contact.x) * 0.48,
+    y: (tableCenter.y - contact.y) * 0.46,
   };
   const grabTo = {
     x: stackAnchor.x - contact.x,
@@ -62,13 +70,41 @@ export function HeroHand({
     y: tableCenter.y - contact.y + handWidth * 0.04,
   };
 
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '83e178' },
+      body: JSON.stringify({
+        sessionId: '83e178',
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        location: 'HeroHand.tsx:layout',
+        message: 'peek glove box',
+        data: {
+          left,
+          top,
+          handWidth,
+          handHeight,
+          contact,
+          rotateX: plane.nearRotateX * 0.35,
+          poses: ['rest', 'pinch', 'lift'],
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [contact, handHeight, handWidth, left, plane.nearRotateX, top]);
+
   const motion = useAnimatedStyle(() => {
     const entry = interpolate(deal.value, [0.4, 1], [0, 1], Extrapolation.CLAMP);
     const lift = peek.value * (1 - muck.value);
+    const peel = cornerPeel(1, 1, lift);
+    const follow = peel.rise * cardHeight * PEEL_RISE;
     const pitch = interpolate(
       muck.value,
-      [0, 0.42, 0.78, 1],
-      [0, 1, 0.55, 0.08],
+      [0, 0.38, 0.72, 1],
+      [0, 1, 0.48, 0.06],
       Extrapolation.CLAMP
     );
     const grab = interpolate(commit.value, [0, 0.28, 0.46], [0, 1, 0], Extrapolation.CLAMP);
@@ -77,9 +113,12 @@ export function HeroHand({
 
     return {
       transform: [
+        { perspective: plane.perspective },
+        { rotateX: `${plane.nearRotateX * 0.35}deg` },
         {
           translateX:
-            rest.x * (1 - lift) * (1 - reaching) +
+            interpolate(lift, [0, 0.42, 1], [rest.x, rest.x * 0.12, follow * 0.08]) *
+              (1 - reaching) +
             offFrame.x * (1 - entry) +
             throwTo.x * pitch +
             grabTo.x * grab +
@@ -87,28 +126,45 @@ export function HeroHand({
         },
         {
           translateY:
-            rest.y * (1 - lift) * (1 - reaching) +
+            interpolate(lift, [0, 0.35, 1], [rest.y, rest.y * 0.28, -follow * 0.72]) *
+              (1 - reaching) +
             offFrame.y * (1 - entry) +
             throwTo.y * pitch +
             grabTo.y * grab +
             tossTo.y * toss,
         },
         {
-          rotate: `${(1 - entry) * 8 + (1 - lift) * 6 - lift * 4 - pitch * 16 + grab * 10 - toss * 18}deg`,
+          rotate: `${
+            (1 - entry) * 10 +
+            interpolate(lift, [0, 0.4, 1], [8, 1, -10]) -
+            pitch * 14 +
+            grab * 10 -
+            toss * 18
+          }deg`,
         },
-        { scale: 1 + lift * 0.03 - pitch * 0.06 + reaching * 0.04 },
+        {
+          scale:
+            interpolate(lift, [0, 0.45, 1], [0.97, 1.05, 1.02]) - pitch * 0.05 + reaching * 0.04,
+        },
       ],
     };
   });
 
   const restPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    return { opacity: interpolate(lift, [0, 0.45], [1, 0], Extrapolation.CLAMP) };
+    return { opacity: interpolate(lift, [0, 0.26], [1, 0], Extrapolation.CLAMP) };
+  });
+
+  const pinchPose = useAnimatedStyle(() => {
+    const lift = peek.value * (1 - muck.value);
+    return {
+      opacity: interpolate(lift, [0.1, 0.32, 0.68, 0.92], [0, 1, 1, 0.2], Extrapolation.CLAMP),
+    };
   });
 
   const liftPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    return { opacity: interpolate(lift, [0.2, 0.7], [0, 1], Extrapolation.CLAMP) };
+    return { opacity: interpolate(lift, [0.5, 0.82], [0, 1], Extrapolation.CLAMP) };
   });
 
   return (
@@ -116,6 +172,7 @@ export function HeroHand({
       style={[styles.root, { left, top, width: handWidth, height: handHeight }, motion]}
       pointerEvents="none">
       <Animated.Image source={REST} style={[styles.layer, restPose]} resizeMode="contain" />
+      <Animated.Image source={PINCH} style={[styles.layer, pinchPose]} resizeMode="contain" />
       <Animated.Image source={LIFT} style={[styles.layer, liftPose]} resizeMode="contain" />
       <HeldChips commit={commit} />
     </Animated.View>
