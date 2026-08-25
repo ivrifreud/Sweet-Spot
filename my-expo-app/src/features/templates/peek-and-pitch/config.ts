@@ -25,8 +25,8 @@ type SkinConfig = {
 export const SKINS: Record<TableSkin, SkinConfig> = {
   casino: {
     label: 'Local Casino',
-    background: require('../../../../assets/tables/pov-table-casino-1930s.png'),
-    backgroundSize: { width: 1024, height: 1536 },
+    background: require('../../../../assets/tables/pov-table-casino-1930s.jpg'),
+    backgroundSize: { width: 900, height: 1350 },
     dealOrigin: { x: 0.5, y: 0.34 },
     tableCenter: { x: 0.5, y: 0.48 },
     feltTint: '#111714',
@@ -35,8 +35,8 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
   },
   garden: {
     label: "Benny's Garden",
-    background: require('../../../../assets/themes/bennys-garden/night-playable.png'),
-    backgroundSize: { width: 1024, height: 1536 },
+    background: require('../../../../assets/themes/bennys-garden/night-playable.jpg'),
+    backgroundSize: { width: 900, height: 1350 },
     dealOrigin: { x: 0.5, y: 0.36 },
     tableCenter: { x: 0.5, y: 0.48 },
     feltTint: '#14110c',
@@ -64,6 +64,12 @@ export function mapBackdropPoint(
     y: (screen.height - renderedHeight) / 2 + point.y * renderedHeight,
   };
 }
+
+/** Hit zone for the hero stack, in overlay (gesture-view) coordinates. */
+export const STACK_HIT = {
+  width: 200,
+  height: 188,
+} as const;
 
 /** Gesture tuning. Distances are fractions of the screen height. */
 export const GESTURES = {

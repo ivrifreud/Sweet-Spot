@@ -4,6 +4,7 @@ import Animated, {
   Easing,
   interpolate,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
@@ -29,8 +30,8 @@ type ChipTossProps = {
 };
 
 /**
- * Chips in the air between the player's stack and the pot.
- * Flight is a gravity arc; landing is two decaying bounces, then they stay put.
+ * Chips in the air between the player's glove and the pot.
+ * Flight is a gravity arc; they settle on the felt without an extra drop shadow.
  */
 export function ChipToss({ flights }: ChipTossProps) {
   return (
@@ -58,66 +59,53 @@ function hopOffset(progress: number, arc: number) {
   return -arc * 0.22 * (1 - u) * (1 - u) * Math.abs(Math.sin(u * Math.PI * 2.2));
 }
 
+function travelEase(progress: number) {
+  'worklet';
+  const travel = interpolate(progress, [0, 0.58, 1], [0, 1, 1]);
+  return 1 - (1 - travel) * (1 - travel);
+}
+
 function FlyingChip({ flight }: { flight: ChipFlight }) {
   const progress = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
+  const size = CHIP_SIZE;
 
   useEffect(() => {
+    const duration = reducedMotion ? Math.min(flight.durationMs, 280) : flight.durationMs;
     progress.value = withDelay(
-      flight.delayMs,
-      withTiming(1, { duration: flight.durationMs, easing: Easing.linear })
+      reducedMotion ? 0 : flight.delayMs,
+      withTiming(1, { duration, easing: Easing.linear })
     );
-  }, [flight.delayMs, flight.durationMs, progress]);
+  }, [flight.delayMs, flight.durationMs, progress, reducedMotion]);
 
-  const size = CHIP_SIZE * 0.92;
   const dx = flight.to.x - flight.from.x;
   const dy = flight.to.y - flight.from.y;
-  const arc = flight.arc;
+  const arc = reducedMotion ? flight.arc * 0.2 : flight.arc;
+  const origin = {
+    left: flight.from.x - size / 2,
+    top: flight.from.y - size * 0.55,
+  };
 
-  const style = useAnimatedStyle(() => {
+  const chipStyle = useAnimatedStyle(() => {
     const p = progress.value;
-    const travel = interpolate(p, [0, 0.58, 1], [0, 1, 1]);
-    const eased = 1 - (1 - travel) * (1 - travel);
+    const eased = travelEase(p);
 
     return {
-      opacity: interpolate(p, [0, 0.05], [0, 1]),
+      opacity: interpolate(p, [0, 0.03], [0, 1]),
       transform: [
         { translateX: dx * eased },
         { translateY: dy * eased + hopOffset(p, arc) },
         {
-          rotate: `${interpolate(p, [0, 0.58, 1], [0, flight.spin * 220, flight.restRotate])}deg`,
+          rotate: `${interpolate(p, [0, 0.58, 1], [0, flight.spin * 140, flight.restRotate])}deg`,
         },
-        { scale: interpolate(p, [0, 0.58, 0.72, 1], [1, 0.78, 0.84, 0.8]) },
-      ],
-    };
-  });
-
-  const shadowStyle = useAnimatedStyle(() => {
-    const p = progress.value;
-    const hop = Math.abs(hopOffset(p, arc));
-
-    return {
-      opacity: interpolate(p, [0, 0.08, 1], [0, 0.35, 0.7]),
-      transform: [
-        { translateY: interpolate(p, [0, 1], [8, 18]) + hop * 0.15 },
-        { scaleX: interpolate(hop, [0, arc], [1, 0.55]) },
-        { scaleY: 0.35 },
+        { scale: interpolate(p, [0, 0.28, 0.58, 1], [1, 1.04, 0.94, 0.88]) },
       ],
     };
   });
 
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.chip,
-        {
-          left: flight.from.x - size / 2,
-          top: flight.from.y - size * 0.55,
-        },
-        style,
-      ]}>
-      <Animated.View style={[styles.groundShadow, { width: size * 0.9, height: size * 0.35 }, shadowStyle]} />
-      <Chip size={size} rotate={flight.restRotate * 0.2} />
+    <Animated.View pointerEvents="none" style={[styles.chip, origin, chipStyle]}>
+      <Chip size={size} rotate={flight.restRotate * 0.15} />
     </Animated.View>
   );
 }
@@ -125,12 +113,6 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
 const styles = StyleSheet.create({
   chip: {
     position: 'absolute',
-  },
-  groundShadow: {
-    position: 'absolute',
-    left: '8%',
-    bottom: 2,
-    borderRadius: 999,
-    backgroundColor: '#000',
+    zIndex: 8,
   },
 });

@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Easing, ReduceMotion, runOnJS, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { Easing, cancelAnimation, runOnJS, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -21,13 +21,11 @@ import { GestureHints } from './components/GestureHints';
 import { HeroHand } from './components/HeroHand';
 import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
 import { CARD_ASPECT } from './components/PlayingCard';
-import { TableGestures } from './components/TableGestures';
+import { TableGestures, type StackHitRect } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
-import { DEFAULT_SPOT, SKINS, mapBackdropPoint } from './config';
+import { DEFAULT_SPOT, SKINS, STACK_HIT, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
-
-const PEEK_SPRING = { duration: 400, dampingRatio: 0.8, reduceMotion: ReduceMotion.System } as const;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -74,6 +72,27 @@ export function PeekAndPitchTemplate({
   const muck = useSharedValue(0);
   const commit = useSharedValue(0);
   const stackPress = useSharedValue(0);
+  const stackHit = useSharedValue<StackHitRect>({ x: 0, y: 0, width: 0, height: 0 });
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '473440' },
+      body: JSON.stringify({
+        sessionId: '473440',
+        runId: 'post-fix',
+        hypothesisId: 'A',
+        location: 'PeekAndPitchTemplate.tsx:mount',
+        message: 'PeekAndPitchTemplate mounted',
+        data: { phase, hasLiveEnabledInScope: false },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, []);
+  // #endregion
 
   const skin = SKINS[activeSpot.skin];
 
@@ -82,25 +101,35 @@ export function PeekAndPitchTemplate({
   const cardWidth = Math.min(stage * 0.2, 94);
   const cardHeight = cardWidth * CARD_ASPECT;
   const cardGap = cardWidth * CARD_GAP_RATIO;
-  const handWidth = stage * 0.78;
-  const barrierWidth = stage * 0.72;
+  const handWidth = stage * 0.7;
+  const barrierWidth = stage * 0.64;
 
   const geometry = useMemo(() => {
     const screen = { width, height };
-    const rail = Math.max(88, height * 0.13);
 
     const restCenter = {
       x: stageLeft + stage * 0.58,
       y: height - insets.bottom - cardHeight * 0.58,
     };
 
+    const cardSpan = cardWidth * 2 + cardGap;
+    const cardsLeft = restCenter.x - cardSpan / 2;
+    const tableY = height - insets.bottom - cardHeight * 0.08;
+    const stackHit = {
+      x: cardsLeft - STACK_HIT.width - 8,
+      y: tableY - STACK_HIT.height,
+      width: STACK_HIT.width,
+      height: STACK_HIT.height,
+    };
+
     return {
       dealOrigin: mapBackdropPoint(skin.dealOrigin, skin.backgroundSize, screen),
       tableCenter: mapBackdropPoint(skin.tableCenter, skin.backgroundSize, screen),
       restCenter,
+      stackHit,
       stackAnchor: {
-        x: stageLeft + 88,
-        y: height - insets.bottom - rail + 8,
+        x: stackHit.x + stackHit.width * 0.78,
+        y: stackHit.y + stackHit.height * 0.52,
       },
       handContact: {
         x: restCenter.x + cardWidth * 0.22,
@@ -139,6 +168,7 @@ export function PeekAndPitchTemplate({
       peek.value = 0;
       muck.value = 0;
       commit.value = 0;
+      cancelAnimation(peek);
       deal.value = 0;
       deal.value = withTiming(
         1,
@@ -188,45 +218,54 @@ export function PeekAndPitchTemplate({
   );
 
   const handleRaise = useCallback(() => {
-    if (phase !== 'live') {
+    if (phaseRef.current !== 'live') {
       return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
     const { stackAnchor, tableCenter } = geometry;
-    const nextFlights: ChipFlight[] = Array.from({ length: 4 }, (_, index) => {
+    const release = {
+      x: (stackAnchor.x + tableCenter.x) * 0.52,
+      y: stackAnchor.y + (tableCenter.y - stackAnchor.y) * 0.4,
+    };
+    const nextFlights: ChipFlight[] = Array.from({ length: 3 }, (_, index) => {
       flightSeed.current += 1;
       const spin = Math.random() > 0.5 ? 1 : -1;
       return {
         id: `chip-${flightSeed.current}`,
         from: {
-          x: stackAnchor.x + (Math.random() - 0.5) * 36,
-          y: stackAnchor.y - 8 - index * 7,
+          x: release.x + (Math.random() - 0.5) * 36,
+          y: release.y - 12 - index * 8,
         },
         to: {
-          x: tableCenter.x + (Math.random() - 0.5) * 92,
-          y: tableCenter.y + (Math.random() - 0.5) * 48,
+          x: tableCenter.x + (Math.random() - 0.5) * 84,
+          y: tableCenter.y + (Math.random() - 0.5) * 46,
         },
-        delayMs: 160 + index * 90,
-        durationMs: 700,
-        arc: 110 + Math.random() * 80,
+        delayMs: 480 + index * 90,
+        durationMs: 1100,
+        arc: 120 + Math.random() * 70,
         spin,
         restRotate: spin * (8 + Math.random() * 22),
       };
     });
 
     setFlights((current) => [...current, ...nextFlights]);
-    setPushedChips((current) => current + 4);
+    setPushedChips((current) => current + 2);
     commit.value = 0;
     commit.value = withSequence(
       withTiming(0.32, { duration: 180, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 720, easing: Easing.inOut(Easing.cubic) })
+      withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.cubic) })
     );
 
-    peek.value = withSpring(0, PEEK_SPRING);
+    cancelAnimation(peek);
+    peek.value = 0;
     resolve('raise');
-  }, [commit, geometry, peek, phase, resolve]);
+  }, [commit, geometry, peek, resolve]);
+
+  useEffect(() => {
+    stackHit.value = geometry.stackHit;
+  }, [geometry.stackHit, stackHit]);
 
   const completeMuck = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -240,7 +279,15 @@ export function PeekAndPitchTemplate({
       <TableScene skin={activeSpot.skin} width={width} height={height} />
 
       <View
-        style={[styles.stackHolder, { bottom: insets.bottom + 18, left: stageLeft + 8 }]}
+        style={[
+          styles.stackHolder,
+          {
+            left: geometry.stackHit.x,
+            top: geometry.stackHit.y,
+            width: geometry.stackHit.width,
+            height: geometry.stackHit.height,
+          },
+        ]}
         pointerEvents="none">
         <ChipStack
           stackLabel={activeSpot.heroStackLabel}
@@ -249,6 +296,15 @@ export function PeekAndPitchTemplate({
           press={stackPress}
         />
       </View>
+
+      {/* Barrier cups from behind; hole cards stay in the foreground. */}
+      <BarrierHand
+        contact={geometry.barrierContact}
+        handWidth={barrierWidth}
+        deal={deal}
+        peek={peek}
+        muck={muck}
+      />
 
       <HoleCards
         cards={cards}
@@ -260,14 +316,6 @@ export function PeekAndPitchTemplate({
         dealOrigin={geometry.dealOrigin}
         tableCenter={geometry.tableCenter}
         restCenter={geometry.restCenter}
-      />
-
-      <BarrierHand
-        contact={geometry.barrierContact}
-        handWidth={barrierWidth}
-        deal={deal}
-        peek={peek}
-        muck={muck}
       />
 
       <HeroHand
@@ -287,11 +335,11 @@ export function PeekAndPitchTemplate({
 
       <TableGestures
         live={phase === 'live'}
-        width={width}
         height={height}
         peek={peek}
         muck={muck}
         stackPress={stackPress}
+        stackHit={stackHit}
         onPeeked={markPeeked}
         onRaise={handleRaise}
         onMuck={completeMuck}
@@ -313,7 +361,7 @@ export function PeekAndPitchTemplate({
         <View
           style={[
             styles.footer,
-            { bottom: insets.bottom + 24, left: stageLeft + 128, right: stageLeft + 24 },
+            { bottom: insets.bottom + 24, left: geometry.restCenter.x + 12, right: stageLeft + 20 },
           ]}
           pointerEvents="box-none">
           <Pressable
@@ -351,6 +399,8 @@ const styles = StyleSheet.create({
   },
   stackHolder: {
     position: 'absolute',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
   bannerHolder: {
     position: 'absolute',

@@ -6,17 +6,18 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { artStyle } from '../../../../../theme/artStyle';
 import { Chip, CHIP_ART_ASPECT } from './Chip';
 
-export const CHIP_SIZE = 56;
+export const CHIP_SIZE = 82;
 export const CHIP_STACK_STEP = 11;
 
 const CHIP_HEIGHT = CHIP_SIZE * CHIP_ART_ASPECT;
 
+/** Two short columns sitting on the felt, just left of the hole cards. */
 const COLUMNS: { count: number; rotate: number }[] = [
-  { count: 4, rotate: -6 },
-  { count: 5, rotate: 3 },
-  { count: 3, rotate: 9 },
+  { count: 3, rotate: -4 },
+  { count: 3, rotate: 3 },
 ];
 
 type ChipStackProps = {
@@ -30,15 +31,15 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: held.value * 5 }, { scale: 1 - held.value * 0.04 }],
+    transform: [{ translateY: held.value * 4 }, { scale: 1 - held.value * 0.03 }],
   }));
 
   return (
     <Animated.View style={[styles.root, pressStyle]}>
       <View style={styles.columns}>
         {COLUMNS.map((column, columnIndex) => {
-          const taken = columnIndex === 1 ? Math.min(pushed, column.count - 2) : 0;
-          const remaining = Math.max(2, column.count - taken);
+          const taken = columnIndex === 1 ? Math.min(pushed, column.count - 1) : 0;
+          const remaining = Math.max(1, column.count - taken);
           const stackHeight = CHIP_HEIGHT + (remaining - 1) * CHIP_STACK_STEP;
 
           return (
@@ -48,7 +49,6 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
                 styles.column,
                 { width: CHIP_SIZE, height: stackHeight },
                 columnIndex === 1 && styles.columnFront,
-                columnIndex === 2 && styles.columnRight,
               ]}>
               {Array.from({ length: remaining }).map((_, chipIndex) => (
                 <View
@@ -57,12 +57,7 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
                     styles.chipSlot,
                     { bottom: chipIndex * CHIP_STACK_STEP, zIndex: chipIndex },
                   ]}>
-                  <Chip
-                    size={CHIP_SIZE}
-                    rotate={column.rotate}
-                    shadow={chipIndex === 0}
-                    shadowStrength={0.85}
-                  />
+                  <Chip size={CHIP_SIZE} rotate={column.rotate} />
                 </View>
               ))}
             </View>
@@ -79,45 +74,39 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
 
 const styles = StyleSheet.create({
   root: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   columns: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingLeft: 8,
   },
   column: {
     position: 'relative',
   },
   columnFront: {
-    marginLeft: -22,
-    marginBottom: 10,
-    zIndex: 3,
-  },
-  columnRight: {
     marginLeft: -20,
     marginBottom: 4,
-    zIndex: 2,
+    zIndex: 3,
   },
   chipSlot: {
     position: 'absolute',
     left: 0,
   },
   badge: {
-    marginTop: 4,
+    marginTop: 2,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: 'rgba(8,10,14,0.72)',
+    backgroundColor: 'rgba(17,23,20,0.72)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(240,193,92,0.55)',
+    borderColor: 'rgba(200,155,60,0.55)',
   },
   badgeDisabled: {
     opacity: 0.45,
   },
   badgeText: {
-    color: '#f4e6c4',
-    fontSize: 12,
+    color: artStyle.colors.cream,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.6,
   },

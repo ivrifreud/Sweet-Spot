@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   ReduceMotion,
+  cancelAnimation,
   runOnJS,
   useReducedMotion,
   useSharedValue,
@@ -15,19 +16,26 @@ import Animated, {
 import { GESTURES } from '../config';
 
 const MODE_UNDECIDED = 0;
-const MODE_PEEK = 1;
 const MODE_MUCK = 2;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-const PEEK_SPRING = { duration: 400, dampingRatio: 0.8, reduceMotion: ReduceMotion.System } as const;
+const PEEK_SPRING = { duration: 400, dampingRatio: 0.9, reduceMotion: ReduceMotion.System } as const;
+const MUCK_THROW_MS = 920;
+
+export type StackHitRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 type TableGesturesProps = {
   live: boolean;
-  width: number;
   height: number;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
   stackPress: SharedValue<number>;
+  stackHit: SharedValue<StackHitRect>;
   onPeeked: () => void;
   onRaise: () => void;
   onMuck: () => void;
@@ -38,22 +46,32 @@ function clampWorklet(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function insideStack(x: number, y: number, width: number, height: number) {
+function hitStack(x: number, y: number, rect: StackHitRect) {
   'worklet';
-  return x < width * 0.42 && y > height * 0.58;
+  if (rect.width <= 0 || rect.height <= 0) {
+    return false;
+  }
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+/** Instantly hide the peek — spring can lose to a leftover withTiming(1). */
+function flattenPeek(peek: SharedValue<number>) {
+  'worklet';
+  cancelAnimation(peek);
+  peek.value = 0;
 }
 
 /**
- * Full-table pan lives in its own component so a parent re-render cannot
- * rebuild the native gesture mid-touch (that left peek stuck at 1).
+ * Full-table pan lives here so parent re-renders cannot rebuild the native
+ * gesture mid-touch (that left peek stuck at 1).
  */
 export function TableGestures({
   live,
-  width,
   height,
   peek,
   muck,
   stackPress,
+  stackHit,
   onPeeked,
   onRaise,
   onMuck,
@@ -63,7 +81,8 @@ export function TableGestures({
   const gestureMode = useSharedValue(MODE_UNDECIDED);
   const startedLow = useSharedValue(0);
   const peekedThisTouch = useSharedValue(0);
-  const reportedPeek = useSharedValue(0);
+  const muckLocked = useSharedValue(0);
+  const fingerDown = useSharedValue(0);
 
   const onPeekedRef = useRef(onPeeked);
   onPeekedRef.current = onPeeked;
@@ -84,11 +103,17 @@ export function TableGestures({
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
-  }, [live, liveEnabled]);
+    if (!live) {
+      flattenPeek(peek);
+      muckLocked.value = 0;
+      stackPress.value = 0;
+      fingerDown.value = 0;
+    }
+  }, [fingerDown, live, liveEnabled, muckLocked, peek, stackPress]);
 
   const muckTravel = height * GESTURES.muckTravel;
   const muckZoneTop = height * GESTURES.muckZoneTop;
-  const peekInMs = reducedMotion ? 0 : 150;
+  const peekInMs = reducedMotion ? 0 : 160;
 
   const gesture = useMemo(
     () =>
@@ -100,20 +125,21 @@ export function TableGestures({
             return;
           }
 
-          const onStack = insideStack(event.absoluteX, event.absoluteY, width, height);
+          const onStack = hitStack(event.x, event.y, stackHit.value);
           gestureMode.value = MODE_UNDECIDED;
           startedLow.value = event.y > muckZoneTop ? 1 : 0;
           stackPress.value = onStack ? 1 : 0;
           peekedThisTouch.value = 0;
-          reportedPeek.value = 0;
+          fingerDown.value = 1;
 
-          if (!onStack) {
+          if (!onStack && muckLocked.value !== 1) {
             peekedThisTouch.value = 1;
+            cancelAnimation(peek);
             peek.value = withTiming(1, { duration: peekInMs, easing: EASE_OUT });
           }
         })
         .onUpdate((event) => {
-          if (liveEnabled.value !== 1) {
+          if (liveEnabled.value !== 1 || muckLocked.value === 1) {
             return;
           }
 
@@ -121,10 +147,8 @@ export function TableGestures({
             if (Math.abs(event.translationY) < GESTURES.directionLock) {
               return;
             }
-            if (startedLow.value === 1 && event.translationY < 0) {
+            if (startedLow.value === 1 && event.translationY < 0 && stackPress.value === 0) {
               gestureMode.value = MODE_MUCK;
-            } else {
-              gestureMode.value = MODE_PEEK;
             }
           }
 
@@ -133,51 +157,50 @@ export function TableGestures({
           }
         })
         .onEnd((event) => {
-          const tappedStack =
-            stackPress.value === 1 &&
-            Math.abs(event.translationX) < 48 &&
-            Math.abs(event.translationY) < 48;
+          fingerDown.value = 0;
 
-          stackPress.value = 0;
-
-          if (tappedStack) {
-            peek.value = withSpring(0, PEEK_SPRING);
+          if (stackPress.value === 1) {
+            stackPress.value = 0;
+            flattenPeek(peek);
             runOnJS(fireRaise)();
             return;
           }
+
+          stackPress.value = 0;
 
           if (gestureMode.value === MODE_MUCK) {
             const committed =
               muck.value > GESTURES.muckCommit || event.velocityY < -GESTURES.flickVelocity;
 
             if (committed) {
-              peek.value = withSpring(0, PEEK_SPRING);
-              muck.value = withTiming(1, { duration: 460, easing: EASE_OUT }, (finished) => {
+              muckLocked.value = 1;
+              flattenPeek(peek);
+              muck.value = withTiming(1, { duration: MUCK_THROW_MS, easing: EASE_OUT }, (finished) => {
                 if (finished) {
                   runOnJS(fireMuck)();
                 }
               });
             } else {
               muck.value = withSpring(0, PEEK_SPRING);
-              peek.value = withSpring(0, PEEK_SPRING);
+              flattenPeek(peek);
             }
           } else {
-            peek.value = withSpring(0, PEEK_SPRING);
+            flattenPeek(peek);
           }
 
-          if (peekedThisTouch.value === 1 && reportedPeek.value === 0) {
-            reportedPeek.value = 1;
+          if (peekedThisTouch.value === 1) {
+            peekedThisTouch.value = 0;
             runOnJS(firePeeked)();
           }
         })
         .onFinalize(() => {
+          fingerDown.value = 0;
           stackPress.value = 0;
-          if (muck.value < GESTURES.muckCommit) {
-            peek.value = withSpring(0, PEEK_SPRING);
-          }
-          if (peekedThisTouch.value === 1 && reportedPeek.value === 0) {
-            reportedPeek.value = 1;
-            runOnJS(firePeeked)();
+          if (muckLocked.value !== 1) {
+            flattenPeek(peek);
+            if (muck.value < 1) {
+              muck.value = withSpring(0, PEEK_SPRING);
+            }
           }
           peekedThisTouch.value = 0;
         }),
@@ -185,19 +208,19 @@ export function TableGestures({
       fireMuck,
       firePeeked,
       fireRaise,
+      fingerDown,
       gestureMode,
-      height,
       liveEnabled,
       muck,
+      muckLocked,
       muckTravel,
       muckZoneTop,
       peek,
       peekInMs,
       peekedThisTouch,
-      reportedPeek,
+      stackHit,
       stackPress,
       startedLow,
-      width,
     ]
   );
 
