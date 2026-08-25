@@ -8,6 +8,7 @@ import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { signOut } from '../lib/auth';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
+import { hasSeenPlacement, markPlacementSeen } from '../lib/calibration/placementAck';
 import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
 import {
   finalizeSession,
@@ -66,6 +67,8 @@ export function CalibrationHarness({ userId }: Props) {
             startingElo: session.startingElo,
             reason: 'already_placed',
           });
+          const seen = await hasSeenPlacement(userId);
+          if (!cancelled) setContinued(seen);
           return;
         }
 
@@ -73,7 +76,11 @@ export function CalibrationHarness({ userId }: Props) {
         const shouldFinalize = applyAnswers(loaded, session.answers);
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
-          if (!cancelled) setResult(placed);
+          const seen = await hasSeenPlacement(userId);
+          if (!cancelled) {
+            setResult(placed);
+            setContinued(seen);
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -89,6 +96,11 @@ export function CalibrationHarness({ userId }: Props) {
       cancelled = true;
     };
   }, [applyAnswers, userId]);
+
+  function leavePlacement() {
+    setContinued(true);
+    void markPlacementSeen(userId);
+  }
 
   async function onChoose(decision: SpotDecision) {
     if (!spots || !sessionId || !current || busy) return;
@@ -143,7 +155,7 @@ export function CalibrationHarness({ userId }: Props) {
         <LevelRevealScreen
           reveal={reveal}
           error={error}
-          onContinue={() => setContinued(true)}
+          onContinue={leavePlacement}
           onSignOut={() => void signOut()}
         />
       );
@@ -157,9 +169,6 @@ export function CalibrationHarness({ userId }: Props) {
         <Text style={styles.bodyText}>Your first stage opens next.</Text>
         <Text style={styles.muted}>{reveal.worldName}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable onPress={() => setContinued(false)} style={styles.signOut}>
-          <Text style={styles.signOutText}>Back to placement</Text>
-        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.signOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
