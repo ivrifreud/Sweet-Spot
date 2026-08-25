@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "my-expo-app",
+    "name": "Sweet Spot",
     "slug": "my-expo-app",
     "version": "1.0.0",
     "web": {
@@ -16,7 +16,8 @@
           "image": "./assets/splash.png",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
