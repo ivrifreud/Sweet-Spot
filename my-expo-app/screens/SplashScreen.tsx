@@ -21,10 +21,10 @@ export function SplashScreen({ onPressStart }: Props) {
       accessibilityLabel="Press to play">
       {({ pressed }) => (
         <ImageBackground
-          source={require('../assets/brand/splash-opener-approved.png')}
+          source={require('../assets/brand/splash-opener-approved.jpg')}
           style={styles.bg}
           resizeMode="cover">
-          <FallingChips />
+          <FallingChips count={5} minSize={36} baseDuration={4200} />
 
           <View
             style={[

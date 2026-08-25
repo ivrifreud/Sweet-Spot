@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const CHIP_IMAGE = require('../../assets/brand/casino-chip-3d.png');
+const CHIP_IMAGE = require('../../assets/brand/poker-chip-sm.png');
 
 type ChipSpec = {
   id: number;
