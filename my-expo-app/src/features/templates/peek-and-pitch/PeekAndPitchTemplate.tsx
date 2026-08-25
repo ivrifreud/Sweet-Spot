@@ -24,6 +24,7 @@ import { BarrierHand } from './components/BarrierHand';
 import { CardPicker } from './components/CardPicker';
 import { ChipStack } from './components/ChipStack';
 import { ChipToss, type ChipFlight } from './components/ChipToss';
+import { CommunityCards } from './components/CommunityCards';
 import { GestureHints } from './components/GestureHints';
 import { HeroHand } from './components/HeroHand';
 import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
@@ -42,6 +43,9 @@ export type PeekAndPitchTemplateProps = {
   ) => void;
   /** Set false to hide the "Set cards" authoring shortcut in production builds. */
   showAuthoringControls?: boolean;
+  showNextHandControl?: boolean;
+  disabled?: boolean;
+  resetKey?: number;
 };
 
 /**
@@ -57,6 +61,9 @@ export function PeekAndPitchTemplate({
   spot = DEFAULT_SPOT,
   onDecision,
   showAuthoringControls = true,
+  showNextHandControl = true,
+  disabled = false,
+  resetKey = 0,
 }: PeekAndPitchTemplateProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -79,6 +86,8 @@ export function PeekAndPitchTemplate({
   const muck = useSharedValue(0);
   const commit = useSharedValue(0);
   const stackPress = useSharedValue(0);
+  const stackDragX = useSharedValue(0);
+  const stackDragY = useSharedValue(0);
   const stackHit = useSharedValue<StackHitRect>({ x: 0, y: 0, width: 0, height: 0 });
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
@@ -174,7 +183,7 @@ export function PeekAndPitchTemplate({
 
   useEffect(() => {
     dealHand(spot);
-  }, [dealHand, spot]);
+  }, [dealHand, resetKey, spot]);
 
   useEffect(() => {
     if (phase !== 'dealing') {
@@ -206,51 +215,63 @@ export function PeekAndPitchTemplate({
     [cards, onDecision, peeked]
   );
 
-  const handleRaise = useCallback(() => {
-    if (phaseRef.current !== 'live') {
+  const handleChipDecision = useCallback(
+    (nextDecision: 'call' | 'raise') => {
+      if (phaseRef.current !== 'live') {
+        return;
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+      const { stackAnchor, tableCenter } = geometry;
+      const release = {
+        x: (stackAnchor.x + tableCenter.x) * 0.52,
+        y: stackAnchor.y + (tableCenter.y - stackAnchor.y) * 0.4,
+      };
+      const flightCount = nextDecision === 'raise' ? 3 : 1;
+      const nextFlights: ChipFlight[] = Array.from({ length: flightCount }, (_, index) => {
+        flightSeed.current += 1;
+        const spin = Math.random() > 0.5 ? 1 : -1;
+        return {
+          id: `chip-${flightSeed.current}`,
+          from: {
+            x: release.x + (Math.random() - 0.5) * 36,
+            y: release.y - 12 - index * 8,
+          },
+          to: {
+            x: tableCenter.x + (Math.random() - 0.5) * 84,
+            y: tableCenter.y + (Math.random() - 0.5) * 46,
+          },
+          delayMs: 480 + index * 90,
+          durationMs: 1100,
+          arc: 120 + Math.random() * 70,
+          spin,
+          restRotate: spin * (8 + Math.random() * 22),
+        };
+      });
+
+      setFlights((current) => [...current, ...nextFlights]);
+      setPushedChips((current) => current + (nextDecision === 'raise' ? 2 : 1));
+      commit.value = 0;
+      commit.value = withSequence(
+        withTiming(0.32, { duration: 180, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.cubic) })
+      );
+
+      cancelAnimation(peek);
+      peek.value = 0;
+      resolve(nextDecision);
+    },
+    [commit, geometry, peek, resolve]
+  );
+
+  const handleCheck = useCallback(() => {
+    if (phaseRef.current !== 'live' || !activeSpot.canCheck) {
       return;
     }
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-
-    const { stackAnchor, tableCenter } = geometry;
-    const release = {
-      x: (stackAnchor.x + tableCenter.x) * 0.52,
-      y: stackAnchor.y + (tableCenter.y - stackAnchor.y) * 0.4,
-    };
-    const nextFlights: ChipFlight[] = Array.from({ length: 3 }, (_, index) => {
-      flightSeed.current += 1;
-      const spin = Math.random() > 0.5 ? 1 : -1;
-      return {
-        id: `chip-${flightSeed.current}`,
-        from: {
-          x: release.x + (Math.random() - 0.5) * 36,
-          y: release.y - 12 - index * 8,
-        },
-        to: {
-          x: tableCenter.x + (Math.random() - 0.5) * 84,
-          y: tableCenter.y + (Math.random() - 0.5) * 46,
-        },
-        delayMs: 480 + index * 90,
-        durationMs: 1100,
-        arc: 120 + Math.random() * 70,
-        spin,
-        restRotate: spin * (8 + Math.random() * 22),
-      };
-    });
-
-    setFlights((current) => [...current, ...nextFlights]);
-    setPushedChips((current) => current + 2);
-    commit.value = 0;
-    commit.value = withSequence(
-      withTiming(0.32, { duration: 180, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.cubic) })
-    );
-
-    cancelAnimation(peek);
-    peek.value = 0;
-    resolve('raise');
-  }, [commit, geometry, peek, resolve]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    resolve('check');
+  }, [activeSpot.canCheck, resolve]);
 
   useEffect(() => {
     stackHit.value = geometry.stackHit;
@@ -266,6 +287,12 @@ export function PeekAndPitchTemplate({
   return (
     <View style={[styles.root, { backgroundColor: skin.feltTint }]}>
       <TableScene skin={activeSpot.skin} width={width} height={height} />
+
+      <CommunityCards
+        cards={activeSpot.board}
+        center={geometry.tableCenter}
+        maxWidth={stage * 0.76}
+      />
 
       <View
         style={[
@@ -283,6 +310,8 @@ export function PeekAndPitchTemplate({
           disabled={phase !== 'live'}
           pushed={pushedChips}
           press={stackPress}
+          dragX={stackDragX}
+          dragY={stackDragY}
         />
       </View>
 
@@ -320,17 +349,28 @@ export function PeekAndPitchTemplate({
 
       <ChipToss flights={flights} />
 
-      <GestureHints peek={peek} peeked={peeked} visible={phase === 'live'} />
+      <GestureHints
+        peek={peek}
+        peeked={peeked}
+        visible={phase === 'live' && !disabled}
+        canCheck={Boolean(activeSpot.canCheck)}
+      />
 
       <TableGestures
-        live={phase === 'live'}
+        live={phase === 'live' && !disabled}
+        canCheck={Boolean(activeSpot.canCheck)}
         height={height}
+        potCenter={geometry.tableCenter}
         peek={peek}
         muck={muck}
         stackPress={stackPress}
+        stackDragX={stackDragX}
+        stackDragY={stackDragY}
         stackHit={stackHit}
         onPeeked={markPeeked}
-        onRaise={handleRaise}
+        onCheck={handleCheck}
+        onCall={() => handleChipDecision('call')}
+        onRaise={() => handleChipDecision('raise')}
         onMuck={completeMuck}
       />
 
@@ -339,6 +379,7 @@ export function PeekAndPitchTemplate({
           position={activeSpot.position}
           actionLine={activeSpot.actionLine}
           potLabel={activeSpot.potLabel}
+          progressLabel={activeSpot.progressLabel}
           accent={skin.accent}
           decision={decision}
           handLabel={decision ? handLabel : null}
@@ -346,7 +387,7 @@ export function PeekAndPitchTemplate({
         />
       </View>
 
-      {phase === 'resolved' ? (
+      {phase === 'resolved' && showNextHandControl ? (
         <View
           style={[
             styles.footer,

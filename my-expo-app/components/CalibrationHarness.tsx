@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
+import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
 import { signOut } from '../lib/auth';
 import { nextCalibrationAction } from '../lib/calibration/flow';
+import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
 import {
   finalizeSession,
   getOrCreateSession,
@@ -19,30 +15,11 @@ import {
   type FinalizeResult,
   type LoadedSpots,
 } from '../lib/calibration/session';
-import type { CalibrationSpot, PokerAction, SpotAnswer } from '../lib/calibration/types';
+import type { CalibrationSpot, SpotAnswer } from '../lib/calibration/types';
 
 type Props = {
   userId: string;
 };
-
-function ActionButton({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.actionBtn, disabled && styles.actionBtnDisabled]}>
-      <Text style={styles.actionBtnText}>{label}</Text>
-    </Pressable>
-  );
-}
 
 export function CalibrationHarness({ userId }: Props) {
   const [spots, setSpots] = useState<LoadedSpots | null>(null);
@@ -53,6 +30,7 @@ export function CalibrationHarness({ userId }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
+  const [resetKey, setResetKey] = useState(0);
 
   const applyAnswers = useCallback((loaded: LoadedSpots, nextAnswers: SpotAnswer[]) => {
     const action = nextCalibrationAction(loaded.stage1, loaded.stage2, nextAnswers);
@@ -109,11 +87,12 @@ export function CalibrationHarness({ userId }: Props) {
     };
   }, [applyAnswers, userId]);
 
-  async function onChoose(chosen: PokerAction) {
+  async function onChoose(decision: SpotDecision) {
     if (!spots || !sessionId || !current || busy) return;
     setBusy(true);
     setError(null);
     try {
+      const chosen = pokerActionForDecision(decision, current);
       const nextAnswers = await submitAnswer({
         sessionId,
         userId,
@@ -130,6 +109,7 @@ export function CalibrationHarness({ userId }: Props) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save answer');
+      setResetKey((value) => value + 1);
     } finally {
       setBusy(false);
     }
@@ -138,146 +118,210 @@ export function CalibrationHarness({ userId }: Props) {
   const stageLabel =
     current?.spotType === 'calibration_stage1' ? 'Stage 1 · Pre-flop' : 'Stage 2 · Post-flop';
   const progress = current ? `${current.sequenceOrder} / 6` : result ? 'Done' : '…';
+  const tableSpot = useMemo(
+    () => (current ? toPeekAndPitchSpot(current, `${stageLabel} · ${progress}`) : null),
+    [current, progress, stageLabel]
+  );
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Calibration</Text>
-        <Text style={styles.headerMeta}>
-          {result ? `Placed · Level ${result.placement}` : `${stageLabel} · ${progress}`}
-        </Text>
-      </View>
+  if (booting) {
+    return (
+      <SafeAreaView style={styles.statusScreen}>
+        <ActivityIndicator size="large" color="#E6C46A" />
+        <Text style={styles.statusText}>Loading calibration…</Text>
+      </SafeAreaView>
+    );
+  }
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {booting ? (
-          <ActivityIndicator size="large" color="#111111" />
-        ) : result ? (
-          <>
-            <Text style={styles.kicker}>Your placement</Text>
-            <Text style={styles.level}>Level {result.placement}</Text>
-            <Text style={styles.bodyText}>Starting Elo {result.startingElo}</Text>
-            <Text style={styles.muted}>{result.reason}</Text>
-          </>
-        ) : current ? (
-          <>
-            <Text style={styles.kicker}>
-              {current.heroPosition} · {progress}
-            </Text>
-            <Text style={styles.prompt}>{current.prompt}</Text>
-            <Text style={styles.cards}>
-              Hole {current.holeCards.join('  ')}
-              {current.board.length > 0 ? `\nBoard ${current.board.join('  ')}` : ''}
-            </Text>
-            {current.potSize != null ? (
-              <Text style={styles.bodyText}>Pot {current.potSize}bb</Text>
-            ) : null}
-            <View style={styles.actions}>
-              <ActionButton label="Fold" onPress={() => void onChoose('fold')} disabled={busy} />
-              <ActionButton label="Call" onPress={() => void onChoose('call')} disabled={busy} />
-              <ActionButton label="Raise" onPress={() => void onChoose('raise')} disabled={busy} />
-            </View>
-          </>
+  if (result) {
+    return (
+      <SafeAreaView style={styles.statusScreen}>
+        <Text style={styles.kicker}>Your placement</Text>
+        <Text style={styles.level}>Level {result.placement}</Text>
+        <Text style={styles.bodyText}>Starting Elo {result.startingElo}</Text>
+        <Text style={styles.muted}>{result.reason}</Text>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Pressable onPress={() => void signOut()} style={styles.signOut}>
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  if (!current || !tableSpot) {
+    return (
+      <SafeAreaView style={styles.statusScreen}>
+        {error ? (
+          <Text style={styles.error}>{error}</Text>
         ) : (
           <ActivityIndicator size="large" color="#111111" />
         )}
+      </SafeAreaView>
+    );
+  }
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </ScrollView>
+  return (
+    <View style={styles.tableScreen}>
+      <PeekAndPitchTemplate
+        spot={tableSpot}
+        onDecision={(decision) => void onChoose(decision)}
+        showAuthoringControls={false}
+        showNextHandControl={false}
+        disabled={busy}
+        resetKey={resetKey}
+      />
 
-      <Pressable onPress={() => void signOut()} style={styles.signOut}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-    </SafeAreaView>
+      <View style={styles.tableControls} pointerEvents="box-none">
+        <View style={styles.calibrationPill}>
+          <Text style={styles.calibrationPillText}>Calibration</Text>
+        </View>
+        <Pressable onPress={() => void signOut()} style={styles.tableSignOut}>
+          <Text style={styles.tableSignOutText}>Sign out</Text>
+        </Pressable>
+      </View>
+
+      {busy ? (
+        <View style={styles.savingPill} pointerEvents="none">
+          <ActivityIndicator size="small" color="#111714" />
+          <Text style={styles.savingText}>Saving…</Text>
+        </View>
+      ) : null}
+
+      {error ? (
+        <View style={styles.errorBanner} pointerEvents="none">
+          <Text style={styles.errorBannerText}>{error}</Text>
+          <Text style={styles.errorBannerHint}>The hand was reset. Try again.</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  tableScreen: {
     flex: 1,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#111714',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#111111',
-  },
-  headerTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  headerMeta: {
-    color: '#d4d4d8',
-    marginTop: 4,
-    fontSize: 14,
-  },
-  body: {
-    padding: 20,
+  statusScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
     gap: 16,
-    flexGrow: 1,
+    backgroundColor: '#111714',
+  },
+  statusText: {
+    color: '#E8D7A7',
+    fontSize: 16,
   },
   kicker: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#52525b',
+    fontWeight: '700',
+    color: '#E6C46A',
     textTransform: 'uppercase',
-  },
-  prompt: {
-    fontSize: 22,
-    lineHeight: 30,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  cards: {
-    fontSize: 18,
-    lineHeight: 26,
-    color: '#18181b',
-    fontVariant: ['tabular-nums'],
+    letterSpacing: 1.5,
   },
   bodyText: {
     fontSize: 16,
-    color: '#27272a',
+    color: '#E8D7A7',
   },
   muted: {
     fontSize: 14,
-    color: '#71717a',
+    color: 'rgba(232,215,167,0.65)',
   },
   level: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#18181b',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    backgroundColor: '#18181b',
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  actionBtnDisabled: {
-    opacity: 0.4,
-  },
-  actionBtnText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: '#E6C46A',
   },
   error: {
-    color: '#dc2626',
+    color: '#fca5a5',
     fontSize: 15,
     marginTop: 8,
+    textAlign: 'center',
   },
   signOut: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   signOutText: {
-    color: '#52525b',
+    color: '#E8D7A7',
     fontSize: 15,
+  },
+  tableControls: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calibrationPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(230,196,106,0.55)',
+    backgroundColor: 'rgba(8,10,14,0.76)',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  calibrationPillText: {
+    color: '#E6C46A',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  tableSignOut: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(8,10,14,0.76)',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  tableSignOutText: {
+    color: 'rgba(232,215,167,0.82)',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  savingPill: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: '#E6C46A',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    transform: [{ translateX: -54 }, { translateY: -20 }],
+  },
+  savingText: {
+    color: '#111714',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  errorBanner: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 72,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f87171',
+    backgroundColor: 'rgba(90,20,20,0.94)',
+    padding: 12,
+  },
+  errorBannerText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  errorBannerHint: {
+    color: '#fecaca',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 3,
   },
 });

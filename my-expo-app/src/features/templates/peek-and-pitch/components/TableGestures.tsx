@@ -25,6 +25,8 @@ const PEEK_SPRING = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const MUCK_THROW_MS = 920;
+const STACK_DRAG_THRESHOLD = 26;
+const DOUBLE_TAP_MS = 320;
 
 export type StackHitRect = {
   x: number;
@@ -35,12 +37,18 @@ export type StackHitRect = {
 
 type TableGesturesProps = {
   live: boolean;
+  canCheck: boolean;
   height: number;
+  potCenter: { x: number; y: number };
   peek: SharedValue<number>;
   muck: SharedValue<number>;
   stackPress: SharedValue<number>;
+  stackDragX: SharedValue<number>;
+  stackDragY: SharedValue<number>;
   stackHit: SharedValue<StackHitRect>;
   onPeeked: () => void;
+  onCheck: () => void;
+  onCall: () => void;
   onRaise: () => void;
   onMuck: () => void;
 };
@@ -71,12 +79,18 @@ function flattenPeek(peek: SharedValue<number>) {
  */
 export function TableGestures({
   live,
+  canCheck,
   height,
+  potCenter,
   peek,
   muck,
   stackPress,
+  stackDragX,
+  stackDragY,
   stackHit,
   onPeeked,
+  onCheck,
+  onCall,
   onRaise,
   onMuck,
 }: TableGesturesProps) {
@@ -87,9 +101,16 @@ export function TableGestures({
   const peekedThisTouch = useSharedValue(0);
   const muckLocked = useSharedValue(0);
   const fingerDown = useSharedValue(0);
+  const stackDragged = useSharedValue(0);
+  const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
+  const lastFeltTapAt = useSharedValue(0);
 
   const onPeekedRef = useRef(onPeeked);
   onPeekedRef.current = onPeeked;
+  const onCheckRef = useRef(onCheck);
+  onCheckRef.current = onCheck;
+  const onCallRef = useRef(onCall);
+  onCallRef.current = onCall;
   const onRaiseRef = useRef(onRaise);
   onRaiseRef.current = onRaise;
   const onMuckRef = useRef(onMuck);
@@ -97,6 +118,12 @@ export function TableGestures({
 
   const firePeeked = useCallback(() => {
     onPeekedRef.current();
+  }, []);
+  const fireCheck = useCallback(() => {
+    onCheckRef.current();
+  }, []);
+  const fireCall = useCallback(() => {
+    onCallRef.current();
   }, []);
   const fireRaise = useCallback(() => {
     onRaiseRef.current();
@@ -107,13 +134,31 @@ export function TableGestures({
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
+    canCheckEnabled.value = canCheck ? 1 : 0;
     if (!live) {
       flattenPeek(peek);
       muckLocked.value = 0;
       stackPress.value = 0;
+      stackDragX.value = 0;
+      stackDragY.value = 0;
       fingerDown.value = 0;
+      stackDragged.value = 0;
+      lastFeltTapAt.value = 0;
     }
-  }, [fingerDown, live, liveEnabled, muckLocked, peek, stackPress]);
+  }, [
+    canCheck,
+    canCheckEnabled,
+    fingerDown,
+    lastFeltTapAt,
+    live,
+    liveEnabled,
+    muckLocked,
+    peek,
+    stackDragged,
+    stackDragX,
+    stackDragY,
+    stackPress,
+  ]);
 
   const muckTravel = height * GESTURES.muckTravel;
   const muckZoneTop = height * GESTURES.muckZoneTop;
@@ -133,6 +178,9 @@ export function TableGestures({
           gestureMode.value = MODE_UNDECIDED;
           startedLow.value = event.y > muckZoneTop ? 1 : 0;
           stackPress.value = onStack ? 1 : 0;
+          stackDragged.value = 0;
+          stackDragX.value = 0;
+          stackDragY.value = 0;
           peekedThisTouch.value = 0;
           fingerDown.value = 1;
 
@@ -144,6 +192,22 @@ export function TableGestures({
         })
         .onUpdate((event) => {
           if (liveEnabled.value !== 1 || muckLocked.value === 1) {
+            return;
+          }
+
+          if (stackPress.value === 1) {
+            stackDragX.value = clampWorklet(event.translationX, -16, 96);
+            stackDragY.value = clampWorklet(event.translationY, -96, 24);
+            const stackCenterX = stackHit.value.x + stackHit.value.width / 2;
+            const stackCenterY = stackHit.value.y + stackHit.value.height / 2;
+            const towardPotX = potCenter.x - stackCenterX;
+            const towardPotY = potCenter.y - stackCenterY;
+            const towardPotLength = Math.max(1, Math.hypot(towardPotX, towardPotY));
+            const progress =
+              (event.translationX * towardPotX + event.translationY * towardPotY) / towardPotLength;
+            if (progress >= STACK_DRAG_THRESHOLD) {
+              stackDragged.value = 1;
+            }
             return;
           }
 
@@ -165,12 +229,31 @@ export function TableGestures({
 
           if (stackPress.value === 1) {
             stackPress.value = 0;
+            stackDragX.value = withTiming(0, { duration: 180 });
+            stackDragY.value = withTiming(0, { duration: 180 });
             flattenPeek(peek);
-            runOnJS(fireRaise)();
+            if (stackDragged.value === 1) {
+              runOnJS(fireRaise)();
+            } else if (canCheckEnabled.value !== 1) {
+              runOnJS(fireCall)();
+            }
+            stackDragged.value = 0;
             return;
           }
 
           stackPress.value = 0;
+
+          const feltTap = Math.abs(event.translationX) < 10 && Math.abs(event.translationY) < 10;
+          if (feltTap && canCheckEnabled.value === 1) {
+            const now = Date.now();
+            if (now - lastFeltTapAt.value <= DOUBLE_TAP_MS) {
+              lastFeltTapAt.value = 0;
+              flattenPeek(peek);
+              runOnJS(fireCheck)();
+              return;
+            }
+            lastFeltTapAt.value = now;
+          }
 
           if (gestureMode.value === MODE_MUCK) {
             const committed =
@@ -204,6 +287,9 @@ export function TableGestures({
         .onFinalize(() => {
           fingerDown.value = 0;
           stackPress.value = 0;
+          stackDragX.value = withTiming(0, { duration: 180 });
+          stackDragY.value = withTiming(0, { duration: 180 });
+          stackDragged.value = 0;
           if (muckLocked.value !== 1) {
             flattenPeek(peek);
             if (muck.value < 1) {
@@ -215,10 +301,14 @@ export function TableGestures({
     [
       fireMuck,
       firePeeked,
+      fireCall,
+      fireCheck,
       fireRaise,
+      canCheckEnabled,
       fingerDown,
       gestureMode,
       liveEnabled,
+      lastFeltTapAt,
       muck,
       muckLocked,
       muckTravel,
@@ -226,6 +316,11 @@ export function TableGestures({
       peek,
       peekInMs,
       peekedThisTouch,
+      potCenter.x,
+      potCenter.y,
+      stackDragged,
+      stackDragX,
+      stackDragY,
       stackHit,
       stackPress,
       startedLow,
@@ -238,7 +333,11 @@ export function TableGestures({
         style={StyleSheet.absoluteFill}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel="Hold to peek at your hole cards. Swipe up to muck. Tap your chips to raise."
+        accessibilityLabel={
+          canCheck
+            ? 'Hold to peek. Swipe up to fold. Double-tap the felt to check. Drag chips toward the pot to raise.'
+            : 'Hold to peek. Swipe up to fold. Tap your chips to call. Drag chips toward the pot to raise.'
+        }
       />
     </GestureDetector>
   );

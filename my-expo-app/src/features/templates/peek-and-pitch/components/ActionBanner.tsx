@@ -8,6 +8,7 @@ type ActionBannerProps = {
   position: HeroPosition;
   actionLine: string;
   potLabel: string;
+  progressLabel?: string;
   accent: string;
   decision: SpotDecision | null;
   handLabel: string | null;
@@ -19,6 +20,7 @@ export function ActionBanner({
   position,
   actionLine,
   potLabel,
+  progressLabel,
   accent,
   decision,
   handLabel,
@@ -43,6 +45,7 @@ export function ActionBanner({
           </Text>
           <Text style={styles.pot}>
             {STRINGS.potLabel} {potLabel}
+            {progressLabel ? ` · ${progressLabel}` : ''}
           </Text>
         </View>
 
@@ -56,11 +59,15 @@ export function ActionBanner({
       </View>
 
       {decision ? (
-        <View
-          style={[styles.result, { borderColor: decision === 'raise' ? '#6ee7a8' : '#f87171' }]}>
-          <Text
-            style={[styles.resultText, { color: decision === 'raise' ? '#6ee7a8' : '#fca5a5' }]}>
-            {decision === 'raise' ? STRINGS.raised : STRINGS.folded}
+        <View style={[styles.result, { borderColor: accent }]}>
+          <Text style={[styles.resultText, { color: accent }]}>
+            {decision === 'fold'
+              ? STRINGS.folded
+              : decision === 'check'
+                ? STRINGS.checked
+                : decision === 'call'
+                  ? STRINGS.called
+                  : STRINGS.raised}
             {handLabel ? ` \u00b7 ${handLabel}` : ''}
           </Text>
         </View>

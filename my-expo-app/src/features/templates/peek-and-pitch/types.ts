@@ -1,4 +1,4 @@
-import type { HoleCardCodes } from '@/lib/cards';
+import type { CardCode, HoleCardCodes } from '@/lib/cards';
 
 /** Visual skin of the table. One entry per World (see docs/The_Six_Pillars_&_The_Four_Worlds.md). */
 export type TableSkin = 'casino' | 'garden';
@@ -14,13 +14,17 @@ export type PeekAndPitchSpot = {
   id: string;
   skin: TableSkin;
   heroCards: HoleCardCodes | null;
+  board: CardCode[];
   position: HeroPosition;
   /** Floating banner copy describing the action the hero is facing. */
   actionLine: string;
   potLabel: string;
   heroStackLabel: string;
+  prompt?: string;
+  progressLabel?: string;
+  canCheck?: boolean;
 };
 
-export type SpotDecision = 'fold' | 'raise';
+export type SpotDecision = 'fold' | 'check' | 'call' | 'raise';
 
 export type TemplatePhase = 'dealing' | 'live' | 'resolved';

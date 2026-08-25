@@ -25,13 +25,19 @@ type ChipStackProps = {
   disabled: boolean;
   pushed: number;
   press: SharedValue<number>;
+  dragX: SharedValue<number>;
+  dragY: SharedValue<number>;
 };
 
-export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProps) {
+export function ChipStack({ stackLabel, disabled, pushed, press, dragX, dragY }: ChipStackProps) {
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: held.value * 4 }, { scale: 1 - held.value * 0.03 }],
+    transform: [
+      { translateX: dragX.value },
+      { translateY: dragY.value + held.value * 4 },
+      { scale: 1 - held.value * 0.03 },
+    ],
   }));
 
   return (

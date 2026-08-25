@@ -17,10 +17,11 @@ type GestureHintsProps = {
   peek: SharedValue<number>;
   peeked: boolean;
   visible: boolean;
+  canCheck: boolean;
 };
 
 /** Teaching layer: the three gestures, shown until the player uses them. */
-export function GestureHints({ peek, peeked, visible }: GestureHintsProps) {
+export function GestureHints({ peek, peeked, visible, canCheck }: GestureHintsProps) {
   const peekStyle = useAnimatedStyle(() => ({
     opacity: interpolate(peek.value, [0, 0.25], [1, 0]),
   }));
@@ -34,7 +35,12 @@ export function GestureHints({ peek, peeked, visible }: GestureHintsProps) {
       {peeked ? (
         <View style={styles.postPeek}>
           <Hint label={STRINGS.muckHint} glyph={'\u2191'} direction={-1} />
-          <Hint label={STRINGS.raiseHint} glyph={'\u25cf'} direction={0} />
+          {canCheck ? (
+            <Hint label={STRINGS.checkHint} glyph={'\u2022\u2022'} direction={0} />
+          ) : (
+            <Hint label={STRINGS.callHint} glyph={'\u25cf'} direction={0} />
+          )}
+          <Hint label={STRINGS.raiseHint} glyph={'\u2197'} direction={-1} />
         </View>
       ) : (
         <Animated.View style={peekStyle}>
