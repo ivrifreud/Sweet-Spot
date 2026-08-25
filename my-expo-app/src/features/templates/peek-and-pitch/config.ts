@@ -4,11 +4,19 @@ import type { PeekAndPitchSpot, TableSkin } from './types';
 
 type Point = { x: number; y: number };
 
+export type BackdropFit = 'cover' | 'width-top';
+
 type SkinConfig = {
   label: string;
   background: ImageSourcePropType;
-  /** Intrinsic size of the backdrop, needed to map image-space anchors through `cover`. */
+  /** Intrinsic size of the backdrop, needed to map image-space anchors through the fit mode. */
   backgroundSize: { width: number; height: number };
+  /**
+   * `cover` fills the screen and may crop left/right (casino).
+   * `width-top` shows the full art width, pinned to the top — needed when
+   * characters sit across the image and phones would otherwise crop them.
+   */
+  fit: BackdropFit;
   /** The dealer's hands in the artwork, as a fraction of the image. Cards are pitched from here. */
   dealOrigin: Point;
   /** The middle of the felt in the artwork: where mucked cards and raised chips end up. */
@@ -27,6 +35,7 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     label: 'Local Casino',
     background: require('../../../../assets/tables/pov-table-casino-1930s.png'),
     backgroundSize: { width: 1024, height: 1536 },
+    fit: 'cover',
     dealOrigin: { x: 0.5, y: 0.34 },
     tableCenter: { x: 0.5, y: 0.48 },
     feltTint: '#111714',
@@ -37,6 +46,7 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     label: "Benny's Garden",
     background: require('../../../../assets/themes/bennys-garden/night-playable.png'),
     backgroundSize: { width: 1024, height: 1536 },
+    fit: 'width-top',
     dealOrigin: { x: 0.5, y: 0.36 },
     tableCenter: { x: 0.5, y: 0.48 },
     feltTint: '#14110c',
@@ -45,23 +55,46 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
   },
 };
 
+export function getBackdropLayout(
+  image: { width: number; height: number },
+  screen: { width: number; height: number },
+  fit: BackdropFit
+): { left: number; top: number; width: number; height: number } {
+  if (fit === 'width-top') {
+    const scale = screen.width / image.width;
+    return {
+      left: 0,
+      top: 0,
+      width: screen.width,
+      height: image.height * scale,
+    };
+  }
+
+  const scale = Math.max(screen.width / image.width, screen.height / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  return {
+    left: (screen.width - width) / 2,
+    top: (screen.height - height) / 2,
+    width,
+    height,
+  };
+}
+
 /**
- * Maps a point expressed in backdrop coordinates onto the screen, accounting for the way
- * `resizeMode="cover"` crops the artwork. Keeps the dealer and the pot anchored to the art
- * whatever the phone's aspect ratio is.
+ * Maps a point expressed in backdrop coordinates onto the screen so dealer and pot
+ * stay glued to the artwork under the skin's fit mode.
  */
 export function mapBackdropPoint(
   point: Point,
   image: { width: number; height: number },
-  screen: { width: number; height: number }
+  screen: { width: number; height: number },
+  fit: BackdropFit = 'cover'
 ): Point {
-  const scale = Math.max(screen.width / image.width, screen.height / image.height);
-  const renderedWidth = image.width * scale;
-  const renderedHeight = image.height * scale;
-
+  const layout = getBackdropLayout(image, screen, fit);
   return {
-    x: (screen.width - renderedWidth) / 2 + point.x * renderedWidth,
-    y: (screen.height - renderedHeight) / 2 + point.y * renderedHeight,
+    x: layout.left + point.x * layout.width,
+    y: layout.top + point.y * layout.height,
   };
 }
 

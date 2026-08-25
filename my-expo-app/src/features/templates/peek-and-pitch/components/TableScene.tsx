@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, StyleSheet, View } from 'react-native';
 
-import { SKINS } from '../config';
+import { getBackdropLayout, SKINS } from '../config';
 import type { TableSkin } from '../types';
 
 type TableSceneProps = {
@@ -17,11 +17,22 @@ type TableSceneProps = {
  */
 export function TableScene({ skin, width, height }: TableSceneProps) {
   const config = SKINS[skin];
+  const layout = getBackdropLayout(config.backgroundSize, { width, height }, config.fit);
   const railHeight = height * 0.4;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Image source={config.background} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image
+        source={config.background}
+        resizeMode="stretch"
+        style={{
+          position: 'absolute',
+          left: layout.left,
+          top: layout.top,
+          width: layout.width,
+          height: layout.height,
+        }}
+      />
 
       <LinearGradient
         colors={['rgba(17,23,20,0.28)', 'rgba(17,23,20,0)', 'rgba(17,23,20,0.12)']}
