@@ -1,5 +1,6 @@
 import type { ImageSourcePropType } from 'react-native';
 
+import { DEFAULT_FELT_PLANE, type FeltPlaneConfig } from './feltPlane';
 import type { PeekAndPitchSpot, TableSkin } from './types';
 
 type Point = { x: number; y: number };
@@ -21,6 +22,10 @@ type SkinConfig = {
   dealOrigin: Point;
   /** The middle of the felt in the artwork: where mucked cards and raised chips end up. */
   tableCenter: Point;
+  /** Near-felt seat for hole cards, in image space, glued to the invisible table plane. */
+  holeRest: Point;
+  /** Invisible 3D felt that cards rest on so they match the painted table. */
+  feltPlane: FeltPlaneConfig;
   feltTint: string;
   accent: string;
   /**
@@ -38,6 +43,8 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     fit: 'cover',
     dealOrigin: { x: 0.5, y: 0.34 },
     tableCenter: { x: 0.5, y: 0.48 },
+    holeRest: { x: 0.58, y: 0.7 },
+    feltPlane: DEFAULT_FELT_PLANE,
     feltTint: '#111714',
     accent: '#C89B3C',
     railCover: ['rgba(17,23,20,0)', 'rgba(12,18,16,0.72)'],
@@ -49,6 +56,8 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     fit: 'width-top',
     dealOrigin: { x: 0.5, y: 0.36 },
     tableCenter: { x: 0.5, y: 0.48 },
+    holeRest: { x: 0.58, y: 0.69 },
+    feltPlane: DEFAULT_FELT_PLANE,
     feltTint: '#14110c',
     accent: '#E6C46A',
     railCover: ['rgba(32,22,12,0)', 'rgba(22,16,10,0.94)'],

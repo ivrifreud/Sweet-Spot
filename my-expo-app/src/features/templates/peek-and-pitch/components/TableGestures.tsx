@@ -6,7 +6,6 @@ import Animated, {
   ReduceMotion,
   cancelAnimation,
   runOnJS,
-  useReducedMotion,
   useSharedValue,
   withSpring,
   withTiming,
@@ -20,8 +19,13 @@ const MODE_MUCK = 2;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const PEEK_SPRING = {
-  duration: 400,
-  dampingRatio: 0.9,
+  duration: 420,
+  dampingRatio: 0.74,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const DROP_SPRING = {
+  duration: 540,
+  dampingRatio: 0.68,
   reduceMotion: ReduceMotion.System,
 } as const;
 const MUCK_THROW_MS = 920;
@@ -66,11 +70,11 @@ function hitStack(x: number, y: number, rect: StackHitRect) {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
-/** Instantly hide the peek — spring can lose to a leftover withTiming(1). */
-function flattenPeek(peek: SharedValue<number>) {
+/** Settle the peek onto the felt. Instant on a muck so the throw can start clean. */
+function flattenPeek(peek: SharedValue<number>, instant = false) {
   'worklet';
   cancelAnimation(peek);
-  peek.value = 0;
+  peek.value = instant ? 0 : withSpring(0, DROP_SPRING);
 }
 
 /**
@@ -94,7 +98,6 @@ export function TableGestures({
   onRaise,
   onMuck,
 }: TableGesturesProps) {
-  const reducedMotion = useReducedMotion();
   const liveEnabled = useSharedValue(live ? 1 : 0);
   const gestureMode = useSharedValue(MODE_UNDECIDED);
   const startedLow = useSharedValue(0);
@@ -136,7 +139,7 @@ export function TableGestures({
     liveEnabled.value = live ? 1 : 0;
     canCheckEnabled.value = canCheck ? 1 : 0;
     if (!live) {
-      flattenPeek(peek);
+      flattenPeek(peek, true);
       muckLocked.value = 0;
       stackPress.value = 0;
       stackDragX.value = 0;
@@ -162,7 +165,6 @@ export function TableGestures({
 
   const muckTravel = height * GESTURES.muckTravel;
   const muckZoneTop = height * GESTURES.muckZoneTop;
-  const peekInMs = reducedMotion ? 0 : 160;
 
   const gesture = useMemo(
     () =>
@@ -187,7 +189,7 @@ export function TableGestures({
           if (!onStack && muckLocked.value !== 1) {
             peekedThisTouch.value = 1;
             cancelAnimation(peek);
-            peek.value = withTiming(1, { duration: peekInMs, easing: EASE_OUT });
+            peek.value = withSpring(1, PEEK_SPRING);
           }
         })
         .onUpdate((event) => {
@@ -231,7 +233,7 @@ export function TableGestures({
             stackPress.value = 0;
             stackDragX.value = withTiming(0, { duration: 180 });
             stackDragY.value = withTiming(0, { duration: 180 });
-            flattenPeek(peek);
+            flattenPeek(peek, true);
             if (stackDragged.value === 1) {
               runOnJS(fireRaise)();
             } else if (canCheckEnabled.value !== 1) {
@@ -248,7 +250,7 @@ export function TableGestures({
             const now = Date.now();
             if (now - lastFeltTapAt.value <= DOUBLE_TAP_MS) {
               lastFeltTapAt.value = 0;
-              flattenPeek(peek);
+              flattenPeek(peek, true);
               runOnJS(fireCheck)();
               return;
             }
@@ -261,7 +263,7 @@ export function TableGestures({
 
             if (committed) {
               muckLocked.value = 1;
-              flattenPeek(peek);
+              flattenPeek(peek, true);
               muck.value = withTiming(
                 1,
                 { duration: MUCK_THROW_MS, easing: EASE_OUT },
@@ -314,7 +316,6 @@ export function TableGestures({
       muckTravel,
       muckZoneTop,
       peek,
-      peekInMs,
       peekedThisTouch,
       potCenter.x,
       potCenter.y,
