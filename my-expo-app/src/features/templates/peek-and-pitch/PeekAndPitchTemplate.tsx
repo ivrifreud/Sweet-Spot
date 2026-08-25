@@ -121,8 +121,8 @@ export function PeekAndPitchTemplate({
     };
 
     return {
-      dealOrigin: mapBackdropPoint(skin.dealOrigin, skin.backgroundSize, screen),
-      tableCenter: mapBackdropPoint(skin.tableCenter, skin.backgroundSize, screen),
+      dealOrigin: mapBackdropPoint(skin.dealOrigin, skin.backgroundSize, screen, skin.fit),
+      tableCenter: mapBackdropPoint(skin.tableCenter, skin.backgroundSize, screen, skin.fit),
       restCenter,
       stackHit,
       stackAnchor: {
@@ -146,6 +146,7 @@ export function PeekAndPitchTemplate({
     insets.bottom,
     skin.backgroundSize,
     skin.dealOrigin,
+    skin.fit,
     skin.tableCenter,
     stage,
     stageLeft,
