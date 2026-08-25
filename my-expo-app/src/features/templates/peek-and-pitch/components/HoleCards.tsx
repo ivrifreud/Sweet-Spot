@@ -1,27 +1,24 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedStyle,
+  useReducedMotion,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import type { Card, HoleCards as HoleCardsTuple } from '@/lib/cards';
 
-import { CARD_ASPECT, CardBack, CardIndex } from './PlayingCard';
+import { artStyle } from '../../../../../theme/artStyle';
+import { CARD_ASPECT, PeekIndex } from './PlayingCard';
 
 type Point = { x: number; y: number };
 
 type HoleCardsProps = {
   cards: HoleCardsTuple;
-  /** 0 = flat on the felt, 1 = corner fully lifted and readable. */
   peek: SharedValue<number>;
-  /** 0 = in front of the player, 1 = gone into the muck. */
   muck: SharedValue<number>;
-  /** 0 = still in the dealer's hand, 1 = landed in front of the player. */
   deal: SharedValue<number>;
-  /** Pulls the cards in behind the chips when the hand is played. */
   commit: SharedValue<number>;
   cardWidth: number;
   dealOrigin: Point;
@@ -29,7 +26,11 @@ type HoleCardsProps = {
   restCenter: Point;
 };
 
-const FAN_ANGLE = 7;
+const FAN_ANGLE = 5;
+const SLICE_COUNT = 4;
+const SLICE_OVERLAP = 2;
+
+export const CARD_GAP_RATIO = 0.06;
 
 export function HoleCards({
   cards,
@@ -43,7 +44,8 @@ export function HoleCards({
   restCenter,
 }: HoleCardsProps) {
   const cardHeight = cardWidth * CARD_ASPECT;
-  const gap = cardWidth * 0.14;
+  const gap = cardWidth * CARD_GAP_RATIO;
+  const reduced = useReducedMotion();
 
   return (
     <View style={styles.root} pointerEvents="none">
@@ -68,6 +70,7 @@ export function HoleCards({
             muck={muck}
             deal={deal}
             commit={commit}
+            reduced={reduced}
             dealOrigin={dealOrigin}
             tableCenter={tableCenter}
             restCenter={{
@@ -89,10 +92,25 @@ type HoleCardProps = {
   muck: SharedValue<number>;
   deal: SharedValue<number>;
   commit: SharedValue<number>;
+  reduced: boolean;
   dealOrigin: Point;
   tableCenter: Point;
   restCenter: Point;
 };
+
+function hopOffset(progress: number, arc: number) {
+  'worklet';
+  if (progress <= 0 || progress >= 1) {
+    return 0;
+  }
+  const flightEnd = 0.62;
+  if (progress < flightEnd) {
+    const t = progress / flightEnd;
+    return -arc * 4 * t * (1 - t);
+  }
+  const u = (progress - flightEnd) / (1 - flightEnd);
+  return -arc * 0.2 * (1 - u) * (1 - u) * Math.abs(Math.sin(u * Math.PI * 2));
+}
 
 function HoleCard({
   card,
@@ -102,174 +120,205 @@ function HoleCard({
   muck,
   deal,
   commit,
+  reduced,
   dealOrigin,
   tableCenter,
   restCenter,
 }: HoleCardProps) {
   const cardHeight = cardWidth * CARD_ASPECT;
   const restRotation = index === 0 ? -FAN_ANGLE : FAN_ANGLE;
-  const dealDelay = index * 0.18;
-  const muckDelay = index * 0.1;
+  const dealDelay = index * 0.16;
+  const throwDelay = index * 0.08;
+  const landSpread = index === 0 ? -cardWidth * 0.55 : cardWidth * 0.62;
+  const restSpin = index === 0 ? -18 : 24;
+  const flapHeight = cardHeight * 0.62;
 
   const dealVector = {
     x: dealOrigin.x - restCenter.x,
     y: dealOrigin.y - restCenter.y,
   };
-  const muckVector = {
-    x: tableCenter.x - restCenter.x,
+  const throwVector = {
+    x: tableCenter.x - restCenter.x + landSpread,
     y: tableCenter.y - restCenter.y,
   };
+  const throwArc = cardHeight * (1.05 + index * 0.16);
 
-  const cardStyle = useAnimatedStyle(() => {
+  const travelStyle = useAnimatedStyle(() => {
     const dealProgress = interpolate(
       deal.value,
-      [dealDelay, 0.55 + dealDelay],
+      [dealDelay, 0.52 + dealDelay],
       [0, 1],
       Extrapolation.CLAMP
     );
-    const muckProgress = interpolate(
+    const throwProgress = interpolate(
       muck.value,
-      [muckDelay, 0.85 + muckDelay],
+      [throwDelay, 0.9 + throwDelay],
       [0, 1],
       Extrapolation.CLAMP
     );
-    const lift = peek.value * (1 - muckProgress);
+    const travel = interpolate(throwProgress, [0, 0.62, 1], [0, 1, 1]);
+    const easedThrow = 1 - (1 - travel) * (1 - travel);
 
     return {
-      opacity: interpolate(muckProgress, [0, 0.72, 1], [1, 1, 0], Extrapolation.CLAMP),
       transform: [
-        { perspective: 700 },
         {
-          translateX:
-            dealVector.x * (1 - dealProgress) +
-            muckVector.x * muckProgress +
-            (index === 0 ? -1 : 1) * lift * cardWidth * 0.06,
+          translateX: dealVector.x * (1 - dealProgress) + throwVector.x * easedThrow,
         },
         {
           translateY:
             dealVector.y * (1 - dealProgress) +
-            (muckVector.y - cardHeight * 0.6) * muckProgress -
-            lift * cardHeight * 0.1 +
-            commit.value * cardHeight * 0.12,
+            throwVector.y * easedThrow +
+            hopOffset(throwProgress, throwArc) +
+            commit.value * cardHeight * 0.06,
         },
         {
           rotate: `${
             restRotation +
-            (index === 0 ? -220 : 190) * (1 - dealProgress) +
-            (index === 0 ? -140 : 160) * muckProgress
+            (index === 0 ? -180 : 160) * (1 - dealProgress) +
+            interpolate(throwProgress, [0, 0.55, 1], [0, index === 0 ? -220 : 240, restSpin])
           }deg`,
         },
-        { rotateX: `${-lift * 7}deg` },
         {
           scale:
             interpolate(dealProgress, [0, 1], [0.55, 1], Extrapolation.CLAMP) *
-            (1 + lift * 0.07) *
-            (1 - muckProgress * 0.45) *
-            (1 + commit.value * 0.03),
+            interpolate(throwProgress, [0, 0.62, 1], [1, 0.74, 0.72], Extrapolation.CLAMP),
         },
       ],
     };
   });
 
-  const shadowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(peek.value, [0, 1], [0.18, 0.5], Extrapolation.CLAMP),
-    transform: [{ translateY: peek.value * cardHeight * 0.06 }, { scaleX: 1 + peek.value * 0.08 }],
-  }));
+  const shadowStyle = useAnimatedStyle(() => {
+    const throwProgress = interpolate(
+      muck.value,
+      [throwDelay, 0.2 + throwDelay],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    const lift = peek.value * (1 - throwProgress);
+    return {
+      opacity: interpolate(lift, [0, 1], [0.32, 0.16], Extrapolation.CLAMP),
+      transform: [{ scaleX: interpolate(lift, [0, 1], [1, 0.88]) }],
+    };
+  });
+
+  const peekIndexStyle = useAnimatedStyle(() => {
+    const throwProgress = interpolate(
+      muck.value,
+      [throwDelay, 0.16 + throwDelay],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    const lift = peek.value * (1 - throwProgress);
+    return {
+      opacity: interpolate(lift, [0.12, 0.4], [0, 1], Extrapolation.CLAMP),
+      transform: [{ translateY: -(reduced ? 0 : lift * cardHeight * 0.2) }],
+    };
+  });
+
+  const sliceHeight = cardHeight / SLICE_COUNT + SLICE_OVERLAP;
 
   return (
-    <Animated.View style={[{ width: cardWidth, height: cardHeight }, cardStyle]}>
+    <Animated.View style={[{ width: cardWidth, height: cardHeight }, travelStyle]}>
       <Animated.View
         style={[
-          styles.groundShadow,
-          { width: cardWidth * 0.94, borderRadius: cardWidth * 0.2 },
+          styles.feltShadow,
+          { width: cardWidth * 0.92, borderRadius: cardWidth * 0.18 },
           shadowStyle,
         ]}
       />
-      <CardBack width={cardWidth} />
-      <PeelWindow card={card} cardWidth={cardWidth} peek={peek} muck={muck} />
+      {Array.from({ length: SLICE_COUNT }, (_, slice) => (
+        <RibbonSlice
+          key={slice}
+          slice={slice}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+          sliceHeight={sliceHeight}
+          peek={peek}
+          muck={muck}
+          throwDelay={throwDelay}
+          reduced={reduced}
+        />
+      ))}
+      <Animated.View
+        style={[
+          styles.peekIndex,
+          {
+            height: flapHeight,
+            paddingLeft: cardWidth * 0.08,
+            paddingBottom: cardHeight * 0.05,
+            borderBottomLeftRadius: cardWidth * 0.08,
+            borderBottomRightRadius: cardWidth * 0.08,
+          },
+          peekIndexStyle,
+        ]}>
+        <PeekIndex card={card} width={cardWidth} height={flapHeight * 0.88} />
+      </Animated.View>
     </Animated.View>
   );
 }
 
-type PeelWindowProps = {
-  card: Card;
+type RibbonSliceProps = {
+  slice: number;
   cardWidth: number;
+  cardHeight: number;
+  sliceHeight: number;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
+  throwDelay: number;
+  reduced: boolean;
 };
 
-/**
- * The bent half of the card. The player pins the far edge with a finger and lifts the near
- * side, so the card folds along a vertical crease and the index underneath comes into view —
- * the way a live player looks at their hole cards without showing the table.
- */
-function PeelWindow({ card, cardWidth, peek, muck }: PeelWindowProps) {
-  const cardHeight = cardWidth * CARD_ASPECT;
-  const foldAt = cardWidth * 0.58;
+function RibbonSlice({
+  slice,
+  cardWidth,
+  cardHeight,
+  sliceHeight,
+  peek,
+  muck,
+  throwDelay,
+  reduced,
+}: RibbonSliceProps) {
+  const t = slice / (SLICE_COUNT - 1);
+  const top = slice * (cardHeight / SLICE_COUNT) - (slice === 0 ? 0 : SLICE_OVERLAP);
+  const isFirst = slice === 0;
+  const isLast = slice === SLICE_COUNT - 1;
+  const radius = cardWidth * 0.08;
 
-  const panelStyle = useAnimatedStyle(() => {
-    const lift = peek.value * (1 - muck.value);
+  const bendStyle = useAnimatedStyle(() => {
+    const throwProgress = interpolate(
+      muck.value,
+      [throwDelay, 0.18 + throwDelay],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    const lift = peek.value * (1 - throwProgress);
+    const bend = t * t * lift;
+    const amount = reduced ? 0 : bend;
 
     return {
-      opacity: interpolate(lift, [0, 0.04, 0.16], [0, 0.45, 1], Extrapolation.CLAMP),
-      transform: [
-        { perspective: 340 },
-        { rotateY: `${lift * 34}deg` },
-        { rotateZ: `${-lift * 2.5}deg` },
-        { translateY: -lift * cardHeight * 0.02 },
-      ],
+      transform: [{ translateY: -amount * cardHeight * 0.28 }, { scale: 1 + amount * 0.05 }],
     };
   });
 
-  const creaseStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      peek.value * (1 - muck.value),
-      [0, 0.2, 1],
-      [0, 0.45, 1],
-      Extrapolation.CLAMP
-    ),
-  }));
-
   return (
-    <>
-      {/* Shadow the fold throws onto the half of the card still flat on the felt. */}
-      <Animated.View
-        style={[styles.crease, { left: foldAt, width: cardWidth * 0.26 }, creaseStyle]}>
-        <LinearGradient
-          colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.16)', 'rgba(0,0,0,0)']}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.peelPanel,
-          {
-            width: foldAt,
-            transformOrigin: '100% 50%',
-            paddingLeft: cardWidth * 0.1,
-            paddingTop: cardHeight * 0.05,
-          },
-          panelStyle,
-        ]}>
-        <CardIndex card={card} width={cardWidth} />
-        <LinearGradient
-          colors={[
-            'rgba(255,255,255,0.5)',
-            'rgba(255,255,255,0.1)',
-            'rgba(0,0,0,0.1)',
-            'rgba(0,0,0,0.4)',
-          ]}
-          locations={[0, 0.35, 0.72, 1]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      </Animated.View>
-    </>
+    <Animated.View
+      style={[
+        styles.slice,
+        {
+          top,
+          width: cardWidth,
+          height: sliceHeight,
+          borderTopLeftRadius: isFirst ? radius : 0,
+          borderTopRightRadius: isFirst ? radius : 0,
+          borderBottomLeftRadius: isLast ? radius : 0,
+          borderBottomRightRadius: isLast ? radius : 0,
+          borderTopWidth: isFirst ? 2 : 0,
+          borderBottomWidth: isLast ? 2 : 0,
+          zIndex: slice,
+        },
+        bendStyle,
+      ]}
+    />
   );
 }
 
@@ -282,35 +331,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  groundShadow: {
+  feltShadow: {
     position: 'absolute',
-    left: '3%',
-    bottom: -6,
-    height: 14,
-    backgroundColor: '#000',
+    left: '4%',
+    bottom: -4,
+    height: 9,
+    backgroundColor: artStyle.colors.projectorBlack,
   },
-  peelPanel: {
+  slice: {
     position: 'absolute',
     left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#f7f4ee',
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-    alignItems: 'flex-start',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 9,
-    shadowOffset: { width: 4, height: 5 },
-    elevation: 9,
+    backgroundColor: artStyle.colors.oxblood,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: artStyle.colors.projectorBlack,
   },
-  crease: {
+  peekIndex: {
     position: 'absolute',
-    top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    overflow: 'hidden',
+    zIndex: 20,
+    overflow: 'visible',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    backgroundColor: artStyle.colors.cream,
+    borderWidth: 2,
+    borderColor: artStyle.colors.projectorBlack,
   },
 });

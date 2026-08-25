@@ -8,9 +8,11 @@ export const artStyle = {
     'Hand-inked pie eyes, white gloves, rubber-hose limbs, flat cel paint, film grain, and a muted vintage casino palette.',
   characters: {
     vibe: 'Wholesome 1930s poker nerds — pie eyes, clear glasses, animation gloves, curved limbs, expressive title-card poses.',
+    referenceImage: require('../assets/brand/artstyle/characters-1930s-approved-opener.png'),
   },
   chips: {
     vibe: 'Realistic thick 3D casino chip — dark teal, gold edge inserts, beveled spade center.',
+    referenceImage: require('../assets/brand/artstyle/casino-chip-3d-reference.png'),
     exception:
       'Approved tactile 3D exception for reward physics; it does not define character or environment rendering.',
   },

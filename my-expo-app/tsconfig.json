@@ -8,5 +8,6 @@
     "paths": {
       "@/*": ["./src/*"]
     }
-  }
+  },
+  "exclude": ["dist", ".tmp-export", "node_modules"]
 }

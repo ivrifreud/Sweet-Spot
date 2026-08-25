@@ -1,0 +1,245 @@
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { StyleSheet } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  ReduceMotion,
+  cancelAnimation,
+  runOnJS,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
+
+import { GESTURES } from '../config';
+
+const MODE_UNDECIDED = 0;
+const MODE_MUCK = 2;
+
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const PEEK_SPRING = {
+  duration: 400,
+  dampingRatio: 0.9,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const MUCK_THROW_MS = 920;
+
+export type StackHitRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type TableGesturesProps = {
+  live: boolean;
+  height: number;
+  peek: SharedValue<number>;
+  muck: SharedValue<number>;
+  stackPress: SharedValue<number>;
+  stackHit: SharedValue<StackHitRect>;
+  onPeeked: () => void;
+  onRaise: () => void;
+  onMuck: () => void;
+};
+
+function clampWorklet(value: number, min: number, max: number) {
+  'worklet';
+  return Math.min(Math.max(value, min), max);
+}
+
+function hitStack(x: number, y: number, rect: StackHitRect) {
+  'worklet';
+  if (rect.width <= 0 || rect.height <= 0) {
+    return false;
+  }
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+/** Instantly hide the peek — spring can lose to a leftover withTiming(1). */
+function flattenPeek(peek: SharedValue<number>) {
+  'worklet';
+  cancelAnimation(peek);
+  peek.value = 0;
+}
+
+/**
+ * Full-table pan lives here so parent re-renders cannot rebuild the native
+ * gesture mid-touch (that left peek stuck at 1).
+ */
+export function TableGestures({
+  live,
+  height,
+  peek,
+  muck,
+  stackPress,
+  stackHit,
+  onPeeked,
+  onRaise,
+  onMuck,
+}: TableGesturesProps) {
+  const reducedMotion = useReducedMotion();
+  const liveEnabled = useSharedValue(live ? 1 : 0);
+  const gestureMode = useSharedValue(MODE_UNDECIDED);
+  const startedLow = useSharedValue(0);
+  const peekedThisTouch = useSharedValue(0);
+  const muckLocked = useSharedValue(0);
+  const fingerDown = useSharedValue(0);
+
+  const onPeekedRef = useRef(onPeeked);
+  onPeekedRef.current = onPeeked;
+  const onRaiseRef = useRef(onRaise);
+  onRaiseRef.current = onRaise;
+  const onMuckRef = useRef(onMuck);
+  onMuckRef.current = onMuck;
+
+  const firePeeked = useCallback(() => {
+    onPeekedRef.current();
+  }, []);
+  const fireRaise = useCallback(() => {
+    onRaiseRef.current();
+  }, []);
+  const fireMuck = useCallback(() => {
+    onMuckRef.current();
+  }, []);
+
+  useEffect(() => {
+    liveEnabled.value = live ? 1 : 0;
+    if (!live) {
+      flattenPeek(peek);
+      muckLocked.value = 0;
+      stackPress.value = 0;
+      fingerDown.value = 0;
+    }
+  }, [fingerDown, live, liveEnabled, muckLocked, peek, stackPress]);
+
+  const muckTravel = height * GESTURES.muckTravel;
+  const muckZoneTop = height * GESTURES.muckZoneTop;
+  const peekInMs = reducedMotion ? 0 : 160;
+
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(0)
+        .maxPointers(1)
+        .onBegin((event) => {
+          if (liveEnabled.value !== 1) {
+            return;
+          }
+
+          const onStack = hitStack(event.x, event.y, stackHit.value);
+          gestureMode.value = MODE_UNDECIDED;
+          startedLow.value = event.y > muckZoneTop ? 1 : 0;
+          stackPress.value = onStack ? 1 : 0;
+          peekedThisTouch.value = 0;
+          fingerDown.value = 1;
+
+          if (!onStack && muckLocked.value !== 1) {
+            peekedThisTouch.value = 1;
+            cancelAnimation(peek);
+            peek.value = withTiming(1, { duration: peekInMs, easing: EASE_OUT });
+          }
+        })
+        .onUpdate((event) => {
+          if (liveEnabled.value !== 1 || muckLocked.value === 1) {
+            return;
+          }
+
+          if (gestureMode.value === MODE_UNDECIDED) {
+            if (Math.abs(event.translationY) < GESTURES.directionLock) {
+              return;
+            }
+            if (startedLow.value === 1 && event.translationY < 0 && stackPress.value === 0) {
+              gestureMode.value = MODE_MUCK;
+            }
+          }
+
+          if (gestureMode.value === MODE_MUCK) {
+            muck.value = clampWorklet(-event.translationY / muckTravel, 0, 0.98);
+          }
+        })
+        .onEnd((event) => {
+          fingerDown.value = 0;
+
+          if (stackPress.value === 1) {
+            stackPress.value = 0;
+            flattenPeek(peek);
+            runOnJS(fireRaise)();
+            return;
+          }
+
+          stackPress.value = 0;
+
+          if (gestureMode.value === MODE_MUCK) {
+            const committed =
+              muck.value > GESTURES.muckCommit || event.velocityY < -GESTURES.flickVelocity;
+
+            if (committed) {
+              muckLocked.value = 1;
+              flattenPeek(peek);
+              muck.value = withTiming(
+                1,
+                { duration: MUCK_THROW_MS, easing: EASE_OUT },
+                (finished) => {
+                  if (finished) {
+                    runOnJS(fireMuck)();
+                  }
+                }
+              );
+            } else {
+              muck.value = withSpring(0, PEEK_SPRING);
+              flattenPeek(peek);
+            }
+          } else {
+            flattenPeek(peek);
+          }
+
+          if (peekedThisTouch.value === 1) {
+            peekedThisTouch.value = 0;
+            runOnJS(firePeeked)();
+          }
+        })
+        .onFinalize(() => {
+          fingerDown.value = 0;
+          stackPress.value = 0;
+          if (muckLocked.value !== 1) {
+            flattenPeek(peek);
+            if (muck.value < 1) {
+              muck.value = withSpring(0, PEEK_SPRING);
+            }
+          }
+          peekedThisTouch.value = 0;
+        }),
+    [
+      fireMuck,
+      firePeeked,
+      fireRaise,
+      fingerDown,
+      gestureMode,
+      liveEnabled,
+      muck,
+      muckLocked,
+      muckTravel,
+      muckZoneTop,
+      peek,
+      peekInMs,
+      peekedThisTouch,
+      stackHit,
+      stackPress,
+      startedLow,
+    ]
+  );
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={StyleSheet.absoluteFill}
+        collapsable={false}
+        accessibilityRole="button"
+        accessibilityLabel="Hold to peek at your hole cards. Swipe up to muck. Tap your chips to raise."
+      />
+    </GestureDetector>
+  );
+}

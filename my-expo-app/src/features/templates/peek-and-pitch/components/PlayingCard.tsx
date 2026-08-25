@@ -30,16 +30,28 @@ export function CardFace({ card, width }: CardFaceProps) {
 }
 
 /**
- * The corner index only — this is what is actually visible through the peel window
- * while the player lifts the card off the felt.
+ * Rank + suit sized to fit inside a peek flap of `height`.
+ * The previous overlay used a rank font larger than the flap, so the ace clipped away
+ * and only the suit showed.
  */
-export function CardIndex({ card, width }: CardFaceProps) {
+export function PeekIndex({ card, width, height }: CardFaceProps & { height: number }) {
   const color = SUIT_COLOR[card.suit];
+  const rank = card.rank === 'T' ? '10' : card.rank;
+  const rankSize = Math.min(width * 0.5, height * 0.46);
+  const suitSize = Math.min(width * 0.38, height * 0.34);
 
   return (
     <View style={styles.indexOnly}>
-      <Text style={[styles.rank, { fontSize: width * 0.4, color }]}>{card.rank}</Text>
-      <Text style={[styles.suit, { fontSize: width * 0.32, color }]}>{SUIT_GLYPH[card.suit]}</Text>
+      <Text
+        style={[styles.rank, { fontSize: rankSize, lineHeight: rankSize * 1.05, color }]}
+        numberOfLines={1}>
+        {rank}
+      </Text>
+      <Text
+        style={[styles.suit, { fontSize: suitSize, lineHeight: suitSize * 1.08, color }]}
+        numberOfLines={1}>
+        {SUIT_GLYPH[card.suit]}
+      </Text>
     </View>
   );
 }
@@ -48,29 +60,23 @@ type CardBackProps = {
   width: number;
 };
 
-/** Face-down card: red lattice back, the way it reads on the table art. */
+/** Face-down card: simple back so the phone does not draw 50 extra views. */
 export function CardBack({ width }: CardBackProps) {
   const height = width * CARD_ASPECT;
 
   return (
     <View style={[styles.back, { width, height }]}>
-      <View style={styles.backInner}>
-        {Array.from({ length: 7 }).map((_, row) => (
-          <View key={row} style={styles.backRow}>
-            {Array.from({ length: 4 }).map((__, col) => (
-              <View key={col} style={styles.backDiamond} />
-            ))}
-          </View>
-        ))}
-      </View>
+      <View style={styles.backInner} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   face: {
-    backgroundColor: '#f7f4ee',
+    backgroundColor: '#E8D7A7',
     borderRadius: 8,
+    borderWidth: 2.5,
+    borderColor: '#111714',
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -89,24 +95,26 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   indexOnly: {
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
   },
   rank: {
     fontWeight: '800',
     includeFontPadding: false,
   },
   suit: {
-    marginTop: -2,
+    marginTop: -4,
     includeFontPadding: false,
   },
   centerSuit: {
     opacity: 0.9,
   },
   back: {
-    backgroundColor: '#8f1f24',
+    backgroundColor: '#A43E32',
     borderRadius: 8,
     borderWidth: 3,
-    borderColor: '#f4efe6',
+    borderColor: '#111714',
     overflow: 'hidden',
     padding: 3,
   },
@@ -114,19 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: '#7d1a20',
-    justifyContent: 'space-evenly',
-    overflow: 'hidden',
-  },
-  backRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-  },
-  backDiamond: {
-    width: 6,
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    transform: [{ rotate: '45deg' }],
+    borderColor: 'rgba(232,215,167,0.45)',
+    backgroundColor: '#8c342a',
   },
 });

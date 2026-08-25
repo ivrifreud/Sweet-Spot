@@ -6,30 +6,27 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Chip, type ChipTone } from './Chip';
+import { artStyle } from '../../../../../theme/artStyle';
+import { Chip, CHIP_ART_ASPECT } from './Chip';
 
-export const CHIP_SIZE = 58;
-export const CHIP_FLATTEN = 0.34;
+export const CHIP_SIZE = 82;
+export const CHIP_STACK_STEP = 11;
 
-const COLUMNS: { tone: ChipTone; count: number }[] = [
-  { tone: 'red', count: 8 },
-  { tone: 'blue', count: 5 },
+const CHIP_HEIGHT = CHIP_SIZE * CHIP_ART_ASPECT;
+
+/** Two short columns sitting on the felt, just left of the hole cards. */
+const COLUMNS: { count: number; rotate: number }[] = [
+  { count: 3, rotate: -4 },
+  { count: 3, rotate: 3 },
 ];
 
 type ChipStackProps = {
   stackLabel: string;
   disabled: boolean;
-  /** Chips already pushed into the pot — they disappear off the top of the stack. */
   pushed: number;
-  /** 1 while the player is holding the stack. Owned by the template's gesture layer. */
   press: SharedValue<number>;
 };
 
-/**
- * The player's own stack in the foreground. Tapping it pushes chips towards the pot —
- * no sizing maths, the tap itself is the raise. The tap gesture lives in the template so
- * that a swipe starting on the chips can still muck the hand.
- */
 export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProps) {
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
@@ -37,24 +34,30 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
     transform: [{ translateY: held.value * 4 }, { scale: 1 - held.value * 0.03 }],
   }));
 
-  const chipStep = CHIP_SIZE * CHIP_FLATTEN * 0.42;
-
   return (
     <Animated.View style={[styles.root, pressStyle]}>
       <View style={styles.columns}>
         {COLUMNS.map((column, columnIndex) => {
-          const remaining = columnIndex === 0 ? Math.max(2, column.count - pushed) : column.count;
+          const taken = columnIndex === 1 ? Math.min(pushed, column.count - 1) : 0;
+          const remaining = Math.max(1, column.count - taken);
+          const stackHeight = CHIP_HEIGHT + (remaining - 1) * CHIP_STACK_STEP;
 
           return (
-            <View key={column.tone} style={styles.column}>
+            <View
+              key={columnIndex}
+              style={[
+                styles.column,
+                { width: CHIP_SIZE, height: stackHeight },
+                columnIndex === 1 && styles.columnFront,
+              ]}>
               {Array.from({ length: remaining }).map((_, chipIndex) => (
-                <View key={chipIndex} style={{ marginBottom: chipIndex === 0 ? 0 : -chipStep }}>
-                  <Chip
-                    tone={column.tone}
-                    size={CHIP_SIZE}
-                    flatten={CHIP_FLATTEN}
-                    cap={chipIndex === remaining - 1}
-                  />
+                <View
+                  key={chipIndex}
+                  style={[
+                    styles.chipSlot,
+                    { bottom: chipIndex * CHIP_STACK_STEP, zIndex: chipIndex },
+                  ]}>
+                  <Chip size={CHIP_SIZE} rotate={column.rotate} />
                 </View>
               ))}
             </View>
@@ -71,32 +74,39 @@ export function ChipStack({ stackLabel, disabled, pushed, press }: ChipStackProp
 
 const styles = StyleSheet.create({
   root: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   columns: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    columnGap: 6,
   },
   column: {
-    flexDirection: 'column-reverse',
-    alignItems: 'center',
+    position: 'relative',
+  },
+  columnFront: {
+    marginLeft: -20,
+    marginBottom: 4,
+    zIndex: 3,
+  },
+  chipSlot: {
+    position: 'absolute',
+    left: 0,
   },
   badge: {
-    marginTop: 6,
+    marginTop: 2,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: 'rgba(8,10,14,0.72)',
+    backgroundColor: 'rgba(17,23,20,0.72)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(240,193,92,0.55)',
+    borderColor: 'rgba(200,155,60,0.55)',
   },
   badgeDisabled: {
     opacity: 0.45,
   },
   badgeText: {
-    color: '#f4e6c4',
-    fontSize: 12,
+    color: artStyle.colors.cream,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.6,
   },

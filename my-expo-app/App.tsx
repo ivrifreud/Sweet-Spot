@@ -2,15 +2,16 @@ import './global.css';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
-import * as SplashScreen from 'expo-splash-screen';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { supabase, supabaseConfigError } from './lib/supabase';
+import { AuthScreen } from './screens/AuthScreen';
+import { SplashScreen } from './screens/SplashScreen';
 
 const CalibrationHarness = lazy(() =>
   import('./components/CalibrationHarness').then((mod) => ({
@@ -18,10 +19,10 @@ const CalibrationHarness = lazy(() =>
   }))
 );
 
-void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+void ExpoSplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function hideSplash() {
-  void SplashScreen.hideAsync().catch(() => undefined);
+  void ExpoSplashScreen.hideAsync().catch(() => undefined);
 }
 
 function BootScreen({ message, error }: { message: string; error?: string | null }) {
@@ -37,6 +38,7 @@ function AppInner() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(!supabaseConfigError);
   const [bootError, setBootError] = useState<string | null>(supabaseConfigError);
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
     hideSplash();
@@ -87,14 +89,20 @@ function AppInner() {
 
   return (
     <NavigationContainer>
-      {session ? (
+      {!started ? (
+        <SplashScreen onPressStart={() => setStarted(true)} />
+      ) : session ? (
         <Suspense fallback={<BootScreen message="Loading calibration…" />}>
           <CalibrationHarness userId={session.user.id} />
         </Suspense>
       ) : (
-        <View style={styles.authScreen}>
-          {bootError ? <Text style={styles.error}>{bootError}</Text> : null}
-          <GoogleSignInButton />
+        <View style={styles.route}>
+          <AuthScreen onContinue={() => undefined} />
+          {bootError ? (
+            <View style={styles.restoreError}>
+              <Text style={styles.restoreErrorText}>{bootError}</Text>
+            </View>
+          ) : null}
         </View>
       )}
     </NavigationContainer>
@@ -119,6 +127,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#07090d',
   },
+  route: {
+    flex: 1,
+  },
   authScreen: {
     flex: 1,
     justifyContent: 'center',
@@ -136,5 +147,18 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  restoreError: {
+    position: 'absolute',
+    top: 48,
+    left: 24,
+    right: 24,
+    borderRadius: 12,
+    backgroundColor: '#7f1d1d',
+    padding: 12,
+  },
+  restoreErrorText: {
+    color: '#ffffff',
+    textAlign: 'center',
   },
 });
