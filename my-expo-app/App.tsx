@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { DEV_BYPASS_USER_ID } from './lib/devBypass';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
 import { SplashScreen } from './screens/SplashScreen';
@@ -39,6 +40,9 @@ function AppInner() {
   const [loading, setLoading] = useState(!supabaseConfigError);
   const [bootError, setBootError] = useState<string | null>(supabaseConfigError);
   const [started, setStarted] = useState(false);
+  const [devBypassActive, setDevBypassActive] = useState(false);
+
+  const activeUserId = session?.user.id ?? (devBypassActive ? DEV_BYPASS_USER_ID : null);
 
   useEffect(() => {
     hideSplash();
@@ -79,7 +83,7 @@ function AppInner() {
     };
   }, []);
 
-  if (supabaseConfigError) {
+  if (supabaseConfigError && !__DEV__) {
     return <BootScreen message="Supabase is not configured" error={supabaseConfigError} />;
   }
 
@@ -91,13 +95,20 @@ function AppInner() {
     <NavigationContainer>
       {!started ? (
         <SplashScreen onPressStart={() => setStarted(true)} />
-      ) : session ? (
+      ) : activeUserId ? (
         <Suspense fallback={<BootScreen message="Loading calibration…" />}>
-          <CalibrationHarness userId={session.user.id} />
+          <CalibrationHarness
+            userId={activeUserId}
+            devMode={devBypassActive}
+            onSignOut={() => setDevBypassActive(false)}
+          />
         </Suspense>
       ) : (
         <View style={styles.route}>
-          <AuthScreen onContinue={() => undefined} />
+          <AuthScreen
+            onContinue={() => undefined}
+            onDevBypass={() => setDevBypassActive(true)}
+          />
           {bootError ? (
             <View style={styles.restoreError}>
               <Text style={styles.restoreErrorText}>{bootError}</Text>

@@ -19,6 +19,7 @@ import { EnvelopeIcon, LockIcon, PersonIcon, SpadeMark } from '../components/aut
 import { AuthTextField } from '../components/auth/AuthTextField';
 import { FallingChips } from '../components/splash/FallingChips';
 import { authErrorMessage, signInWithEmail, signUpWithEmail } from '../lib/auth';
+import { canUseDevBypass, isDevBypassCredentials } from '../lib/devBypass';
 import { artStyle } from '../theme/artStyle';
 
 type Mode = 'signUp' | 'signIn';
@@ -32,12 +33,13 @@ type FieldErrors = {
 
 type Props = {
   onContinue: () => void;
+  onDevBypass?: () => void;
 };
 
-export function AuthScreen({ onContinue }: Props) {
+export function AuthScreen({ onContinue, onDevBypass }: Props) {
   const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const [mode, setMode] = useState<Mode>('signUp');
+  const [mode, setMode] = useState<Mode>(canUseDevBypass() ? 'signIn' : 'signUp');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -61,13 +63,14 @@ export function AuthScreen({ onContinue }: Props) {
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
-    if (!email.trim() || !email.includes('@')) {
+    const devBypass = !isSignUp && isDevBypassCredentials(email, password);
+    if (!devBypass && (!email.trim() || !email.includes('@'))) {
       next.email = 'Enter a valid email address.';
     }
     if (isSignUp && username.trim().length < 2) {
       next.username = 'Username needs at least 2 characters.';
     }
-    if (password.length < 6) {
+    if (!devBypass && password.length < 6) {
       next.password = 'Password needs at least 6 characters.';
     }
     if (isSignUp && confirm !== password) {
@@ -89,6 +92,10 @@ export function AuthScreen({ onContinue }: Props) {
     setFormError(null);
     setBusy(true);
     try {
+      if (!isSignUp && isDevBypassCredentials(email, password)) {
+        onDevBypass?.();
+        return;
+      }
       if (isSignUp) {
         const result = await signUpWithEmail({ email, password, username });
         if (result.needsEmailConfirm) {
@@ -158,11 +165,11 @@ export function AuthScreen({ onContinue }: Props) {
 
           <View style={styles.formBlock}>
             <AuthTextField
-              label="Email"
+              label={canUseDevBypass() && !isSignUp ? 'Email or username' : 'Email'}
               icon={<EnvelopeIcon size={22} />}
               value={email}
               onChangeText={setEmail}
-              placeholder="E-mail"
+              placeholder={canUseDevBypass() && !isSignUp ? 'Email or username' : 'E-mail'}
               keyboardType="email-address"
               autoComplete="email"
               textContentType="emailAddress"

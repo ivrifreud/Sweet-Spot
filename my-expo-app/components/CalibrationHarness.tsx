@@ -7,6 +7,8 @@ import type { SpotDecision } from '../src/features/templates/peek-and-pitch/type
 import { signOut } from '../lib/auth';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
+import { routeCalibration } from '../lib/calibration/routing';
+import { STAGE1_SPOTS, STAGE2_SPOTS } from '../lib/calibration/spots';
 import {
   finalizeSession,
   getOrCreateSession,
@@ -19,9 +21,11 @@ import type { CalibrationSpot, SpotAnswer } from '../lib/calibration/types';
 
 type Props = {
   userId: string;
+  devMode?: boolean;
+  onSignOut?: () => void;
 };
 
-export function CalibrationHarness({ userId }: Props) {
+export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props) {
   const [spots, setSpots] = useState<LoadedSpots | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<SpotAnswer[]>([]);
@@ -47,6 +51,15 @@ export function CalibrationHarness({ userId }: Props) {
 
     async function boot() {
       try {
+        if (devMode) {
+          const loaded = { stage1: STAGE1_SPOTS, stage2: STAGE2_SPOTS };
+          if (cancelled) return;
+          setSpots(loaded);
+          setSessionId('dev-session');
+          applyAnswers(loaded, []);
+          return;
+        }
+
         const loaded = await loadCalibrationSpots();
         if (loaded.stage1.length === 0 || loaded.stage2.length === 0) {
           throw new Error('Calibration spots are not seeded. Run supabase db push.');
@@ -85,7 +98,15 @@ export function CalibrationHarness({ userId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [applyAnswers, userId]);
+  }, [applyAnswers, devMode, userId]);
+
+  async function handleSignOut() {
+    if (devMode) {
+      onSignOut?.();
+      return;
+    }
+    await signOut();
+  }
 
   async function onChoose(decision: SpotDecision) {
     if (!spots || !sessionId || !current || busy) return;
@@ -93,6 +114,30 @@ export function CalibrationHarness({ userId }: Props) {
     setError(null);
     try {
       const chosen = pokerActionForDecision(decision, current);
+      if (devMode) {
+        const nextAnswers = [
+          ...answers.filter((answer) => answer.spotId !== current.id),
+          { spotId: current.id, chosen },
+        ];
+        setAnswers(nextAnswers);
+        const shouldFinalize = applyAnswers(spots, nextAnswers);
+        if (shouldFinalize) {
+          const stage1Ids = new Set(spots.stage1.map((spot) => spot.id));
+          const stage1Answers = nextAnswers.filter((answer) => stage1Ids.has(answer.spotId));
+          const stage2Answers = nextAnswers.filter((answer) => !stage1Ids.has(answer.spotId));
+          const routed = routeCalibration({
+            stage1: { spots: spots.stage1, answers: stage1Answers },
+            stage2: { spots: spots.stage2, answers: stage2Answers },
+          });
+          setResult({
+            placement: routed.placement,
+            startingElo: routed.startingElo,
+            reason: routed.reason,
+          });
+        }
+        return;
+      }
+
       const nextAnswers = await submitAnswer({
         sessionId,
         userId,
@@ -140,7 +185,7 @@ export function CalibrationHarness({ userId }: Props) {
         <Text style={styles.bodyText}>Starting Elo {result.startingElo}</Text>
         <Text style={styles.muted}>{result.reason}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable onPress={() => void signOut()} style={styles.signOut}>
+        <Pressable onPress={() => void handleSignOut()} style={styles.signOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
       </SafeAreaView>
@@ -174,7 +219,7 @@ export function CalibrationHarness({ userId }: Props) {
         <View style={styles.calibrationPill}>
           <Text style={styles.calibrationPillText}>Calibration</Text>
         </View>
-        <Pressable onPress={() => void signOut()} style={styles.tableSignOut}>
+        <Pressable onPress={() => void handleSignOut()} style={styles.tableSignOut}>
           <Text style={styles.tableSignOutText}>Sign out</Text>
         </Pressable>
       </View>
