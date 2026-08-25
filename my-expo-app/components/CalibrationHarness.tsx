@@ -169,9 +169,6 @@ export function CalibrationHarness({ userId }: Props) {
         <Text style={styles.bodyText}>Your first stage opens next.</Text>
         <Text style={styles.muted}>{reveal.worldName}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable onPress={() => setContinued(false)} style={styles.signOut}>
-          <Text style={styles.signOutText}>Back to placement</Text>
-        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.signOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
