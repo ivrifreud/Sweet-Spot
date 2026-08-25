@@ -51,7 +51,7 @@ export async function loadCalibrationSpots(): Promise<LoadedSpots> {
   const { data, error } = await supabase
     .from('spots')
     .select(
-      'id, spot_type, hole_cards, board, pot_size, villain_action, prompt, hero_position, correct_answer, is_catastrophic_if_wrong, sequence_order',
+      'id, spot_type, hole_cards, board, pot_size, villain_action, prompt, hero_position, correct_answer, is_catastrophic_if_wrong, sequence_order'
     )
     .in('spot_type', ['calibration_stage1', 'calibration_stage2'])
     .order('sequence_order', { ascending: true });

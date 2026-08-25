@@ -44,8 +44,7 @@ export function mapSpotRow(row: SpotRow): CalibrationSpot {
     throw new Error(`spot ${row.id} is missing hole_cards`);
   }
 
-  const potSize =
-    row.pot_size === null || row.pot_size === undefined ? null : Number(row.pot_size);
+  const potSize = row.pot_size === null || row.pot_size === undefined ? null : Number(row.pot_size);
 
   return {
     id: row.id,

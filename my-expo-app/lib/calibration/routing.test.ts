@@ -12,7 +12,7 @@ import type { CalibrationSpot, PokerAction, SpotAnswer } from './types';
 
 function answersFor(
   spots: CalibrationSpot[],
-  chosenByIndex: Array<PokerAction | undefined>,
+  chosenByIndex: (PokerAction | undefined)[]
 ): SpotAnswer[] {
   return spots.flatMap((spot, index) => {
     const chosen = chosenByIndex[index];
@@ -44,8 +44,18 @@ describe('isAnswerCorrect', () => {
 
 describe('evaluateStage1', () => {
   it.each([
-    { label: '0 catastrophic errors', chosen: ['fold', 'raise', 'fold', 'call', 'fold', 'raise'] as PokerAction[], next: 'stage_2', errors: 0 },
-    { label: '1 catastrophic error', chosen: ['call', 'raise', 'fold', 'call', 'fold', 'raise'] as PokerAction[], next: 'stage_2', errors: 1 },
+    {
+      label: '0 catastrophic errors',
+      chosen: ['fold', 'raise', 'fold', 'call', 'fold', 'raise'] as PokerAction[],
+      next: 'stage_2',
+      errors: 0,
+    },
+    {
+      label: '1 catastrophic error',
+      chosen: ['call', 'raise', 'fold', 'call', 'fold', 'raise'] as PokerAction[],
+      next: 'stage_2',
+      errors: 1,
+    },
   ])('routes to stage 2 with $label', ({ chosen, next, errors }) => {
     const result = evaluateStage1(STAGE1_SPOTS, answersFor(STAGE1_SPOTS, chosen));
     expect(result).toEqual({ catastrophicErrors: errors, next });
@@ -54,7 +64,7 @@ describe('evaluateStage1', () => {
   it('places Level 1 at 2 catastrophic errors and ignores leftover spots', () => {
     const result = evaluateStage1(
       STAGE1_SPOTS,
-      answersFor(STAGE1_SPOTS, ['call', 'raise', 'raise']),
+      answersFor(STAGE1_SPOTS, ['call', 'raise', 'raise'])
     );
     expect(result.next).toBe('place_level_1');
     expect(result.catastrophicErrors).toBe(2);
@@ -63,7 +73,7 @@ describe('evaluateStage1', () => {
   it('does not count a non-catastrophic miss toward Level 1', () => {
     const result = evaluateStage1(
       STAGE1_SPOTS,
-      answersFor(STAGE1_SPOTS, ['fold', 'fold', 'fold', 'fold', 'fold', 'fold']),
+      answersFor(STAGE1_SPOTS, ['fold', 'fold', 'fold', 'fold', 'fold', 'fold'])
     );
     expect(result.catastrophicErrors).toBe(0);
     expect(result.next).toBe('stage_2');
@@ -88,9 +98,9 @@ describe('evaluateStage2', () => {
   });
 
   it('refuses to place before every Stage 2 spot is answered', () => {
-    expect(() =>
-      evaluateStage2(STAGE2_SPOTS, allCorrect(STAGE2_SPOTS).slice(0, 5)),
-    ).toThrow('Stage 2 requires a full sample before placement');
+    expect(() => evaluateStage2(STAGE2_SPOTS, allCorrect(STAGE2_SPOTS).slice(0, 5))).toThrow(
+      'Stage 2 requires a full sample before placement'
+    );
   });
 });
 
@@ -143,7 +153,7 @@ describe('routeCalibration', () => {
     expect(() =>
       routeCalibration({
         stage1: { spots: STAGE1_SPOTS, answers: allCorrect(STAGE1_SPOTS) },
-      }),
+      })
     ).toThrow('Stage 2 answers required when Stage 1 does not place Level 1');
   });
 });

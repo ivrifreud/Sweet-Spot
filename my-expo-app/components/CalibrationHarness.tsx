@@ -38,8 +38,7 @@ function ActionButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.actionBtn, disabled && styles.actionBtnDisabled]}
-    >
+      style={[styles.actionBtn, disabled && styles.actionBtnDisabled]}>
       <Text style={styles.actionBtnText}>{label}</Text>
     </Pressable>
   );
@@ -138,11 +137,7 @@ export function CalibrationHarness({ userId }: Props) {
 
   const stageLabel =
     current?.spotType === 'calibration_stage1' ? 'Stage 1 · Pre-flop' : 'Stage 2 · Post-flop';
-  const progress = current
-    ? `${current.sequenceOrder} / 6`
-    : result
-      ? 'Done'
-      : '…';
+  const progress = current ? `${current.sequenceOrder} / 6` : result ? 'Done' : '…';
 
   return (
     <SafeAreaView style={styles.safe}>

@@ -1,17 +1,21 @@
-import "./global.css";
+import './global.css';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import * as SplashScreen from 'expo-splash-screen';
-import { supabase, supabaseConfigError } from './lib/supabase';
+import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { supabase, supabaseConfigError } from './lib/supabase';
 
 const CalibrationHarness = lazy(() =>
   import('./components/CalibrationHarness').then((mod) => ({
     default: mod.CalibrationHarness,
-  })),
+  }))
 );
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -99,13 +103,22 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AppInner />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <StatusBar style="auto" />
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#07090d',
+  },
   authScreen: {
     flex: 1,
     justifyContent: 'center',

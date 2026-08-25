@@ -48,10 +48,7 @@ export type CalibrationRouteInput = {
   };
 };
 
-export type CalibrationRouteReason =
-  | 'stage1_catastrophic'
-  | 'stage2_full_pass'
-  | 'stage2_miss';
+export type CalibrationRouteReason = 'stage1_catastrophic' | 'stage2_full_pass' | 'stage2_miss';
 
 export type CalibrationRouteResult = {
   placement: Placement;

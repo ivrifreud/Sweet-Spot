@@ -34,8 +34,8 @@ const stage2Row: SpotRow = {
 };
 
 function answersFor(
-  chosenByIndex: Array<PokerAction | undefined>,
-  spots = STAGE1_SPOTS,
+  chosenByIndex: (PokerAction | undefined)[],
+  spots = STAGE1_SPOTS
 ): SpotAnswer[] {
   return spots.flatMap((spot, index) => {
     const chosen = chosenByIndex[index];
@@ -81,7 +81,7 @@ describe('nextCalibrationAction', () => {
     const action = nextCalibrationAction(
       STAGE1_SPOTS,
       STAGE2_SPOTS,
-      answersFor(['call', 'raise', 'raise']),
+      answersFor(['call', 'raise', 'raise'])
     );
     expect(action).toEqual({ type: 'finalize' });
   });
@@ -90,7 +90,7 @@ describe('nextCalibrationAction', () => {
     const action = nextCalibrationAction(
       STAGE1_SPOTS,
       STAGE2_SPOTS,
-      answersFor(['fold', 'raise', 'fold', 'call', 'fold', 'raise']),
+      answersFor(['fold', 'raise', 'fold', 'call', 'fold', 'raise'])
     );
     expect(action).toEqual({ type: 'spot', spot: STAGE2_SPOTS[0] });
   });

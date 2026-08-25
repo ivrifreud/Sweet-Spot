@@ -33,10 +33,7 @@ function answersBySpotId(answers: SpotAnswer[]): Map<string, PokerAction> {
   return map;
 }
 
-export function evaluateStage1(
-  spots: CalibrationSpot[],
-  answers: SpotAnswer[],
-): Stage1Result {
+export function evaluateStage1(spots: CalibrationSpot[], answers: SpotAnswer[]): Stage1Result {
   const chosenById = answersBySpotId(answers);
   let catastrophicErrors = 0;
 
@@ -54,10 +51,7 @@ export function evaluateStage1(
   };
 }
 
-export function evaluateStage2(
-  spots: CalibrationSpot[],
-  answers: SpotAnswer[],
-): Stage2Result {
+export function evaluateStage2(spots: CalibrationSpot[], answers: SpotAnswer[]): Stage2Result {
   const chosenById = answersBySpotId(answers);
   const unanswered = spots.filter((spot) => !chosenById.has(spot.id));
   if (unanswered.length > 0) {

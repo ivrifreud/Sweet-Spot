@@ -1,14 +1,12 @@
 import { evaluateStage1 } from './routing';
 import type { CalibrationSpot, SpotAnswer } from './types';
 
-export type NextCalibrationAction =
-  | { type: 'spot'; spot: CalibrationSpot }
-  | { type: 'finalize' };
+export type NextCalibrationAction = { type: 'spot'; spot: CalibrationSpot } | { type: 'finalize' };
 
 export function nextCalibrationAction(
   stage1: CalibrationSpot[],
   stage2: CalibrationSpot[],
-  answers: SpotAnswer[],
+  answers: SpotAnswer[]
 ): NextCalibrationAction {
   const stage1Ids = new Set(stage1.map((spot) => spot.id));
   const stage1Answers = answers.filter((answer) => stage1Ids.has(answer.spotId));

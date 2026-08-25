@@ -146,8 +146,7 @@ export const STAGE2_SPOTS: CalibrationSpot[] = [
     board: ['Kh', '9h', '2c', '7d'],
     potSize: 16,
     villainAction: 'BB bets 4bb on the turn',
-    prompt:
-      'Button, nut-flush draw. Pot 16bb, BB bets 4bb. You have the price in position. Call.',
+    prompt: 'Button, nut-flush draw. Pot 16bb, BB bets 4bb. You have the price in position. Call.',
     correctAnswer: 'call',
     isCatastrophicIfWrong: false,
   },
@@ -160,8 +159,7 @@ export const STAGE2_SPOTS: CalibrationSpot[] = [
     board: ['Js', '8h', '3d', '2c', 'Ah'],
     potSize: 30,
     villainAction: 'CO jams 45bb on the river',
-    prompt:
-      'BB, out of position. Middle pair on an Ace river. CO jams 45bb into 30bb. Fold.',
+    prompt: 'BB, out of position. Middle pair on an Ace river. CO jams 45bb into 30bb. Fold.',
     correctAnswer: 'fold',
     isCatastrophicIfWrong: false,
   },
