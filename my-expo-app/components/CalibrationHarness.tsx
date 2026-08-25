@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { signOut } from '../lib/auth';
 import { nextCalibrationAction } from '../lib/calibration/flow';
+import { toLevelReveal } from '../lib/calibration/levelReveal';
 import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
 import {
   finalizeSession,
@@ -31,6 +33,7 @@ export function CalibrationHarness({ userId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
+  const [continued, setContinued] = useState(false);
 
   const applyAnswers = useCallback((loaded: LoadedSpots, nextAnswers: SpotAnswer[]) => {
     const action = nextCalibrationAction(loaded.stage1, loaded.stage2, nextAnswers);
@@ -133,13 +136,30 @@ export function CalibrationHarness({ userId }: Props) {
   }
 
   if (result) {
+    const reveal = toLevelReveal(result);
+
+    if (!continued) {
+      return (
+        <LevelRevealScreen
+          reveal={reveal}
+          error={error}
+          onContinue={() => setContinued(true)}
+          onSignOut={() => void signOut()}
+        />
+      );
+    }
+
+    // Day 6 replaces this panel with the real Level 1 Stage 1 gameplay screen.
     return (
       <SafeAreaView style={styles.statusScreen}>
-        <Text style={styles.kicker}>Your placement</Text>
-        <Text style={styles.level}>Level {result.placement}</Text>
-        <Text style={styles.bodyText}>Starting Elo {result.startingElo}</Text>
-        <Text style={styles.muted}>{result.reason}</Text>
+        <Text style={styles.kicker}>{reveal.levelName}</Text>
+        <Text style={styles.level}>Level {reveal.placement}</Text>
+        <Text style={styles.bodyText}>Your first stage opens next.</Text>
+        <Text style={styles.muted}>{reveal.worldName}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Pressable onPress={() => setContinued(false)} style={styles.signOut}>
+          <Text style={styles.signOutText}>Back to placement</Text>
+        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.signOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
