@@ -28,7 +28,7 @@ const DROP_SPRING = {
   dampingRatio: 0.68,
   reduceMotion: ReduceMotion.System,
 } as const;
-const MUCK_THROW_MS = 920;
+const MUCK_THROW_MS = 1700;
 const STACK_DRAG_THRESHOLD = 26;
 const DOUBLE_TAP_MS = 320;
 

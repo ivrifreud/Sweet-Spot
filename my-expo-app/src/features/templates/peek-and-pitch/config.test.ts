@@ -22,10 +22,11 @@ describe('getBackdropLayout', () => {
     expect(layout.left).toBeLessThan(0);
   });
 
-  it('width-top on iPad still uses the full width', () => {
-    const layout = getBackdropLayout(IMAGE, IPAD, 'width-top');
-    expect(layout.left).toBe(0);
-    expect(layout.width).toBe(IPAD.width);
+  it('cover on a 9:16 mobile crop fills the phone height', () => {
+    const portrait = { width: 1080, height: 1920 };
+    const layout = getBackdropLayout(portrait, IPHONE, 'cover', { x: 0.5, y: 0.82 });
+    expect(layout.height).toBeGreaterThanOrEqual(IPHONE.height);
+    expect(layout.top).toBeLessThanOrEqual(0);
   });
 });
 

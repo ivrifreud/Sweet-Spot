@@ -26,7 +26,29 @@ export const DEFAULT_FELT_PLANE: FeltPlaneConfig = {
 };
 
 /** How far the pinched corner rises, as a fraction of card height. */
-export const PEEL_RISE = 0.62;
+export const PEEL_RISE = 0.58;
+
+/** Horizontal bands that make the peek a C-curve instead of a stiff plate. */
+export const PEEL_SLICES = 8;
+
+/** How much the left hole card tucks under the right, as a fraction of card width. */
+export const HOLE_OVERLAP = 0.42;
+
+/**
+ * Hold-to-peek stages from a raw 0–1 lift:
+ * contact (almost flat) → slight arch → full index reveal.
+ */
+export function peekPull(lift: number): number {
+  'worklet';
+  const x = Math.min(1, Math.max(0, lift));
+  if (x <= 0.16) {
+    return (x / 0.16) * 0.08;
+  }
+  if (x <= 0.48) {
+    return 0.08 + ((x - 0.16) / 0.32) * 0.34;
+  }
+  return 0.42 + ((x - 0.48) / 0.52) * 0.58;
+}
 
 export type FeltPose = {
   rotateX: number;
@@ -92,6 +114,34 @@ export function cornerWeight(u: number, v: number): number {
 }
 
 /**
+ * Local card U (0–1 left→right) mapped onto the overlapping hole-card packet.
+ * Card 0 is the tucked left card; card 1 is the pinch-side card on top.
+ */
+export function packetU(cardIndex: number, localU: number, overlap: number): number {
+  'worklet';
+  const span = 2 - overlap;
+  const origin = cardIndex === 0 ? 0 : 1 - overlap;
+  return Math.min(1, Math.max(0, (origin + Math.min(1, Math.max(0, localU))) / span));
+}
+
+/**
+ * Peel weight for a gathered pair. Both near edges rise together so the pinch
+ * lifts the packet, with a light bias toward the right-hand pinch corner.
+ */
+export function packetPeelWeight(
+  cardIndex: number,
+  localU: number,
+  v: number,
+  overlap: number
+): number {
+  'worklet';
+  const across = packetU(cardIndex, localU, overlap);
+  const nearEdge = cornerWeight(0.52, v);
+  const pinch = cornerWeight(across, v);
+  return nearEdge * 0.7 + pinch * 0.3;
+}
+
+/**
  * Elastic cantilever. `t` is corner weight. `lift` is the peek amount.
  * Starts stiff (cards resist), then a wide belly instead of a hinge.
  */
@@ -104,6 +154,18 @@ export function peelLift(t: number, lift: number): number {
   const cantilever = x2 * (1.22 - 0.1 * x);
   const belly = x3 * (1 - x) * 1.45;
   return pull * (cantilever + belly);
+}
+
+/** RotateX for one ribbon band; far bands stay planted, near bands curl up. */
+export function peelSliceTilt(index: number, slices: number, lift: number): number {
+  'worklet';
+  const pull = peekPull(lift);
+  const v0 = index / slices;
+  const v1 = (index + 1) / slices;
+  const y0 = peelLift(cornerWeight(0.94, v0), pull);
+  const y1 = peelLift(cornerWeight(0.94, v1), pull);
+  const deg = Math.atan((y1 - y0) * 3.1) * (180 / Math.PI);
+  return Math.max(-2, Math.min(32, deg));
 }
 
 export function cornerPeel(u: number, v: number, lift: number): CornerPeel {

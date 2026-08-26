@@ -7,6 +7,8 @@ type Point = { x: number; y: number };
 
 export type BackdropFit = 'cover' | 'width-top';
 
+type Anchor = { x: number; y: number };
+
 type SkinConfig = {
   label: string;
   background: ImageSourcePropType;
@@ -18,6 +20,11 @@ type SkinConfig = {
    * characters sit across the image and phones would otherwise crop them.
    */
   fit: BackdropFit;
+  /**
+   * Cover-fit crop bias in 0–1 image space. `(0.5, 0.5)` is centered.
+   * Garden pins toward the lower table so phone 9:16 keeps the play rail.
+   */
+  coverAnchor?: Anchor;
   /** The dealer's hands in the artwork, as a fraction of the image. Cards are pitched from here. */
   dealOrigin: Point;
   /** The middle of the felt in the artwork: where mucked cards and raised chips end up. */
@@ -51,23 +58,25 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
   },
   garden: {
     label: "Benny's Garden",
-    background: require('../../../../assets/themes/bennys-garden/night-playable.png'),
-    backgroundSize: { width: 1024, height: 1536 },
-    fit: 'width-top',
-    dealOrigin: { x: 0.5, y: 0.36 },
-    tableCenter: { x: 0.5, y: 0.48 },
-    holeRest: { x: 0.58, y: 0.69 },
+    background: require('../../../../assets/themes/bennys-garden/night-playable-mobile.png'),
+    backgroundSize: { width: 1080, height: 1920 },
+    fit: 'cover',
+    coverAnchor: { x: 0.5, y: 0.82 },
+    dealOrigin: { x: 0.5, y: 0.3 },
+    tableCenter: { x: 0.5, y: 0.46 },
+    holeRest: { x: 0.56, y: 0.73 },
     feltPlane: DEFAULT_FELT_PLANE,
     feltTint: '#14110c',
     accent: '#E6C46A',
-    railCover: ['rgba(32,22,12,0)', 'rgba(22,16,10,0.94)'],
+    railCover: ['rgba(32,22,12,0)', 'rgba(22,16,10,0.55)'],
   },
 };
 
 export function getBackdropLayout(
   image: { width: number; height: number },
   screen: { width: number; height: number },
-  fit: BackdropFit
+  fit: BackdropFit,
+  anchor: Anchor = { x: 0.5, y: 0.5 }
 ): { left: number; top: number; width: number; height: number } {
   if (fit === 'width-top') {
     const scale = screen.width / image.width;
@@ -83,8 +92,8 @@ export function getBackdropLayout(
   const width = image.width * scale;
   const height = image.height * scale;
   return {
-    left: (screen.width - width) / 2,
-    top: (screen.height - height) / 2,
+    left: (screen.width - width) * anchor.x,
+    top: (screen.height - height) * anchor.y,
     width,
     height,
   };
@@ -98,9 +107,10 @@ export function mapBackdropPoint(
   point: Point,
   image: { width: number; height: number },
   screen: { width: number; height: number },
-  fit: BackdropFit = 'cover'
+  fit: BackdropFit = 'cover',
+  anchor: Anchor = { x: 0.5, y: 0.5 }
 ): Point {
-  const layout = getBackdropLayout(image, screen, fit);
+  const layout = getBackdropLayout(image, screen, fit, anchor);
   return {
     x: layout.left + point.x * layout.width,
     y: layout.top + point.y * layout.height,

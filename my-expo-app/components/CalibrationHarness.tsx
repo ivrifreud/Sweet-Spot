@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  DecisionFeedbackOverlay,
+  ScreenShakeHost,
+  buildDecisionFeedbackCopy,
+  type DecisionFeedbackCopy,
+} from '../src/features/decision-feedback';
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
@@ -10,7 +16,7 @@ import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
 import { hasSeenPlacement, markPlacementSeen } from '../lib/calibration/placementAck';
 import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
-import { routeCalibration } from '../lib/calibration/routing';
+import { isAnswerCorrect, routeCalibration } from '../lib/calibration/routing';
 import { STAGE1_SPOTS, STAGE2_SPOTS } from '../lib/calibration/spots';
 import {
   finalizeSession,
@@ -28,6 +34,12 @@ type Props = {
   onSignOut?: () => void;
 };
 
+type PendingFeedback = {
+  copy: DecisionFeedbackCopy;
+  nextAnswers: SpotAnswer[];
+  key: string;
+};
+
 export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props) {
   const [spots, setSpots] = useState<LoadedSpots | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -39,6 +51,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
+  const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
 
   const applyAnswers = useCallback((loaded: LoadedSpots, nextAnswers: SpotAnswer[]) => {
     const action = nextCalibrationAction(loaded.stage1, loaded.stage2, nextAnswers);
@@ -124,55 +137,93 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   }
 
   async function onChoose(decision: SpotDecision) {
-    if (!spots || !sessionId || !current || busy) return;
+    if (!spots || !sessionId || !current || busy || feedback) return;
     setBusy(true);
     setError(null);
     try {
       const chosen = pokerActionForDecision(decision, current);
-      if (devMode) {
-        const nextAnswers = [
-          ...answers.filter((answer) => answer.spotId !== current.id),
-          { spotId: current.id, chosen },
-        ];
-        setAnswers(nextAnswers);
-        const shouldFinalize = applyAnswers(spots, nextAnswers);
-        if (shouldFinalize) {
-          const stage1Ids = new Set(spots.stage1.map((spot) => spot.id));
-          const stage1Answers = nextAnswers.filter((answer) => stage1Ids.has(answer.spotId));
-          const stage2Answers = nextAnswers.filter((answer) => !stage1Ids.has(answer.spotId));
-          const routed = routeCalibration({
-            stage1: { spots: spots.stage1, answers: stage1Answers },
-            stage2: { spots: spots.stage2, answers: stage2Answers },
-          });
-          setResult({
-            placement: routed.placement,
-            startingElo: routed.startingElo,
-            reason: routed.reason,
-          });
-        }
-        return;
-      }
-
-      const nextAnswers = await submitAnswer({
-        sessionId,
-        userId,
-        spot: current,
+      const copy = buildDecisionFeedbackCopy({
+        correct: isAnswerCorrect(current, chosen),
         chosen,
-        stage1: spots.stage1,
-        answersSoFar: answers,
+        correctAnswer: current.correctAnswer,
+        lesson: current.prompt,
+        continueLabel: 'Next hand',
       });
+
+      const nextAnswers = devMode
+        ? [
+            ...answers.filter((answer) => answer.spotId !== current.id),
+            { spotId: current.id, chosen },
+          ]
+        : await submitAnswer({
+            sessionId,
+            userId,
+            spot: current,
+            chosen,
+            stage1: spots.stage1,
+            answersSoFar: answers,
+          });
+
       setAnswers(nextAnswers);
-      const shouldFinalize = applyAnswers(spots, nextAnswers);
-      if (shouldFinalize) {
-        const placed = await finalizeSession(sessionId);
-        setResult(placed);
-      }
+      setFeedback({
+        copy,
+        nextAnswers,
+        key: `${current.id}-${chosen}`,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save answer');
       setResetKey((value) => value + 1);
     } finally {
       setBusy(false);
     }
+  }
+
+  function placeFromAnswers(nextAnswers: SpotAnswer[]) {
+    if (!spots) return;
+    const stage1Ids = new Set(spots.stage1.map((spot) => spot.id));
+    const stage1Answers = nextAnswers.filter((answer) => stage1Ids.has(answer.spotId));
+    const stage2Answers = nextAnswers.filter((answer) => !stage1Ids.has(answer.spotId));
+    const routed = routeCalibration({
+      stage1: { spots: spots.stage1, answers: stage1Answers },
+      stage2: { spots: spots.stage2, answers: stage2Answers },
+    });
+    setResult({
+      placement: routed.placement,
+      startingElo: routed.startingElo,
+      reason: routed.reason,
+    });
+  }
+
+  function finishFeedback() {
+    if (!feedback || !spots) return;
+    const pending = feedback;
+    setFeedback(null);
+
+    const action = nextCalibrationAction(spots.stage1, spots.stage2, pending.nextAnswers);
+    if (action.type === 'spot') {
+      setCurrent(action.spot);
+      return;
+    }
+
+    if (devMode) {
+      placeFromAnswers(pending.nextAnswers);
+      setCurrent(null);
+      return;
+    }
+
+    if (!sessionId) return;
+    void (async () => {
+      setBusy(true);
+      try {
+        const placed = await finalizeSession(sessionId);
+        setResult(placed);
+        setCurrent(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not finish calibration');
+      } finally {
+        setBusy(false);
+      }
+    })();
   }
 
   const stageLabel =
@@ -234,13 +285,16 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   }
 
   return (
-    <View style={styles.tableScreen}>
+    <ScreenShakeHost
+      outcome={feedback?.copy.outcome ?? null}
+      restartKey={feedback?.key}
+      style={styles.tableScreen}>
       <PeekAndPitchTemplate
         spot={tableSpot}
         onDecision={(decision) => void onChoose(decision)}
         showAuthoringControls={false}
         showNextHandControl={false}
-        disabled={busy}
+        disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
       />
 
@@ -253,7 +307,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         </Pressable>
       </View>
 
-      {busy ? (
+      {busy && !feedback ? (
         <View style={styles.savingPill} pointerEvents="none">
           <ActivityIndicator size="small" color="#111714" />
           <Text style={styles.savingText}>Saving…</Text>
@@ -266,7 +320,19 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           <Text style={styles.errorBannerHint}>The hand was reset. Try again.</Text>
         </View>
       ) : null}
-    </View>
+
+      <DecisionFeedbackOverlay
+        visible={Boolean(feedback)}
+        outcome={feedback?.copy.outcome ?? 'correct'}
+        title={feedback?.copy.title ?? ''}
+        kicker={feedback?.copy.kicker ?? ''}
+        explanation={feedback?.copy.explanation ?? ''}
+        continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}
+        feedbackKey={feedback?.key}
+        shakeScreen={false}
+        onContinue={finishFeedback}
+      />
+    </ScreenShakeHost>
   );
 }
 

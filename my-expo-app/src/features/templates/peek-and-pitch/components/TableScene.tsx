@@ -11,14 +11,23 @@ type TableSceneProps = {
 };
 
 /**
- * First-person table backdrop. No live blur / smoke here — those were melting the
- * phone. Painted-in hero gloves are already removed from the garden artwork; the
- * rail patch is a second cover so they cannot show through on any skin.
+ * First-person table backdrop. Garden (and casino) use cover so the painted
+ * table fills a portrait phone instead of letterboxing a wide web frame.
  */
 export function TableScene({ skin, width, height }: TableSceneProps) {
   const config = SKINS[skin];
-  const layout = getBackdropLayout(config.backgroundSize, { width, height }, config.fit);
-  const railHeight = height * 0.2;
+  const layout = getBackdropLayout(
+    config.backgroundSize,
+    { width, height },
+    config.fit,
+    config.coverAnchor
+  );
+  const railHeight = height * 0.05;
+  const railColors = [config.railCover[0], config.railCover[1], config.railCover[1]] as [
+    string,
+    string,
+    string,
+  ];
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -35,17 +44,13 @@ export function TableScene({ skin, width, height }: TableSceneProps) {
       />
 
       <LinearGradient
-        colors={['rgba(17,23,20,0.28)', 'rgba(17,23,20,0)', 'rgba(17,23,20,0.12)']}
-        locations={[0, 0.24, 1]}
+        colors={['rgba(17,23,20,0.18)', 'rgba(17,23,20,0)', 'rgba(17,23,20,0.08)']}
+        locations={[0, 0.22, 1]}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={[styles.rail, { height: railHeight, width }]}>
-        <LinearGradient
-          colors={['rgba(20,16,10,0)', 'rgba(20,16,10,0.88)', 'rgba(16,12,8,1)']}
-          locations={[0, 0.22, 1]}
-          style={StyleSheet.absoluteFill}
-        />
+        <LinearGradient colors={railColors} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
       </View>
     </View>
   );
