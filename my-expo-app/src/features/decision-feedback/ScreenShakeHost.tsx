@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { tempoScale, type FeedbackTempo } from './tempo';
 import type { DecisionOutcome } from './types';
 
 type Props = {
@@ -18,6 +19,7 @@ type Props = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   pointerEvents?: 'auto' | 'none' | 'box-none' | 'box-only';
+  tempo?: FeedbackTempo;
 };
 
 /**
@@ -31,10 +33,12 @@ export function ScreenShakeHost({
   children,
   style,
   pointerEvents,
+  tempo = 'default',
 }: Props) {
   const reducedMotion = useReducedMotion();
   const shakeX = useSharedValue(0);
   const shakeY = useSharedValue(0);
+  const pace = tempoScale(tempo);
 
   useEffect(() => {
     cancelAnimation(shakeX);
@@ -48,19 +52,19 @@ export function ScreenShakeHost({
 
     const ampX = outcome === 'correct' ? 6 : 10;
     shakeX.value = withSequence(
-      withTiming(ampX, { duration: 45 }),
-      withTiming(-ampX, { duration: 55 }),
-      withTiming(ampX * 0.5, { duration: 50 }),
-      withTiming(0, { duration: 90, easing: Easing.out(Easing.quad) })
+      withTiming(ampX, { duration: 45 * pace }),
+      withTiming(-ampX, { duration: 55 * pace }),
+      withTiming(ampX * 0.5, { duration: 50 * pace }),
+      withTiming(0, { duration: 90 * pace, easing: Easing.out(Easing.quad) })
     );
 
     if (outcome === 'correct') {
       shakeY.value = withSequence(
-        withTiming(-10, { duration: 90, easing: Easing.out(Easing.cubic) }),
-        withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) })
+        withTiming(-10, { duration: 90 * pace, easing: Easing.out(Easing.cubic) }),
+        withTiming(0, { duration: 180 * pace, easing: Easing.out(Easing.quad) })
       );
     }
-  }, [outcome, reducedMotion, restartKey, shakeX, shakeY]);
+  }, [outcome, pace, reducedMotion, restartKey, shakeX, shakeY]);
 
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeX.value }, { translateY: shakeY.value }],

@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Chip } from './Chip';
+import { Chip, CHIP_ART_ASPECT } from './Chip';
 import { CHIP_SIZE } from './ChipStack';
 
 export type ChipFlight = {
@@ -23,6 +23,10 @@ export type ChipFlight = {
   arc: number;
   spin: number;
   restRotate: number;
+  /** Rendered diameter; defaults to the in-scene chip size. */
+  size?: number;
+  /** Landing scale on the felt plane (smaller toward the pot). */
+  landScale?: number;
 };
 
 type ChipTossProps = {
@@ -30,8 +34,8 @@ type ChipTossProps = {
 };
 
 /**
- * Chips in the air between the player's glove and the pot.
- * Flight is a gravity arc; they settle on the felt without an extra drop shadow.
+ * Individual chips in the air between the player's glove and the pot.
+ * Each flight is its own cel chip with a gravity arc and a short settle bounce.
  */
 export function ChipToss({ flights }: ChipTossProps) {
   return (
@@ -49,29 +53,31 @@ function hopOffset(progress: number, arc: number) {
     return 0;
   }
 
-  const flightEnd = 0.58;
+  const flightEnd = 0.62;
   if (progress < flightEnd) {
     const t = progress / flightEnd;
     return -arc * 4 * t * (1 - t);
   }
 
   const u = (progress - flightEnd) / (1 - flightEnd);
-  return -arc * 0.22 * (1 - u) * (1 - u) * Math.abs(Math.sin(u * Math.PI * 2.2));
+  return -arc * 0.18 * (1 - u) * (1 - u) * Math.abs(Math.sin(u * Math.PI * 2.4));
 }
 
 function travelEase(progress: number) {
   'worklet';
-  const travel = interpolate(progress, [0, 0.58, 1], [0, 1, 1]);
+  const travel = interpolate(progress, [0, 0.62, 1], [0, 1, 1]);
   return 1 - (1 - travel) * (1 - travel);
 }
 
 function FlyingChip({ flight }: { flight: ChipFlight }) {
   const progress = useSharedValue(0);
   const reducedMotion = useReducedMotion();
-  const size = CHIP_SIZE;
+  const size = flight.size ?? CHIP_SIZE;
+  const landScale = flight.landScale ?? 0.82;
 
   useEffect(() => {
     const duration = reducedMotion ? Math.min(flight.durationMs, 280) : flight.durationMs;
+    progress.value = 0;
     progress.value = withDelay(
       reducedMotion ? 0 : flight.delayMs,
       withTiming(1, { duration, easing: Easing.linear })
@@ -83,7 +89,7 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
   const arc = reducedMotion ? flight.arc * 0.2 : flight.arc;
   const origin = {
     left: flight.from.x - size / 2,
-    top: flight.from.y - size * 0.55,
+    top: flight.from.y - size * CHIP_ART_ASPECT * 0.45,
   };
 
   const chipStyle = useAnimatedStyle(() => {
@@ -91,21 +97,23 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
     const eased = travelEase(p);
 
     return {
-      opacity: interpolate(p, [0, 0.03], [0, 1]),
+      opacity: interpolate(p, [0, 0.04, 0.92, 1], [0, 1, 1, 1]),
       transform: [
         { translateX: dx * eased },
         { translateY: dy * eased + hopOffset(p, arc) },
         {
-          rotate: `${interpolate(p, [0, 0.58, 1], [0, flight.spin * 140, flight.restRotate])}deg`,
+          rotate: `${interpolate(p, [0, 0.62, 1], [0, flight.spin * 160, flight.restRotate])}deg`,
         },
-        { scale: interpolate(p, [0, 0.28, 0.58, 1], [1, 1.04, 0.94, 0.88]) },
+        {
+          scale: interpolate(p, [0, 0.3, 0.62, 1], [1, 1.06, 0.92, landScale]),
+        },
       ],
     };
   });
 
   return (
     <Animated.View pointerEvents="none" style={[styles.chip, origin, chipStyle]}>
-      <Chip size={size} rotate={flight.restRotate * 0.15} />
+      <Chip size={size} rotate={flight.restRotate * 0.12} />
     </Animated.View>
   );
 }

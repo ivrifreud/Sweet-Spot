@@ -28,7 +28,11 @@ import Svg, { Path } from 'react-native-svg';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
 import { ScreenShakeHost } from './ScreenShakeHost';
+import { tempoScale, type FeedbackTempo } from './tempo';
 import type { DecisionOutcome } from './types';
+
+export type { FeedbackTempo } from './tempo';
+export { tempoScale } from './tempo';
 
 const CHIP = require('../../../assets/brand/poker-chip-sm.png');
 const INK = '#171713';
@@ -50,6 +54,8 @@ export type DecisionFeedbackOverlayProps = {
    * jolts the table and overlay together.
    */
   shakeScreen?: boolean;
+  /** Fold = snappy; raise = slower so the toss reads. */
+  tempo?: FeedbackTempo;
 };
 
 /**
@@ -66,10 +72,12 @@ export function DecisionFeedbackOverlay({
   onContinue,
   feedbackKey,
   shakeScreen = true,
+  tempo = 'default',
 }: DecisionFeedbackOverlayProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const pace = tempoScale(tempo);
 
   if (!visible) {
     return null;
@@ -79,6 +87,7 @@ export function DecisionFeedbackOverlay({
     <ScreenShakeHost
       outcome={shakeScreen ? outcome : null}
       restartKey={feedbackKey}
+      tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
     <View
@@ -88,7 +97,12 @@ export function DecisionFeedbackOverlay({
       accessibilityLabel={`${title}. ${kicker}. ${explanation}`}
       style={StyleSheet.absoluteFill}
       pointerEvents="auto">
-      <FlashWash outcome={outcome} reducedMotion={reducedMotion} restartKey={feedbackKey} />
+      <FlashWash
+        outcome={outcome}
+        reducedMotion={reducedMotion}
+        restartKey={feedbackKey}
+        pace={pace}
+      />
 
       <View
         style={[
@@ -96,13 +110,20 @@ export function DecisionFeedbackOverlay({
           { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) + 8 },
         ]}>
         <View style={styles.column}>
-          <OutcomeMark outcome={outcome} reducedMotion={reducedMotion} fontsLoaded={fontsLoaded} title={title} />
+          <OutcomeMark
+            outcome={outcome}
+            reducedMotion={reducedMotion}
+            fontsLoaded={fontsLoaded}
+            title={title}
+            pace={pace}
+          />
 
           <CoachCard
             outcome={outcome}
             kicker={kicker}
             explanation={explanation}
             reducedMotion={reducedMotion}
+            pace={pace}
           />
 
           <Pressable
@@ -130,7 +151,7 @@ export function DecisionFeedbackOverlay({
 
       {outcome === 'correct' && !reducedMotion ? (
         <View pointerEvents="none" style={styles.confettiLayer}>
-          <ConfettiBurst restartKey={feedbackKey} />
+          <ConfettiBurst restartKey={feedbackKey} pace={pace} />
         </View>
       ) : null}
     </View>
@@ -143,11 +164,13 @@ function OutcomeMark({
   reducedMotion,
   fontsLoaded,
   title,
+  pace,
 }: {
   outcome: DecisionOutcome;
   reducedMotion: boolean | undefined;
   fontsLoaded: boolean;
   title: string;
+  pace: number;
 }) {
   const pop = useSharedValue(reducedMotion ? 1 : 0.72);
 
@@ -158,10 +181,10 @@ function OutcomeMark({
       return;
     }
     pop.value = withSequence(
-      withTiming(1.1, { duration: 220, easing: Easing.out(Easing.cubic) }),
-      withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) })
+      withTiming(1.1, { duration: 220 * pace, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 160 * pace, easing: Easing.out(Easing.quad) })
     );
-  }, [outcome, pop, reducedMotion]);
+  }, [outcome, pace, pop, reducedMotion]);
 
   const popStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pop.value }, { translateY: interpolate(pop.value, [0.72, 1.1], [18, -6]) }],
@@ -195,11 +218,13 @@ function CoachCard({
   kicker,
   explanation,
   reducedMotion,
+  pace,
 }: {
   outcome: DecisionOutcome;
   kicker: string;
   explanation: string;
   reducedMotion: boolean | undefined;
+  pace: number;
 }) {
   const wave = useSharedValue(0);
 
@@ -211,12 +236,12 @@ function CoachCard({
     }
 
     wave.value = withSequence(
-      withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }),
-      withTiming(0, { duration: 320, easing: Easing.inOut(Easing.quad) }),
-      withTiming(0.7, { duration: 260 }),
-      withTiming(0, { duration: 280 })
+      withTiming(1, { duration: 280 * pace, easing: Easing.out(Easing.cubic) }),
+      withTiming(0, { duration: 320 * pace, easing: Easing.inOut(Easing.quad) }),
+      withTiming(0.7, { duration: 260 * pace }),
+      withTiming(0, { duration: 280 * pace })
     );
-  }, [outcome, reducedMotion, wave]);
+  }, [outcome, pace, reducedMotion, wave]);
 
   const portraitStyle = useAnimatedStyle(() => ({
     transform: [
@@ -258,10 +283,12 @@ function FlashWash({
   outcome,
   reducedMotion,
   restartKey,
+  pace,
 }: {
   outcome: DecisionOutcome;
   reducedMotion: boolean | undefined;
   restartKey?: string;
+  pace: number;
 }) {
   const flash = useSharedValue(reducedMotion ? 0.22 : 0);
 
@@ -274,17 +301,17 @@ function FlashWash({
     // Two strong pulses under 3 flashes/sec — louder on a hit, never a strobe.
     flash.value = withSequence(
       withTiming(outcome === 'correct' ? 0.95 : 0.58, {
-        duration: 140,
+        duration: 140 * pace,
         easing: Easing.out(Easing.quad),
       }),
-      withTiming(outcome === 'correct' ? 0.38 : 0.16, { duration: 230 }),
-      withTiming(outcome === 'correct' ? 0.86 : 0.46, { duration: 160 }),
+      withTiming(outcome === 'correct' ? 0.38 : 0.16, { duration: 230 * pace }),
+      withTiming(outcome === 'correct' ? 0.86 : 0.46, { duration: 160 * pace }),
       withTiming(outcome === 'correct' ? 0.52 : 0.28, {
-        duration: 480,
+        duration: 480 * pace,
         easing: Easing.out(Easing.cubic),
       })
     );
-  }, [flash, outcome, reducedMotion, restartKey]);
+  }, [flash, outcome, pace, reducedMotion, restartKey]);
 
   useEffect(() => {
     const type =
@@ -384,7 +411,7 @@ function buildConfetti(width: number, height: number): Particle[] {
   });
 }
 
-function ConfettiBurst({ restartKey }: { restartKey?: string }) {
+function ConfettiBurst({ restartKey, pace }: { restartKey?: string; pace: number }) {
   const { width, height } = useWindowDimensions();
   const particles = useMemo(() => buildConfetti(width, height), [height, restartKey, width]);
   const [elapsed, setElapsed] = useState(0);
@@ -394,15 +421,15 @@ function ConfettiBurst({ restartKey }: { restartKey?: string }) {
     const start = performance.now();
     setElapsed(0);
     const loop = (now: number) => {
-      const next = now - start;
-      setElapsed(next);
-      if (next < 3200) {
+      const wall = now - start;
+      setElapsed(wall / pace);
+      if (wall < 3200 * pace) {
         frame = requestAnimationFrame(loop);
       }
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [restartKey]);
+  }, [pace, restartKey]);
 
   return (
     <>

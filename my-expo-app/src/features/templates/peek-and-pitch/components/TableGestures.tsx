@@ -28,7 +28,7 @@ const DROP_SPRING = {
   dampingRatio: 0.68,
   reduceMotion: ReduceMotion.System,
 } as const;
-const MUCK_THROW_MS = 1700;
+const MUCK_THROW_MS = 920;
 const STACK_DRAG_THRESHOLD = 26;
 const DOUBLE_TAP_MS = 320;
 
@@ -178,7 +178,7 @@ export function TableGestures({
 
           const onStack = hitStack(event.x, event.y, stackHit.value);
           gestureMode.value = MODE_UNDECIDED;
-          startedLow.value = event.y > muckZoneTop ? 1 : 0;
+          startedLow.value = !onStack && event.y > muckZoneTop ? 1 : 0;
           stackPress.value = onStack ? 1 : 0;
           stackDragged.value = 0;
           stackDragX.value = 0;
@@ -186,7 +186,11 @@ export function TableGestures({
           peekedThisTouch.value = 0;
           fingerDown.value = 1;
 
-          if (!onStack && muckLocked.value !== 1) {
+          if (onStack) {
+            return;
+          }
+
+          if (muckLocked.value !== 1) {
             peekedThisTouch.value = 1;
             cancelAnimation(peek);
             peek.value = withSpring(1, PEEK_SPRING);
@@ -246,7 +250,7 @@ export function TableGestures({
           stackPress.value = 0;
 
           const feltTap = Math.abs(event.translationX) < 10 && Math.abs(event.translationY) < 10;
-          if (feltTap && canCheckEnabled.value === 1) {
+          if (feltTap && canCheckEnabled.value === 1 && stackPress.value !== 1) {
             const now = Date.now();
             if (now - lastFeltTapAt.value <= DOUBLE_TAP_MS) {
               lastFeltTapAt.value = 0;

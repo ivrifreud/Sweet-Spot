@@ -22,7 +22,7 @@ import {
 import { ActionBanner } from './components/ActionBanner';
 import { BarrierHand } from './components/BarrierHand';
 import { CardPicker } from './components/CardPicker';
-import { ChipStack } from './components/ChipStack';
+import { ChipStack, CHIP_SIZE } from './components/ChipStack';
 import { ChipToss, type ChipFlight } from './components/ChipToss';
 import { CommunityCards } from './components/CommunityCards';
 import { FeltPlane } from './components/FeltPlane';
@@ -32,7 +32,7 @@ import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
 import { CARD_ASPECT } from './components/PlayingCard';
 import { TableGestures, type StackHitRect } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
-import { DEFAULT_SPOT, SKINS, STACK_HIT, mapBackdropPoint } from './config';
+import { DEFAULT_SPOT, SKINS, STACK_HIT, CHIP_CARD_GAP, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
 
@@ -41,6 +41,8 @@ const DEAL_THROW_MS = 1700;
 const DEAL_LIVE_FALLBACK_MS = 1920;
 /** Keep hole cards smaller on phone without shrinking chips or gloves. */
 const CARD_SCALE = 0.65;
+/** Chips stay under card width so stacks read as coins, not one merged stamp. */
+const CHIP_TO_CARD = 0.78;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -62,7 +64,7 @@ export type PeekAndPitchTemplateProps = {
  *   - hold the felt                            -> pinch, lift, and shield the hole cards
  *   - release                                  -> the cards drop flat on the felt
  *   - swipe up from the same grip              -> throw the cards onto the table
- *   - tap your own stack                       -> the glove grabs chips and throws them in
+ *   - tap your own stack                       -> left glove grabs chips and throws them in
  */
 export function PeekAndPitchTemplate({
   spot = DEFAULT_SPOT,
@@ -106,28 +108,44 @@ export function PeekAndPitchTemplate({
   const cardWidth = Math.min(stage * 0.17 * CARD_SCALE, 82 * CARD_SCALE);
   const cardHeight = cardWidth * CARD_ASPECT;
   const cardGap = cardWidth * CARD_GAP_RATIO;
-  const handWidth = stage * 0.4;
-  const barrierWidth = stage * 0.36;
+  const chipSize = Math.round(
+    Math.min(Math.max(cardWidth * CHIP_TO_CARD, 32), Math.max(CHIP_SIZE, 42))
+  );
+  const handWidth = stage * 0.46;
+  const barrierWidth = stage * 0.42;
+  const stackHitSize = {
+    width: Math.max(STACK_HIT.width, chipSize * 3.1 + 20),
+    height: Math.max(STACK_HIT.height, chipSize * 2.4 + 36),
+  };
 
   const geometry = useMemo(() => {
     const screen = { width, height };
 
-    const restCenter = mapBackdropPoint(
+    const mappedRest = mapBackdropPoint(
       skin.holeRest,
       skin.backgroundSize,
       screen,
       skin.fit,
       skin.coverAnchor
     );
+    const restCenter = {
+      x: Math.min(Math.max(mappedRest.x, width * 0.54), width * 0.7),
+      y: Math.min(Math.max(mappedRest.y, height * 0.6), height - cardHeight * 0.62),
+    };
 
     const cardSpan = cardWidth * 2 + cardGap;
-    const cardsLeft = restCenter.x - cardSpan / 2;
+    let cardsLeft = restCenter.x - cardSpan / 2;
     const stackHit = {
-      x: cardsLeft - STACK_HIT.width - 8,
-      y: restCenter.y + cardHeight * 0.18 - STACK_HIT.height,
-      width: STACK_HIT.width,
-      height: STACK_HIT.height,
+      x: 10,
+      y: restCenter.y + cardHeight * 0.08 - stackHitSize.height,
+      width: stackHitSize.width,
+      height: stackHitSize.height,
     };
+    const stackRight = stackHit.x + stackHit.width;
+    if (cardsLeft - stackRight < CHIP_CARD_GAP) {
+      cardsLeft = stackRight + CHIP_CARD_GAP;
+      restCenter.x = cardsLeft + cardSpan / 2;
+    }
 
     return {
       dealOrigin: mapBackdropPoint(
@@ -147,16 +165,16 @@ export function PeekAndPitchTemplate({
       restCenter,
       stackHit,
       stackAnchor: {
-        x: stackHit.x + stackHit.width * 0.78,
-        y: stackHit.y + stackHit.height * 0.52,
+        x: stackHit.x + stackHit.width * 0.42,
+        y: stackHit.y + stackHit.height * 0.48,
       },
       handContact: {
-        x: restCenter.x + cardWidth * 0.58,
-        y: restCenter.y + cardHeight * 0.62,
+        x: restCenter.x + cardWidth * 0.55,
+        y: restCenter.y + cardHeight * 0.42,
       },
       barrierContact: {
-        x: cardsLeft - cardWidth * 0.18,
-        y: restCenter.y - cardHeight * 0.18,
+        x: cardsLeft - cardWidth * 0.06,
+        y: restCenter.y - cardHeight * 0.08,
       },
     };
   }, [
@@ -170,6 +188,8 @@ export function PeekAndPitchTemplate({
     skin.fit,
     skin.holeRest,
     skin.tableCenter,
+    stackHitSize.height,
+    stackHitSize.width,
     width,
   ]);
 
@@ -245,45 +265,48 @@ export function PeekAndPitchTemplate({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
       const { stackAnchor, tableCenter } = geometry;
-      const release = {
-        x: (stackAnchor.x + tableCenter.x) * 0.52,
-        y: stackAnchor.y + (tableCenter.y - stackAnchor.y) * 0.4,
-      };
-      const flightCount = nextDecision === 'raise' ? 3 : 1;
+      const flightCount = nextDecision === 'raise' ? 4 : 1;
       const nextFlights: ChipFlight[] = Array.from({ length: flightCount }, (_, index) => {
         flightSeed.current += 1;
         const spin = Math.random() > 0.5 ? 1 : -1;
+        const column = index % 2;
+        // Launch from the stack top after the left glove grips, then arc to the pot.
+        const from = {
+          x: stackAnchor.x + (column === 0 ? -chipSize * 0.35 : chipSize * 0.2) + (Math.random() - 0.5) * 6,
+          y: stackAnchor.y - chipSize * 0.15 - index * (chipSize * 0.12),
+        };
+        const scatterX = (Math.random() - 0.5) * chipSize * 1.8;
+        const scatterY = (Math.random() - 0.5) * chipSize * 1.1;
         return {
           id: `chip-${flightSeed.current}`,
-          from: {
-            x: release.x + (Math.random() - 0.5) * 36,
-            y: release.y - 12 - index * 8,
-          },
+          from,
           to: {
-            x: tableCenter.x + (Math.random() - 0.5) * 84,
-            y: tableCenter.y + (Math.random() - 0.5) * 46,
+            x: tableCenter.x + scatterX + index * 3,
+            y: tableCenter.y + scatterY + index * 2,
           },
-          delayMs: 480 + index * 90,
-          durationMs: 1100,
-          arc: 120 + Math.random() * 70,
+          delayMs: 420 + index * 70,
+          durationMs: 1100 + index * 50,
+          arc: 88 + Math.random() * 42,
           spin,
-          restRotate: spin * (8 + Math.random() * 22),
+          restRotate: spin * (6 + Math.random() * 18),
+          size: chipSize,
+          landScale: 0.78 + Math.random() * 0.08,
         };
       });
 
       setFlights((current) => [...current, ...nextFlights]);
-      setPushedChips((current) => current + (nextDecision === 'raise' ? 2 : 1));
+      setPushedChips((current) => current + (nextDecision === 'raise' ? 3 : 1));
       commit.value = 0;
       commit.value = withSequence(
-        withTiming(0.32, { duration: 180, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.cubic) })
+        withTiming(0.28, { duration: 200, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 980, easing: Easing.inOut(Easing.cubic) })
       );
 
       cancelAnimation(peek);
       peek.value = 0;
       resolve(nextDecision);
     },
-    [commit, geometry, peek, resolve]
+    [chipSize, commit, geometry, peek, resolve]
   );
 
   const handleCheck = useCallback(() => {
@@ -342,6 +365,7 @@ export function PeekAndPitchTemplate({
           press={stackPress}
           dragX={stackDragX}
           dragY={stackDragY}
+          chipSize={chipSize}
         />
       </View>
 
@@ -361,17 +385,20 @@ export function PeekAndPitchTemplate({
 
         <BarrierHand
           contact={geometry.barrierContact}
+          stackAnchor={geometry.stackAnchor}
+          tableCenter={geometry.tableCenter}
           handWidth={barrierWidth}
           cardHeight={cardHeight}
+          chipSize={chipSize}
           deal={deal}
           peek={peek}
           muck={muck}
+          commit={commit}
         />
 
         <HeroHand
           contact={geometry.handContact}
           tableCenter={geometry.tableCenter}
-          stackAnchor={geometry.stackAnchor}
           handWidth={handWidth}
           cardHeight={cardHeight}
           plane={skin.feltPlane}
@@ -478,7 +505,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 8,
     elevation: 8,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     justifyContent: 'flex-end',
   },
   bannerHolder: {
