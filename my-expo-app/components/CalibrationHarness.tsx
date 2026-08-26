@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,7 @@ import {
   ScreenShakeHost,
   buildDecisionFeedbackCopy,
   type DecisionFeedbackCopy,
+  type FeedbackTempo,
 } from '../src/features/decision-feedback';
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
@@ -38,7 +39,21 @@ type PendingFeedback = {
   copy: DecisionFeedbackCopy;
   nextAnswers: SpotAnswer[];
   key: string;
+  tempo: FeedbackTempo;
 };
+
+function tempoForDecision(decision: SpotDecision): FeedbackTempo {
+  if (decision === 'fold') return 'fold';
+  if (decision === 'raise') return 'raise';
+  return 'default';
+}
+
+/** Fold shows feedback ASAP; raise waits for the chip toss to land. */
+function feedbackRevealMs(decision: SpotDecision): number {
+  if (decision === 'fold') return 0;
+  if (decision === 'raise') return 920;
+  return 220;
+}
 
 export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props) {
   const [spots, setSpots] = useState<LoadedSpots | null>(null);
@@ -52,6 +67,15 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) {
+        clearTimeout(feedbackTimer.current);
+      }
+    };
+  }, []);
 
   const applyAnswers = useCallback((loaded: LoadedSpots, nextAnswers: SpotAnswer[]) => {
     const action = nextCalibrationAction(loaded.stage1, loaded.stage2, nextAnswers);
@@ -165,15 +189,31 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           });
 
       setAnswers(nextAnswers);
-      setFeedback({
+      const pending: PendingFeedback = {
         copy,
         nextAnswers,
         key: `${current.id}-${chosen}`,
-      });
+        tempo: tempoForDecision(decision),
+      };
+      if (feedbackTimer.current) {
+        clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = null;
+      }
+      const delay = feedbackRevealMs(decision);
+      if (delay <= 0) {
+        setFeedback(pending);
+        setBusy(false);
+      } else {
+        feedbackTimer.current = setTimeout(() => {
+          feedbackTimer.current = null;
+          setFeedback(pending);
+          setBusy(false);
+        }, delay);
+        return;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save answer');
       setResetKey((value) => value + 1);
-    } finally {
       setBusy(false);
     }
   }
@@ -288,6 +328,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     <ScreenShakeHost
       outcome={feedback?.copy.outcome ?? null}
       restartKey={feedback?.key}
+      tempo={feedback?.tempo ?? 'default'}
       style={styles.tableScreen}>
       <PeekAndPitchTemplate
         spot={tableSpot}
@@ -329,6 +370,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         explanation={feedback?.copy.explanation ?? ''}
         continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}
         feedbackKey={feedback?.key}
+        tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}
         onContinue={finishFeedback}
       />

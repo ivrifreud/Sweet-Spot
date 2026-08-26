@@ -50,7 +50,7 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     fit: 'cover',
     dealOrigin: { x: 0.5, y: 0.34 },
     tableCenter: { x: 0.5, y: 0.48 },
-    holeRest: { x: 0.58, y: 0.7 },
+    holeRest: { x: 0.62, y: 0.8 },
     feltPlane: DEFAULT_FELT_PLANE,
     feltTint: '#111714',
     accent: '#C89B3C',
@@ -64,7 +64,7 @@ export const SKINS: Record<TableSkin, SkinConfig> = {
     coverAnchor: { x: 0.5, y: 0.82 },
     dealOrigin: { x: 0.5, y: 0.3 },
     tableCenter: { x: 0.5, y: 0.46 },
-    holeRest: { x: 0.56, y: 0.73 },
+    holeRest: { x: 0.62, y: 0.82 },
     feltPlane: DEFAULT_FELT_PLANE,
     feltTint: '#14110c',
     accent: '#E6C46A',
@@ -119,9 +119,12 @@ export function mapBackdropPoint(
 
 /** Hit zone for the hero stack, in overlay (gesture-view) coordinates. */
 export const STACK_HIT = {
-  width: 200,
-  height: 188,
+  width: 132,
+  height: 128,
 } as const;
+
+/** Minimum gap between the chip hitbox and the hole-card hitbox. */
+export const CHIP_CARD_GAP = 56;
 
 /** Gesture tuning. Distances are fractions of the screen height. */
 export const GESTURES = {
