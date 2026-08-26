@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_FELT_PLANE,
+  HOLE_OVERLAP,
   collideWithFelt,
   cornerPeel,
   cornerWeight,
   depthOnFelt,
+  packetPeelWeight,
+  packetU,
   peelAngleDeg,
   peelLift,
+  peelSliceTilt,
+  peekPull,
   poseOnFelt,
 } from './feltPlane';
 
@@ -41,6 +46,30 @@ describe('depthOnFelt', () => {
 
   it('clamps points past the far edge', () => {
     expect(depthOnFelt(100, 800, 200)).toBe(1);
+  });
+});
+
+describe('peekPull', () => {
+  it('stays almost flat during the contact stage', () => {
+    expect(peekPull(0)).toBe(0);
+    expect(peekPull(0.16)).toBeCloseTo(0.08);
+  });
+
+  it('arches through the mid stage then reaches a full peek', () => {
+    expect(peekPull(0.48)).toBeCloseTo(0.42);
+    expect(peekPull(1)).toBe(1);
+    expect(peekPull(0.3)).toBeGreaterThan(peekPull(0.16));
+    expect(peekPull(0.3)).toBeLessThan(peekPull(0.48));
+  });
+});
+
+describe('peelSliceTilt', () => {
+  it('keeps the far band flatter than the near band at full peek', () => {
+    expect(peelSliceTilt(0, 8, 1)).toBeLessThan(peelSliceTilt(7, 8, 1));
+  });
+
+  it('is flat at rest', () => {
+    expect(peelSliceTilt(7, 8, 0)).toBe(0);
   });
 });
 
@@ -79,6 +108,22 @@ describe('cornerWeight', () => {
   it('peaks at the near-right pinch corner', () => {
     expect(cornerWeight(1, 1)).toBeGreaterThan(cornerWeight(0.5, 0.5));
     expect(cornerWeight(1, 1)).toBeGreaterThan(0.85);
+  });
+});
+
+describe('packetPeelWeight', () => {
+  it('maps the tucked left card onto the left of the packet', () => {
+    expect(packetU(0, 0, HOLE_OVERLAP)).toBe(0);
+    expect(packetU(0, 1, HOLE_OVERLAP)).toBeLessThan(packetU(1, 1, HOLE_OVERLAP));
+    expect(packetU(1, 1, HOLE_OVERLAP)).toBeCloseTo(1);
+  });
+
+  it('lifts both near edges together at full peek', () => {
+    const leftNear = packetPeelWeight(0, 0.5, 1, HOLE_OVERLAP);
+    const rightNear = packetPeelWeight(1, 0.5, 1, HOLE_OVERLAP);
+    expect(leftNear).toBeGreaterThan(0.45);
+    expect(rightNear).toBeGreaterThan(0.45);
+    expect(Math.abs(leftNear - rightNear)).toBeLessThan(0.35);
   });
 });
 

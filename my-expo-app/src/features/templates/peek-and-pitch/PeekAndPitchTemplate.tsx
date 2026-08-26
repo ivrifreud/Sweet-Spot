@@ -32,10 +32,15 @@ import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
 import { CARD_ASPECT } from './components/PlayingCard';
 import { TableGestures, type StackHitRect } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
-import { collideWithFelt, cornerPeel } from './feltPlane';
 import { DEFAULT_SPOT, SKINS, STACK_HIT, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
+
+/** Slower deal/muck throw onto the felt. */
+const DEAL_THROW_MS = 1700;
+const DEAL_LIVE_FALLBACK_MS = 1920;
+/** Keep hole cards smaller on phone without shrinking chips or gloves. */
+const CARD_SCALE = 0.65;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -98,16 +103,22 @@ export function PeekAndPitchTemplate({
 
   const stage = Math.min(width, 460);
   const stageLeft = (width - stage) / 2;
-  const cardWidth = Math.min(stage * 0.17, 82);
+  const cardWidth = Math.min(stage * 0.17 * CARD_SCALE, 82 * CARD_SCALE);
   const cardHeight = cardWidth * CARD_ASPECT;
   const cardGap = cardWidth * CARD_GAP_RATIO;
-  const handWidth = stage * 0.62;
-  const barrierWidth = stage * 0.56;
+  const handWidth = stage * 0.4;
+  const barrierWidth = stage * 0.36;
 
   const geometry = useMemo(() => {
     const screen = { width, height };
 
-    const restCenter = mapBackdropPoint(skin.holeRest, skin.backgroundSize, screen, skin.fit);
+    const restCenter = mapBackdropPoint(
+      skin.holeRest,
+      skin.backgroundSize,
+      screen,
+      skin.fit,
+      skin.coverAnchor
+    );
 
     const cardSpan = cardWidth * 2 + cardGap;
     const cardsLeft = restCenter.x - cardSpan / 2;
@@ -119,8 +130,20 @@ export function PeekAndPitchTemplate({
     };
 
     return {
-      dealOrigin: mapBackdropPoint(skin.dealOrigin, skin.backgroundSize, screen, skin.fit),
-      tableCenter: mapBackdropPoint(skin.tableCenter, skin.backgroundSize, screen, skin.fit),
+      dealOrigin: mapBackdropPoint(
+        skin.dealOrigin,
+        skin.backgroundSize,
+        screen,
+        skin.fit,
+        skin.coverAnchor
+      ),
+      tableCenter: mapBackdropPoint(
+        skin.tableCenter,
+        skin.backgroundSize,
+        screen,
+        skin.fit,
+        skin.coverAnchor
+      ),
       restCenter,
       stackHit,
       stackAnchor: {
@@ -128,12 +151,12 @@ export function PeekAndPitchTemplate({
         y: stackHit.y + stackHit.height * 0.52,
       },
       handContact: {
-        x: restCenter.x + cardWidth * 0.46,
-        y: restCenter.y + cardHeight * 0.38,
+        x: restCenter.x + cardWidth * 0.58,
+        y: restCenter.y + cardHeight * 0.62,
       },
       barrierContact: {
-        x: restCenter.x - cardWidth * 0.48,
-        y: restCenter.y - cardHeight * 0.02,
+        x: cardsLeft - cardWidth * 0.18,
+        y: restCenter.y - cardHeight * 0.18,
       },
     };
   }, [
@@ -142,6 +165,7 @@ export function PeekAndPitchTemplate({
     cardWidth,
     height,
     skin.backgroundSize,
+    skin.coverAnchor,
     skin.dealOrigin,
     skin.fit,
     skin.holeRest,
@@ -167,7 +191,7 @@ export function PeekAndPitchTemplate({
       deal.value = 0;
       deal.value = withTiming(
         1,
-        { duration: 950, easing: Easing.out(Easing.cubic) },
+        { duration: DEAL_THROW_MS, easing: Easing.out(Easing.cubic) },
         (finished) => {
           if (finished) {
             runOnJS(setPhase)('live');
@@ -186,7 +210,7 @@ export function PeekAndPitchTemplate({
     if (phase !== 'dealing') {
       return;
     }
-    const timer = setTimeout(() => setPhase('live'), 1100);
+    const timer = setTimeout(() => setPhase('live'), DEAL_LIVE_FALLBACK_MS);
     return () => clearTimeout(timer);
   }, [phase]);
 
@@ -274,57 +298,6 @@ export function PeekAndPitchTemplate({
     stackHit.value = geometry.stackHit;
   }, [geometry.stackHit, stackHit]);
 
-  useEffect(() => {
-    // #region agent log
-    const peel = cornerPeel(1, 1, 1);
-    const pose = collideWithFelt(0, 0, skin.feltPlane);
-    fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '83e178' },
-      body: JSON.stringify({
-        sessionId: '83e178',
-        runId: 'pre-fix',
-        hypothesisId: 'C',
-        location: 'PeekAndPitchTemplate.tsx:geometry',
-        message: 'table layout vs screen',
-        data: {
-          screen: { width, height },
-          restCenter: geometry.restCenter,
-          dealOrigin: geometry.dealOrigin,
-          tableCenter: geometry.tableCenter,
-          handContact: geometry.handContact,
-          barrierContact: geometry.barrierContact,
-          cardWidth,
-          cardHeight,
-          handWidth,
-          holeRest: skin.holeRest,
-          pose,
-          peel,
-          offscreen:
-            geometry.restCenter.y < 0 ||
-            geometry.restCenter.y > height ||
-            geometry.handContact.x < 0 ||
-            geometry.handContact.x > width,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [
-    cardHeight,
-    cardWidth,
-    geometry.barrierContact,
-    geometry.dealOrigin,
-    geometry.handContact,
-    geometry.restCenter,
-    geometry.tableCenter,
-    handWidth,
-    height,
-    skin.feltPlane,
-    skin.holeRest,
-    width,
-  ]);
-
   const completeMuck = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     resolve('fold');
@@ -334,14 +307,15 @@ export function PeekAndPitchTemplate({
 
   return (
     <View style={[styles.root, { backgroundColor: skin.feltTint }]}>
-      <TableScene skin={activeSpot.skin} width={width} height={height} />
-
-      <FeltPlane
-        width={width}
-        nearY={geometry.restCenter.y}
-        farY={geometry.dealOrigin.y}
-        plane={skin.feltPlane}
-      />
+      <View style={styles.tableLayer} pointerEvents="none">
+        <TableScene skin={activeSpot.skin} width={width} height={height} />
+        <FeltPlane
+          width={width}
+          nearY={geometry.restCenter.y}
+          farY={geometry.dealOrigin.y}
+          plane={skin.feltPlane}
+        />
+      </View>
 
       <CommunityCards
         cards={activeSpot.board}
@@ -371,41 +345,42 @@ export function PeekAndPitchTemplate({
         />
       </View>
 
-      {/* Barrier cups from behind; hole cards stay in the foreground. */}
-      <BarrierHand
-        contact={geometry.barrierContact}
-        handWidth={barrierWidth}
-        plane={skin.feltPlane}
-        deal={deal}
-        peek={peek}
-        muck={muck}
-      />
+      <View style={styles.playLayer} pointerEvents="box-none">
+        <HoleCards
+          cards={cards}
+          peek={peek}
+          muck={muck}
+          deal={deal}
+          commit={commit}
+          cardWidth={cardWidth}
+          dealOrigin={geometry.dealOrigin}
+          tableCenter={geometry.tableCenter}
+          restCenter={geometry.restCenter}
+          plane={skin.feltPlane}
+        />
 
-      <HoleCards
-        cards={cards}
-        peek={peek}
-        muck={muck}
-        deal={deal}
-        commit={commit}
-        cardWidth={cardWidth}
-        dealOrigin={geometry.dealOrigin}
-        tableCenter={geometry.tableCenter}
-        restCenter={geometry.restCenter}
-        plane={skin.feltPlane}
-      />
+        <BarrierHand
+          contact={geometry.barrierContact}
+          handWidth={barrierWidth}
+          cardHeight={cardHeight}
+          deal={deal}
+          peek={peek}
+          muck={muck}
+        />
 
-      <HeroHand
-        contact={geometry.handContact}
-        tableCenter={geometry.tableCenter}
-        stackAnchor={geometry.stackAnchor}
-        handWidth={handWidth}
-        cardHeight={cardHeight}
-        plane={skin.feltPlane}
-        deal={deal}
-        peek={peek}
-        muck={muck}
-        commit={commit}
-      />
+        <HeroHand
+          contact={geometry.handContact}
+          tableCenter={geometry.tableCenter}
+          stackAnchor={geometry.stackAnchor}
+          handWidth={handWidth}
+          cardHeight={cardHeight}
+          plane={skin.feltPlane}
+          deal={deal}
+          peek={peek}
+          muck={muck}
+          commit={commit}
+        />
+      </View>
 
       <ChipToss flights={flights} />
 
@@ -486,9 +461,23 @@ export function PeekAndPitchTemplate({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    overflow: 'visible',
+  },
+  tableLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+    elevation: 0,
+  },
+  playLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    elevation: 20,
+    overflow: 'visible',
   },
   stackHolder: {
     position: 'absolute',
+    zIndex: 8,
+    elevation: 8,
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
   },

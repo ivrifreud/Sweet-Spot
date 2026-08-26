@@ -1,5 +1,5 @@
 import './global.css';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import * as ExpoSplashScreen from 'expo-splash-screen';
@@ -8,17 +8,12 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { CalibrationHarness } from './components/CalibrationHarness';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DEV_BYPASS_USER_ID } from './lib/devBypass';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
 import { SplashScreen } from './screens/SplashScreen';
-
-const CalibrationHarness = lazy(() =>
-  import('./components/CalibrationHarness').then((mod) => ({
-    default: mod.CalibrationHarness,
-  }))
-);
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -96,13 +91,11 @@ function AppInner() {
       {!started ? (
         <SplashScreen onPressStart={() => setStarted(true)} />
       ) : activeUserId ? (
-        <Suspense fallback={<BootScreen message="Loading calibration…" />}>
-          <CalibrationHarness
-            userId={activeUserId}
-            devMode={devBypassActive}
-            onSignOut={() => setDevBypassActive(false)}
-          />
-        </Suspense>
+        <CalibrationHarness
+          userId={activeUserId}
+          devMode={devBypassActive}
+          onSignOut={() => setDevBypassActive(false)}
+        />
       ) : (
         <View style={styles.route}>
           <AuthScreen

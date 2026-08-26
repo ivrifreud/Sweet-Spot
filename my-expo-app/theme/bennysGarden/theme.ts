@@ -6,11 +6,11 @@ export const bennysGardenTheme: BennysGardenTheme = {
   name: "Benny's Garden",
   modes: {
     night: {
-      background: require('../../assets/themes/bennys-garden/night.png'),
+      background: require('../../assets/themes/bennys-garden/night-mobile.png'),
       statusBar: 'light',
     },
     light: {
-      background: require('../../assets/themes/bennys-garden/light.png'),
+      background: require('../../assets/themes/bennys-garden/light-mobile.png'),
       statusBar: 'dark',
     },
   },
