@@ -332,6 +332,32 @@ stage completion, streak milestones, and jackpots.
 - Every interaction needs a non-color cue: movement, shape, icon, or sound.
 - Minimum touch target: 44 × 44 pt.
 
+### HUD, economy, and track map
+
+Moodboard sheets `25–41` in [`docs/moodboard/README.md`](moodboard/README.md)
+are **layout / hierarchy references only**. They do not override character art,
+palette, or ink rules.
+
+Translate as follows:
+
+| Pattern in refs | Sweet Spot treatment |
+| --------------- | -------------------- |
+| Hearts / lives row | **Chip Stack** — three poker-chip icons, filled vs empty |
+| Gold coins / gold bars | **Gold Coins** — Antique Gold / Lamp Gold, inked outline, optional bar stack for large amounts |
+| Flame badge | Streak (or energy) — separate from Chip lives |
+| Vertical path + nodes | Stage track map — current / locked / complete states; sequential unlock |
+| Wood / parchment frames | Prefer tobacco wood + cream parchment over candy gloss |
+| Glossy bubble buttons | Matte/cel buttons; one Lamp Gold primary CTA |
+
+Hard rules:
+
+- Never ship hearts as lives — product language is **Chips**.
+- Never let casual-puzzle or Duolingo chrome become the default skin.
+- Map worlds stay Benny's Garden → Local Casino → VIP (gouache), not candy land
+  or pixel islands.
+- Resource counts and lock states must stay above film grain and readable at
+  phone size.
+
 ## 12. Asset Production Checklist
 
 Before approving any new asset:
@@ -384,4 +410,7 @@ Non-canonical:
   (except the approved reusable reward-chip asset and its turnaround sheet);
 - photoreal poker lifestyle photos as character or world art (Peek camera sheets
   are composition-only);
+- Match Masters / candy-gloss HUD kits as final UI art (layout refs only — see
+  moodboard HUD section);
+- hearts as Chip Stack lives (use poker chips);
 - generated alternatives not listed in the canonical moodboard.
