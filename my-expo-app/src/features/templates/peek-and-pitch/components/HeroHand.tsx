@@ -7,12 +7,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { PEEL_RISE, cornerPeel, peekPull, type FeltPlaneConfig } from '../feltPlane';
+import { fitGloveToViewport } from './gloveLayout';
 
 const REST = require('../../../../../assets/tables/hero-glove-rest.png');
 const PINCH = require('../../../../../assets/tables/hero-glove-pinch.png');
 const LIFT = require('../../../../../assets/tables/hero-glove-lift.png');
 
-const HAND_ASPECT = 0.8444;
 /** Pinch tip on the aligned pose canvases — maps onto the near-right card corner. */
 const CONTACT = { x: 0.08, y: 0.3684 };
 
@@ -23,6 +23,7 @@ type HeroHandProps = {
   tableCenter: Point;
   handWidth: number;
   cardHeight: number;
+  viewportHeight: number;
   plane: FeltPlaneConfig;
   deal: SharedValue<number>;
   peek: SharedValue<number>;
@@ -39,6 +40,7 @@ export function HeroHand({
   tableCenter,
   handWidth,
   cardHeight,
+  viewportHeight,
   plane: _plane,
   deal,
   peek,
@@ -46,11 +48,10 @@ export function HeroHand({
   commit,
 }: HeroHandProps) {
   void _plane;
-  const handHeight = handWidth * HAND_ASPECT;
-  const left = contact.x - CONTACT.x * handWidth;
-  const top = contact.y - CONTACT.y * handHeight;
+  const frame = fitGloveToViewport(contact, handWidth, viewportHeight, CONTACT);
+  const { left, top, width: fittedWidth, height: handHeight } = frame;
 
-  const offFrame = { x: handWidth * 0.26, y: handWidth * 0.34 };
+  const offFrame = { x: fittedWidth * 0.26, y: fittedWidth * 0.34 };
   const throwTo = {
     x: (tableCenter.x - contact.x) * 0.48,
     y: (tableCenter.y - contact.y) * 0.46,
@@ -74,7 +75,7 @@ export function HeroHand({
     return {
       transform: [
         {
-          translateX: offFrame.x * (1 - entry) + throwTo.x * pitch + settle * handWidth * 0.03,
+          translateX: offFrame.x * (1 - entry) + throwTo.x * pitch + settle * fittedWidth * 0.03,
         },
         {
           translateY:
@@ -83,7 +84,7 @@ export function HeroHand({
         {
           rotate: `${
             (1 - entry) * 10 +
-            interpolate(lift, [0, 0.22, 1], [4, -2, -12]) -
+            interpolate(lift, [0, 0.22, 1], [4, -2, -6]) -
             pitch * 14 +
             settle * 4
           }deg`,
@@ -103,18 +104,18 @@ export function HeroHand({
   const pinchPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
     return {
-      opacity: interpolate(lift, [0.08, 0.28, 0.62, 0.88], [0, 1, 1, 0.15], Extrapolation.CLAMP),
+      opacity: interpolate(lift, [0.08, 0.28], [0, 1], Extrapolation.CLAMP),
     };
   });
 
   const liftPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    return { opacity: interpolate(lift, [0.48, 0.78], [0, 1], Extrapolation.CLAMP) };
+    return { opacity: interpolate(lift, [0.72, 1], [0, 0.35], Extrapolation.CLAMP) };
   });
 
   return (
     <Animated.View
-      style={[styles.root, { left, top, width: handWidth, height: handHeight, zIndex: 30 }, motion]}
+      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 30 }, motion]}
       pointerEvents="none">
       <Animated.Image source={REST} style={[styles.layer, restPose]} resizeMode="contain" />
       <Animated.Image source={PINCH} style={[styles.layer, pinchPose]} resizeMode="contain" />

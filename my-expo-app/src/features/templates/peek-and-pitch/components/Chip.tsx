@@ -1,13 +1,13 @@
 import { Image, StyleSheet, View } from 'react-native';
 
 /**
- * In-scene chip uses the approved teal/gold 3/4 asset (same as the tactile
- * reference). Stacks are built from many of these, not one merged stamp.
+ * In-scene chip uses the approved teal/gold 3D spade token from the art style
+ * (three-quarter clay chip with gold rim inserts).
  */
-const CHIP_ART = require('../../../../../assets/brand/poker-chip.png');
+const CHIP_ART = require('../../../../../assets/brand/casino-chip-3d.png');
 
-/** Native pixel size of `poker-chip.png` (three-quarter view). */
-export const CHIP_ART_ASPECT = 512 / 432;
+/** Native pixel size of `casino-chip-3d.png` (three-quarter view). */
+export const CHIP_ART_ASPECT = 1.12;
 
 export type ChipTone = 'teal' | 'tobacco' | 'gold';
 

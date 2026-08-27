@@ -29,6 +29,7 @@ import { FeltPlane } from './components/FeltPlane';
 import { GestureHints } from './components/GestureHints';
 import { HeroHand } from './components/HeroHand';
 import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
+import { PeekHud } from './components/PeekHud';
 import { CARD_ASPECT } from './components/PlayingCard';
 import { TableGestures, type StackHitRect } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
@@ -39,10 +40,10 @@ import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from '.
 /** Slower deal/muck throw onto the felt. */
 const DEAL_THROW_MS = 1700;
 const DEAL_LIVE_FALLBACK_MS = 1920;
-/** Keep hole cards smaller on phone without shrinking chips or gloves. */
-const CARD_SCALE = 0.65;
+/** Hole cards stay large enough that rank and suit (including 10) stay readable. */
+const CARD_SCALE = 0.78;
 /** Chips stay under card width so stacks read as coins, not one merged stamp. */
-const CHIP_TO_CARD = 0.78;
+const CHIP_TO_CARD = 0.55;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -105,7 +106,7 @@ export function PeekAndPitchTemplate({
 
   const stage = Math.min(width, 460);
   const stageLeft = (width - stage) / 2;
-  const cardWidth = Math.min(stage * 0.17 * CARD_SCALE, 82 * CARD_SCALE);
+  const cardWidth = Math.min(stage * 0.19 * CARD_SCALE, 84);
   const cardHeight = cardWidth * CARD_ASPECT;
   const cardGap = cardWidth * CARD_GAP_RATIO;
   const chipSize = Math.round(
@@ -130,7 +131,7 @@ export function PeekAndPitchTemplate({
     );
     const restCenter = {
       x: Math.min(Math.max(mappedRest.x, width * 0.54), width * 0.7),
-      y: Math.min(Math.max(mappedRest.y, height * 0.6), height - cardHeight * 0.62),
+      y: Math.min(Math.max(mappedRest.y, height * 0.68), height - cardHeight * 0.22),
     };
 
     const cardSpan = cardWidth * 2 + cardGap;
@@ -390,6 +391,7 @@ export function PeekAndPitchTemplate({
           handWidth={barrierWidth}
           cardHeight={cardHeight}
           chipSize={chipSize}
+          viewportHeight={height}
           deal={deal}
           peek={peek}
           muck={muck}
@@ -401,6 +403,7 @@ export function PeekAndPitchTemplate({
           tableCenter={geometry.tableCenter}
           handWidth={handWidth}
           cardHeight={cardHeight}
+          viewportHeight={height}
           plane={skin.feltPlane}
           deal={deal}
           peek={peek}
@@ -448,6 +451,14 @@ export function PeekAndPitchTemplate({
           onOpenPicker={showAuthoringControls ? () => setPickerOpen(true) : undefined}
         />
       </View>
+
+      <PeekHud
+        cards={cards}
+        peek={peek}
+        muck={muck}
+        top={insets.top + 56}
+        left={Math.max(12, insets.left + 8)}
+      />
 
       {phase === 'resolved' && showNextHandControl ? (
         <View

@@ -36,7 +36,7 @@ type HoleCardsProps = {
 };
 
 const FAN_ANGLE = 5;
-const FACE_FROM_BAND = 3;
+const FACE_FROM_BAND = PEEL_SLICES;
 
 /** Negative gap tucks the left card under the right, like a gathered poker pair. */
 export const CARD_GAP_RATIO = -HOLE_OVERLAP;
@@ -190,11 +190,11 @@ function bandLift(t: number, lift: number): number {
 
 function packetBandWeight(cardIndex: number, localU: number, v: number): number {
   'worklet';
-  const overlap = 0.42;
+  const overlap = 0.16;
   const span = 2 - overlap;
   const origin = cardIndex === 0 ? 0 : 1 - overlap;
   const across = Math.min(1, Math.max(0, (origin + localU) / span));
-  return bandWeight(0.52, v) * 0.7 + bandWeight(across, v) * 0.3;
+  return bandWeight(0.52, v) * 0.22 + bandWeight(across, v) * 0.78;
 }
 
 function HoleCard({
@@ -330,8 +330,8 @@ function HoleCard({
     };
   });
 
-  const flapWidth = Math.max(58, cardWidth * 1.12);
-  const flapHeight = Math.max(78, cardHeight * 0.62);
+  const flapWidth = Math.max(48, cardWidth * 0.72);
+  const flapHeight = Math.max(44, cardHeight * 0.34);
 
   const plateStyle = useAnimatedStyle(() => {
     const throwProgress = interpolate(

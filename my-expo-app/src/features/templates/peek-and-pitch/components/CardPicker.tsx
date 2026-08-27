@@ -4,7 +4,6 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import {
   RANKS,
   SUITS,
-  SUIT_COLOR,
   SUIT_GLYPH,
   formatCard,
   isRedSuit,
@@ -19,6 +18,7 @@ import {
 import { SKINS } from '../config';
 import { STRINGS } from '../strings';
 import type { TableSkin } from '../types';
+import { CardFace } from './PlayingCard';
 
 type CardPickerProps = {
   visible: boolean;
@@ -68,10 +68,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
                   activeSlot === index && styles.slotActive,
                   duplicate && styles.slotError,
                 ]}>
-                <Text style={[styles.slotRank, { color: SUIT_COLOR[card.suit] }]}>{card.rank}</Text>
-                <Text style={[styles.slotSuit, { color: SUIT_COLOR[card.suit] }]}>
-                  {SUIT_GLYPH[card.suit]}
-                </Text>
+                <CardFace card={card} width={64} />
               </Pressable>
             ))}
             <View style={styles.slotHint}>
@@ -91,7 +88,7 @@ export function CardPicker({ visible, cards, skin, onClose, onApply }: CardPicke
                 testID={`rank-${rank}`}
                 onPress={() => setSlot({ rank })}
                 style={[styles.cell, draft[activeSlot].rank === rank && styles.cellActive]}>
-                <Text style={styles.cellText}>{rank}</Text>
+                <Text style={styles.cellText}>{rank === 'T' ? '10' : rank}</Text>
               </Pressable>
             ))}
           </View>
@@ -180,12 +177,15 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   slot: {
-    width: 58,
-    height: 82,
+    width: 72,
+    height: 100,
+    minWidth: 44,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: '#f7f4ee',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
   },

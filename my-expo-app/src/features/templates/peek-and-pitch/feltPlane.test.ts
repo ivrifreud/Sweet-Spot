@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FELT_PLANE,
   HOLE_OVERLAP,
+  PEEK_MAX_PULL,
   collideWithFelt,
   cornerPeel,
   cornerWeight,
@@ -52,14 +53,15 @@ describe('depthOnFelt', () => {
 describe('peekPull', () => {
   it('stays almost flat during the contact stage', () => {
     expect(peekPull(0)).toBe(0);
-    expect(peekPull(0.16)).toBeCloseTo(0.08);
+    expect(peekPull(0.18)).toBeCloseTo(0.1);
   });
 
-  it('arches through the mid stage then reaches a full peek', () => {
-    expect(peekPull(0.48)).toBeCloseTo(0.42);
-    expect(peekPull(1)).toBe(1);
-    expect(peekPull(0.3)).toBeGreaterThan(peekPull(0.16));
-    expect(peekPull(0.3)).toBeLessThan(peekPull(0.48));
+  it('caps at a slight corner peel instead of a full face reveal', () => {
+    expect(peekPull(0.55)).toBeCloseTo(0.26);
+    expect(peekPull(1)).toBeCloseTo(PEEK_MAX_PULL);
+    expect(peekPull(1)).toBeLessThan(0.4);
+    expect(peekPull(0.3)).toBeGreaterThan(peekPull(0.18));
+    expect(peekPull(0.3)).toBeLessThan(peekPull(0.55));
   });
 });
 
@@ -118,12 +120,15 @@ describe('packetPeelWeight', () => {
     expect(packetU(1, 1, HOLE_OVERLAP)).toBeCloseTo(1);
   });
 
-  it('lifts both near edges together at full peek', () => {
+  it('keeps the far edge planted and lifts the pinch corner', () => {
+    expect(packetPeelWeight(0, 0, 0, HOLE_OVERLAP)).toBeLessThan(0.2);
+    expect(packetPeelWeight(1, 1, 1, HOLE_OVERLAP)).toBeGreaterThan(0.7);
+  });
+
+  it('peels the pinch corner more than the tucked left face', () => {
     const leftNear = packetPeelWeight(0, 0.5, 1, HOLE_OVERLAP);
-    const rightNear = packetPeelWeight(1, 0.5, 1, HOLE_OVERLAP);
-    expect(leftNear).toBeGreaterThan(0.45);
-    expect(rightNear).toBeGreaterThan(0.45);
-    expect(Math.abs(leftNear - rightNear)).toBeLessThan(0.35);
+    const rightPinch = packetPeelWeight(1, 1, 1, HOLE_OVERLAP);
+    expect(rightPinch).toBeGreaterThan(leftNear);
   });
 });
 

@@ -15,7 +15,7 @@ type CommunityCardsProps = {
   depth?: number;
 };
 
-const GAP = 5;
+const GAP = 8;
 
 export function CommunityCards({
   cards,
@@ -28,7 +28,7 @@ export function CommunityCards({
     return null;
   }
 
-  const cardWidth = Math.min(52, (maxWidth - GAP * (cards.length - 1)) / cards.length);
+  const cardWidth = Math.min(64, (maxWidth - GAP * (cards.length - 1)) / cards.length);
   const rowWidth = cards.length * cardWidth + (cards.length - 1) * GAP;
   const cardHeight = cardWidth * CARD_ASPECT;
   const pose = poseOnFelt(depth, plane);
