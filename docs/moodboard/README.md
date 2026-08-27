@@ -322,6 +322,217 @@ reward chip.
 Do not copy: red/blue/green plastic casino colors, or using this grid for
 character-scene chips.
 
+---
+
+## HUD, economy, and level-map UX (layout only)
+
+These sheets answer **structure and hierarchy** questions for the top bar, Gold
+Coins, Chip Stack lives, streak, and stage progression map. They are **not**
+character, world, or palette authority. Translate every chrome piece into the
+1930s rubber-hose / wood / parchment language from the guide above.
+
+Canonical product mapping (from `docs/mvp.md`):
+
+| HUD idea in these refs | Sweet Spot equivalent |
+| ---------------------- | --------------------- |
+| Hearts / lives         | **Chip Stack** (3 poker chips) |
+| Gold coins / gold bars | **Gold Coins** (Daily Challenge currency) |
+| Flame / energy         | Streak (or energy cue) — not Chip lives |
+| Level path nodes       | Sequential stage unlock on a track map |
+
+### A. Gold Coins iconography
+
+#### 25. Gold bars — sparkle stack (primary bar icon)
+
+![Gold bars sparkle stack](references/currency-gold-bars-sparkle-stack.png)
+
+File: `docs/moodboard/references/currency-gold-bars-sparkle-stack.png`
+
+Use it for: bold outlined gold-bar silhouette, stacked volume, star glints for
+“valuable.” Prefer this over photoreal bullion for HUD icons.
+
+Do not copy: Shutterstock / “Uncle Leo” watermarks, neon-yellow plastic fill, or
+using bars as Chip Stack lives (lives are poker chips).
+
+#### 26. Gold bars — muted ingot (secondary / quieter icon)
+
+File: `docs/moodboard/references/currency-gold-bars-ingot-muted.png`
+
+Use it for: softer tan/cream cel bars when the sparkle stack feels too loud;
+simple stack of three with one diagonal on top.
+
+Do not copy: stamped codes like `399B`, or replacing Antique Gold / Lamp Gold
+with beige-only metals.
+
+#### 27. Gold coin tier piles (reward amounts)
+
+File: `docs/moodboard/references/currency-gold-coins-tier-piles.png`
+
+Use it for: small → medium → large pile progression, coin + bar mixtures for
+bigger rewards, “overflowing container” as a jackpot beat.
+
+Do not copy: `$` stamp as the coin face (prefer Sweet Spot chip/monogram
+language), red briefcase, or modern safe as a permanent HUD icon.
+
+### B. Chip Stack lives and streak
+
+#### 28. Three lives filled / empty (layout)
+
+![Chip lives filled empty pattern](references/hud-chip-lives-hearts-filled-empty.png)
+
+File: `docs/moodboard/references/hud-chip-lives-hearts-filled-empty.png`
+
+Use it for: **three slots in a row**, filled vs empty contrast, thick light
+outline so lives read on dark wood/HUD.
+
+Do not copy: **hearts**. Sweet Spot lives are **poker chips** (see Chip Stack in
+MVP). Red heart silhouettes are the pattern only.
+
+#### 29. Streak flame badge
+
+File: `docs/moodboard/references/hud-streak-flame-badge.png`
+
+Use it for: a single readable flame inside a rounded badge; thick ink outline;
+cel red/orange layers (not photoreal fire).
+
+Do not copy: putting the flame in the Chip Stack slot, or making streak compete
+with Gold Coins for the same HUD position.
+
+### C. Top HUD chrome (composition)
+
+#### 30. Casual main-menu HUD layout
+
+File: `docs/moodboard/references/hud-casual-main-menu-layout.png`
+
+Use it for: top-left avatar, currency pill + lives pill, one dominant PLAY CTA,
+side rails for secondary features, bottom mode tab.
+
+Do not copy: Match Masters branding, wood-grain stock UI, glossy candy buttons,
+notification-dot spam, or modern casual-puzzle art as Sweet Spot’s look.
+
+#### 31. Casual top-bar crop
+
+File: `docs/moodboard/references/hud-casual-top-bar-layout.png`
+
+Use it for: compact reading of avatar | currency | lives | settings in one row.
+
+Do not copy: the specific icon art or saturated candy palette.
+
+### D. Stage / level progression maps
+
+Prefer **sequential path + clear current node** over open branching (MVP map is
+stage unlock, not free roam). World art stays Benny's Garden / casino / VIP —
+not candy land or pixel Mario islands.
+
+#### 32. Pixel island path (path + landmarks)
+
+File: `docs/moodboard/references/map-pixel-island-path.png`
+
+Use it for: winding path through a themed world, landmarks as section markers,
+player token on the path.
+
+Do not copy: 16-bit Mario art, pipes, or Nintendo characters. Pixel is not our
+render style — only the **map grammar**.
+
+#### 33. Locked vs current nodes (whimsical path)
+
+File: `docs/moodboard/references/map-whimsical-locked-nodes.png`
+
+Use it for: bright “current” node vs grey locked nodes with padlocks; dashed
+path; avatar pin above the active stage.
+
+Do not copy: candy/circus props, pastel purple skinning, or kawaii mascots.
+
+#### 34. Educational winding path + side tools
+
+File: `docs/moodboard/references/map-edu-winding-path-nodes.png`
+
+Use it for: vertical scroll path, star nodes for completed stages, lock nodes,
+treasure markers, unit/section signpost.
+
+Do not copy: Chinese UI chrome, mystery building silhouettes as the default, or
+flat modern edu-app illustration as world art.
+
+#### 35. Vertical learning-path nodes (primary map UX)
+
+![Vertical learning path nodes](references/map-learning-path-vertical-nodes.png)
+
+File: `docs/moodboard/references/map-learning-path-vertical-nodes.png`
+
+Use it for: completed / current / locked node states, one strong START cue on
+the current stage, section header, currency + lives in the status strip.
+
+Do not copy: Duolingo owl, lime flat UI, or modern mascot path art. Already
+listed as non-canonical for characters — this sheet is **node-state UX only**.
+
+#### 36. Quest book pages (themed container)
+
+File: `docs/moodboard/references/map-quest-book-pages.png`
+
+Use it for: stages presented inside a book/spread metaphor; numbered nodes with
+topic icons; left/right page navigation.
+
+Do not copy: neon magic purple UI, Halloween props, or packing dense fantasy
+chrome into Sprint 1.
+
+#### 37. Parchment quest log (warm path card)
+
+File: `docs/moodboard/references/map-parchment-quest-log.png`
+
+Use it for: parchment + wood frame for a stage list, numbered circles, star
+rating under a stage, dashed journey line.
+
+Do not copy: skull motifs, fantasy dungeon props, or making every screen a quest
+log. Closest cousin to our tobacco/cream period materials — still translate to
+casino-garden, not RPG loot.
+
+### E. UI kits (chrome vocabulary)
+
+Use kits for **button shapes, frames, resource bars, and icon silhouettes**.
+Redraw in period ink; do not ship stock kit PNGs.
+
+#### 38. Parchment + bars + icons kit
+
+File: `docs/moodboard/references/ui-kit-parchment-buttons-icons.png`
+
+Use it for: book/notepad frames, striped banners, pill buttons, coin/star
+currency marks, flat utility icon row.
+
+Do not copy: bomb/magnet power-up stickers, Facebook marks, or rainbow candy
+fills as brand color.
+
+#### 39. Glossy circular button grid (states only)
+
+File: `docs/moodboard/references/ui-kit-glossy-circular-buttons.png`
+
+Use it for: same icon across color states (info / success / warn / danger).
+
+Do not copy: bubble gloss, glass bevels, or saturating every control in four
+candy colors. Sweet Spot buttons stay matte/cel with one lamp-gold CTA.
+
+#### 40. Fantasy RPG parchment kit (materials)
+
+File: `docs/moodboard/references/ui-kit-fantasy-rpg-parchment.png`
+
+Use it for: torn parchment windows, wood boards, wax seals, zone/path strip,
+resource icons on rustic panels.
+
+Do not copy: inventory hex grids, RPG character cards, or skull/adventure
+branding. Borrow **paper + wood**, not dungeon fantasy.
+
+#### 41. Rustic wood chrome kit (closest HUD cousin)
+
+![Rustic wood UI kit](references/ui-kit-rustic-wood-chrome.png)
+
+File: `docs/moodboard/references/ui-kit-rustic-wood-chrome.png`
+
+Use it for: wood-framed panels, PLAY/STORE headers, heart/coin/energy resource
+bars, lock badges, star ratings, win/lose frames.
+
+Do not copy: diamond gem currency (we use Gold Coins), glossy candy CTAs, or
+shipping this kit’s art unchanged. Remap hearts → chips, gems → gold bars/coins,
+and recolor to teal / antique gold / cream / tobacco.
+
 ## Canonical World Translation
 
 | Product world  | Moodboard interpretation                                         |
@@ -338,7 +549,8 @@ Modern product terms such as “neon” describe emphasis and energy, not cyberp
 Do not use these as visual references:
 
 - modern Disney/Pixar-like 3D people;
-- Duolingo-style modern flat mascots;
+- Duolingo-style modern flat mascots **as characters or world art** (the learning-path
+  sheet above is node-state UX only);
 - anime or kawaii character sheets;
 - photoreal casino interiors (Peek photos are camera-only; they are not world art);
 - modern luxury poker lifestyle (watches, Slowplay-style chips, photoreal navy felt);
@@ -346,6 +558,9 @@ Do not use these as visual references:
 - real-casino branded chips (Borgata and similar);
 - glossy vector clip-art chip stacks;
 - cyberpunk teal/purple neon;
+- Match Masters / Royal Match candy UI as Sweet Spot’s final look (HUD layout only);
+- hearts as Chip Stack lives (pattern OK; icon must be poker chips);
+- shipping stock UI-kit PNGs without a 1930s redraw;
 - older inconsistent hand sheets that used five fingers, thin wrists, or modern
   vector mascot gloves (replaced by the construction libraries above);
 - previous Professor Fold and Chippy renderings;
@@ -377,11 +592,16 @@ Send these next if you have them — they close real gaps the current pack does 
    correct / miss / celebrate.
 2. **Illustrated playing cards** (cream stock, heavy suits, period faces) as a
    full deck sheet, not one King.
-3. **Benny's Garden / Local Casino gouache backgrounds** with empty UI space.
+3. **Benny's Garden / Local Casino gouache backgrounds** with empty UI space
+   (map-ready: path + empty node slots).
 4. **Title-card lettering samples** that match the hero poster.
 5. **Squash-stretch timing keys** for celebration and miss.
 6. **Glove swipe-up fold / pull-down call** keys — we have Peek and chip-reach,
    not the Pitch swipe itself.
+7. **Period Chip Stack lives icon** — three inked poker chips (full / empty),
+   redrawn from the hearts layout sheet, not hearts.
+8. **Period Gold Coin face** — cream/gold coin with Sweet Spot mark (no `$`).
 
-Do not send more photoreal poker POV, generic glove grids, or extra chip-grab
-frames unless they show a new gesture (fold swipe, call pull, badge point).
+Do not send more photoreal poker POV, generic glove grids, Match Masters clones,
+or extra Duolingo screenshots unless they show a **new** HUD or map state we lack
+(e.g. lockout-at-0-Chips, regen timer, Daily Challenge Gold payout).
