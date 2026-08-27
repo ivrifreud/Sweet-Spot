@@ -1,29 +1,20 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Line } from 'react-native-svg';
 
-import { MapAvatar, MAP_AVATAR_SIZE } from '../components/track/MapAvatar';
-import { MapCheckpoint } from '../components/track/MapCheckpoint';
+import { LevelProgressionMap, trailForWalk, walkDurationMs } from '../components/track/LevelProgressionMap';
 import { TrackHud } from '../components/track/TrackHud';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
+import type { Point } from '../lib/track/mapPath';
 import {
-  MAP_NODES,
-  MAP_NODE_SIZE,
   canEnterStage,
   canStandOn,
   currentStageNumber,
   fitMap,
   lockReason,
-  nodePixels,
-  stageStatus,
 } from '../lib/track/tree';
 import { artStyle } from '../theme/artStyle';
-
-/** Placeholder overworld. Swap this file when the painted map lands; keep node x/y as 0–1. */
-const MAP_ART = require('../assets/themes/bennys-garden/light-mobile.png');
 
 type Props = {
   reveal: LevelReveal;
@@ -48,7 +39,16 @@ export function TrackMapScreen({
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const [standing, setStanding] = useState(() => currentStageNumber(completedCount));
+  const [standing, setStanding] = useState(() => {
+    const current = currentStageNumber(completedCount);
+    // After a stage clears the screen remounts — start on the cleared node so
+    // the walker can hop forward along the path (Mario overworld beat).
+    if (completedCount > 0 && completedCount < current) return completedCount;
+    return current;
+  });
+  const [trail, setTrail] = useState<Point[]>([]);
+  const [trailKey, setTrailKey] = useState(0);
+  const [walkDuration, setWalkDuration] = useState(560);
   const [notice, setNotice] = useState<string | null>(
     remainingChips <= 0 ? lockReason(currentStageNumber(completedCount), completedCount, remainingChips) : null
   );
@@ -59,6 +59,8 @@ export function TrackMapScreen({
   );
 
   const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const standingRef = useRef(standing);
+  const pendingPlay = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -66,36 +68,71 @@ export function TrackMapScreen({
     };
   }, []);
 
-  useEffect(() => {
-    setStanding(currentStageNumber(completedCount));
-  }, [completedCount]);
-
-  function handlePress(stageNumber: number) {
+  function clearPlayTimer() {
     if (playTimer.current) {
       clearTimeout(playTimer.current);
       playTimer.current = null;
     }
+    pendingPlay.current = null;
+  }
+
+  function walkTo(stageNumber: number): number {
+    if (map.width <= 0 || standingRef.current === stageNumber) {
+      standingRef.current = stageNumber;
+      setStanding(stageNumber);
+      setTrail([]);
+      return 0;
+    }
+    const nextTrail = trailForWalk(standingRef.current, stageNumber, map);
+    const duration = walkDurationMs(nextTrail);
+    standingRef.current = stageNumber;
+    setStanding(stageNumber);
+    setTrail(nextTrail);
+    setWalkDuration(duration);
+    setTrailKey((key) => key + 1);
+    return duration;
+  }
+
+  useEffect(() => {
+    const next = currentStageNumber(completedCount);
+    if (map.width <= 0 || next === standingRef.current) return;
+    if (playTimer.current) {
+      clearTimeout(playTimer.current);
+      playTimer.current = null;
+    }
+    pendingPlay.current = null;
+    const nextTrail = trailForWalk(standingRef.current, next, map);
+    const duration = walkDurationMs(nextTrail);
+    standingRef.current = next;
+    setStanding(next);
+    setTrail(nextTrail);
+    setWalkDuration(duration);
+    setTrailKey((key) => key + 1);
+  }, [completedCount, map]);
+
+  function handlePress(stageNumber: number) {
+    clearPlayTimer();
     if (!canStandOn(stageNumber, completedCount)) {
       setNotice(lockReason(stageNumber, completedCount, remainingChips));
       return;
     }
     setNotice(null);
-    const alreadyThere = standing === stageNumber;
-    setStanding(stageNumber);
+    const alreadyThere = standingRef.current === stageNumber;
     if (!canEnterStage(stageNumber, completedCount, remainingChips)) {
+      if (!alreadyThere) walkTo(stageNumber);
       return;
     }
     if (alreadyThere) {
       onPlayStage(stageNumber);
       return;
     }
-    playTimer.current = setTimeout(() => onPlayStage(stageNumber), 580);
+    const duration = walkTo(stageNumber);
+    pendingPlay.current = stageNumber;
+    playTimer.current = setTimeout(() => {
+      pendingPlay.current = null;
+      onPlayStage(stageNumber);
+    }, duration);
   }
-
-  const standingNode = MAP_NODES.find((node) => node.number === standing) ?? MAP_NODES[0]!;
-  const standingPoint = nodePixels(standingNode, map);
-  const avatarX = standingPoint.x - MAP_AVATAR_SIZE / 2;
-  const avatarY = standingPoint.y - MAP_AVATAR_SIZE + 10;
 
   return (
     <View style={styles.root}>
@@ -108,70 +145,16 @@ export function TrackMapScreen({
           );
         }}>
         {map.width > 0 ? (
-          <View
-            collapsable={false}
-            style={[styles.mapBox, { width: map.width, height: map.height }]}>
-            <ImageBackground
-              source={MAP_ART}
-              resizeMode="cover"
-              style={{ width: map.width, height: map.height }}
-              imageStyle={styles.mapImage}>
-              <View collapsable={false} style={styles.mapLayer}>
-              <LinearGradient
-                colors={['rgba(17,23,20,0.18)', 'rgba(17,23,20,0.28)', 'rgba(17,23,20,0.5)']}
-                locations={[0, 0.55, 1]}
-                style={StyleSheet.absoluteFill}
-                pointerEvents="none"
-              />
-              <Svg width={map.width} height={map.height} style={StyleSheet.absoluteFill} pointerEvents="none">
-                {MAP_NODES.slice(1).map((node, index) => {
-                  const from = nodePixels(MAP_NODES[index]!, map);
-                  const to = nodePixels(node, map);
-                  const opened = stageStatus(node.number, completedCount) !== 'locked';
-                  return (
-                    <Line
-                      key={`path-${node.id}`}
-                      x1={from.x}
-                      y1={from.y}
-                      x2={to.x}
-                      y2={to.y}
-                      stroke={opened ? artStyle.colors.gold : artStyle.colors.tobacco}
-                      strokeWidth={6}
-                      strokeLinecap="round"
-                      strokeDasharray={opened ? undefined : '10 8'}
-                      opacity={opened ? 0.95 : 0.55}
-                    />
-                  );
-                })}
-              </Svg>
-
-              {MAP_NODES.map((node) => {
-                const point = nodePixels(node, map);
-                return (
-                  <View
-                    key={node.id}
-                    collapsable={false}
-                    style={[
-                      styles.nodeAnchor,
-                      {
-                        left: point.x - MAP_NODE_SIZE / 2,
-                        top: point.y - MAP_NODE_SIZE / 2,
-                      },
-                    ]}>
-                    <MapCheckpoint
-                      number={node.number}
-                      title={node.title}
-                      status={stageStatus(node.number, completedCount)}
-                      onPress={() => handlePress(node.number)}
-                    />
-                  </View>
-                );
-              })}
-
-              <MapAvatar x={avatarX} y={avatarY} />
-              </View>
-            </ImageBackground>
-          </View>
+          <LevelProgressionMap
+            width={map.width}
+            height={map.height}
+            completedCount={completedCount}
+            standing={standing}
+            trail={trail}
+            trailKey={trailKey}
+            walkDuration={walkDuration}
+            onPressNode={handlePress}
+          />
         ) : null}
       </View>
 
@@ -208,20 +191,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  mapBox: {
-    overflow: 'hidden',
-  },
-  mapImage: {
-    width: '100%',
-    height: '100%',
-  },
-  mapLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  nodeAnchor: {
-    position: 'absolute',
-    zIndex: 4,
   },
   hudWrap: {
     position: 'absolute',

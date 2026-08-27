@@ -2,6 +2,7 @@ import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -32,15 +33,19 @@ export function MapCheckpoint({ number, title, status, onPress }: Props) {
   const press = useSharedValue(1);
 
   useEffect(() => {
+    cancelAnimation(pulse);
     if (status !== 'current' || reducedMotion) {
       pulse.value = 1;
       return;
     }
     pulse.value = withRepeat(
-      withSequence(withTiming(1.08, { duration: 640 }), withTiming(1, { duration: 640 })),
+      withSequence(withTiming(1.05, { duration: 720 }), withTiming(1, { duration: 720 })),
       -1,
       true
     );
+    return () => {
+      cancelAnimation(pulse);
+    };
   }, [pulse, reducedMotion, status]);
 
   const nodeStyle = useAnimatedStyle(() => ({
@@ -56,38 +61,72 @@ export function MapCheckpoint({ number, title, status, onPress }: Props) {
   const border =
     status === 'current' ? artStyle.colors.cream : status === 'completed' ? artStyle.colors.gold : artStyle.colors.tobacco;
   const labelColor = status === 'current' ? artStyle.colors.projectorBlack : artStyle.colors.cream;
+  const locked = status === 'locked';
 
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      onPressIn={() => {
-        press.value = withTiming(0.94, { duration: 90 });
-      }}
-      onPressOut={() => {
-        press.value = withSequence(
-          withTiming(1.04, { duration: 80 }),
-          withSpring(1, { damping: 14, stiffness: 220 })
-        );
-      }}
-      disabled={false}
-      hitSlop={8}
-      style={[styles.node, { backgroundColor: fill, borderColor: border }, nodeStyle]}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: status === 'locked' }}
-      accessibilityLabel={
-        status === 'locked' ? `${title}, locked` : status === 'completed' ? `${title}, completed` : `${title}, start`
-      }>
-      <Text style={[styles.number, display, { color: labelColor }]}>{number}</Text>
-      {status === 'locked' ? (
-        <View style={styles.lock} accessibilityElementsHidden>
-          <View style={styles.shackle} />
+    <View style={[styles.wrap, locked && styles.lockedWrap]}>
+      {status === 'current' ? (
+        <View style={styles.startFlag} pointerEvents="none" accessibilityElementsHidden>
+          <Text style={[styles.startText, display]}>PRESS TO PLAY</Text>
         </View>
       ) : null}
-    </AnimatedPressable>
+      <AnimatedPressable
+        onPress={onPress}
+        onPressIn={() => {
+          press.value = withTiming(0.94, { duration: 90 });
+        }}
+        onPressOut={() => {
+          press.value = withSequence(
+            withTiming(1.04, { duration: 80 }),
+            withSpring(1, { damping: 14, stiffness: 220 })
+          );
+        }}
+        disabled={false}
+        hitSlop={8}
+        style={[styles.node, { backgroundColor: fill, borderColor: border, opacity: locked ? 0.62 : 1 }, nodeStyle]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: locked }}
+        accessibilityLabel={
+          locked ? `${title}, locked` : status === 'completed' ? `${title}, completed` : `${title}, start`
+        }>
+        <Text style={[styles.number, display, { color: labelColor }]}>{number}</Text>
+        {locked ? (
+          <View style={styles.lock} accessibilityElementsHidden>
+            <View style={styles.shackle} />
+          </View>
+        ) : null}
+      </AnimatedPressable>
+      <Text style={styles.caption} numberOfLines={1}>
+        {title}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    width: MAP_NODE_SIZE,
+    alignItems: 'center',
+  },
+  lockedWrap: {
+    opacity: 0.92,
+  },
+  startFlag: {
+    position: 'absolute',
+    top: -22,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: artStyle.colors.goldBright,
+    borderWidth: 1.5,
+    borderColor: artStyle.colors.tobacco,
+    zIndex: 2,
+  },
+  startText: {
+    color: artStyle.colors.projectorBlack,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
   node: {
     width: MAP_NODE_SIZE,
     height: MAP_NODE_SIZE,
@@ -101,6 +140,15 @@ const styles = StyleSheet.create({
   number: {
     fontSize: 22,
     letterSpacing: 1,
+  },
+  caption: {
+    marginTop: 4,
+    color: artStyle.colors.cream,
+    fontSize: 11,
+    textAlign: 'center',
+    textShadowColor: 'rgba(17,23,20,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   lock: {
     position: 'absolute',
