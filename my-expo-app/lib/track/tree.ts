@@ -1,6 +1,7 @@
 import type { Placement } from '../calibration/types';
 
-export type StageStatus = 'current' | 'locked' | 'completed';
+/** `current` is the active/playable node. Locked nodes stay unclickable for travel. */
+export type StageStatus = 'completed' | 'current' | 'locked';
 
 /**
  * Overworld checkpoints. `x` and `y` are fractions of the map box (0–1),
@@ -15,16 +16,19 @@ export type MapNode = {
   y: number;
 };
 
+export type LevelMarker = MapNode & { status: StageStatus };
+
 /** Portrait map box. Width / height — keep in sync with the eventual map art. */
 export const MAP_ASPECT = 9 / 16;
 
 export const MAP_NODE_SIZE = 52;
 
+/** Placeholder 4-stage zigzag. Keep nodes on the table wood until map art lands. */
 export const MAP_NODES: MapNode[] = [
-  { id: 'stage-1', number: 1, title: 'Stage 1', x: 0.28, y: 0.8 },
-  { id: 'stage-2', number: 2, title: 'Stage 2', x: 0.66, y: 0.62 },
-  { id: 'stage-3', number: 3, title: 'Stage 3', x: 0.32, y: 0.42 },
-  { id: 'stage-4', number: 4, title: 'Stage 4', x: 0.7, y: 0.24 },
+  { id: 'stage-1', number: 1, title: 'Warm-up', x: 0.3, y: 0.82 },
+  { id: 'stage-2', number: 2, title: 'The concept', x: 0.7, y: 0.68 },
+  { id: 'stage-3', number: 3, title: 'Practice', x: 0.28, y: 0.54 },
+  { id: 'stage-4', number: 4, title: 'Final challenge', x: 0.68, y: 0.42 },
 ];
 
 export function stageStatus(stageNumber: number, completedCount: number): StageStatus {
@@ -73,6 +77,17 @@ export function fitMap(areaWidth: number, areaHeight: number): { width: number; 
 
 export function nodePixels(node: MapNode, map: { width: number; height: number }): { x: number; y: number } {
   return { x: node.x * map.width, y: node.y * map.height };
+}
+
+export function levelMarkers(completedCount: number): LevelMarker[] {
+  return MAP_NODES.map((node) => ({
+    ...node,
+    status: stageStatus(node.number, completedCount),
+  }));
+}
+
+export function nodeByNumber(stageNumber: number): MapNode | undefined {
+  return MAP_NODES.find((node) => node.number === stageNumber);
 }
 
 export function worldBackdrop(placement: Placement): 'garden' | 'casino' {

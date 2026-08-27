@@ -6,6 +6,7 @@ import {
   canStandOn,
   currentStageNumber,
   fitMap,
+  levelMarkers,
   lockReason,
   nodePixels,
   stageStatus,
@@ -36,6 +37,11 @@ describe('overworld unlocks', () => {
   it('keeps later nodes locked until the previous stage is done', () => {
     expect(lockReason(3, 1, 3)).toMatch(/Stage 2/i);
     expect(canEnterStage(2, 1, 3)).toBe(true);
+  });
+
+  it('stamps completed / current / locked onto the placeholder nodes', () => {
+    const markers = levelMarkers(1);
+    expect(markers.map((marker) => marker.status)).toEqual(['completed', 'current', 'locked', 'locked']);
   });
 });
 
