@@ -26,28 +26,31 @@ export const DEFAULT_FELT_PLANE: FeltPlaneConfig = {
 };
 
 /** How far the pinched corner rises, as a fraction of card height. */
-export const PEEL_RISE = 0.58;
+export const PEEL_RISE = 0.22;
+
+/** Full hold still only peels the index corner — never the whole face. */
+export const PEEK_MAX_PULL = 0.34;
 
 /** Horizontal bands that make the peek a C-curve instead of a stiff plate. */
 export const PEEL_SLICES = 8;
 
 /** How much the left hole card tucks under the right, as a fraction of card width. */
-export const HOLE_OVERLAP = 0.42;
+export const HOLE_OVERLAP = 0.16;
 
 /**
  * Hold-to-peek stages from a raw 0–1 lift:
- * contact (almost flat) → slight arch → full index reveal.
+ * contact (almost flat) → slight arch → corner index only.
  */
 export function peekPull(lift: number): number {
   'worklet';
   const x = Math.min(1, Math.max(0, lift));
-  if (x <= 0.16) {
-    return (x / 0.16) * 0.08;
+  if (x <= 0.18) {
+    return (x / 0.18) * 0.1;
   }
-  if (x <= 0.48) {
-    return 0.08 + ((x - 0.16) / 0.32) * 0.34;
+  if (x <= 0.55) {
+    return 0.1 + ((x - 0.18) / 0.37) * 0.16;
   }
-  return 0.42 + ((x - 0.48) / 0.52) * 0.58;
+  return 0.26 + ((x - 0.55) / 0.45) * (PEEK_MAX_PULL - 0.26);
 }
 
 export type FeltPose = {
@@ -138,7 +141,7 @@ export function packetPeelWeight(
   const across = packetU(cardIndex, localU, overlap);
   const nearEdge = cornerWeight(0.52, v);
   const pinch = cornerWeight(across, v);
-  return nearEdge * 0.7 + pinch * 0.3;
+  return nearEdge * 0.22 + pinch * 0.78;
 }
 
 /**

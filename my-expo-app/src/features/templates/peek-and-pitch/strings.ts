@@ -2,6 +2,7 @@
 export const STRINGS = {
   peekHint: 'Hold to peek',
   peekHintHeld: 'Release to put them down',
+  peekHud: 'Hole cards',
   muckHint: 'Swipe up to fold',
   checkHint: 'Double-tap felt to check',
   callHint: 'Tap chips to call',

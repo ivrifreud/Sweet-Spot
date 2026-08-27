@@ -9,11 +9,11 @@ import Animated, {
 import { PEEL_RISE, cornerPeel, peekPull } from '../feltPlane';
 import { Chip } from './Chip';
 import { CHIP_SIZE } from './ChipStack';
+import { fitGloveToViewport } from './gloveLayout';
 
 const SHIELD = require('../../../../../assets/tables/hero-glove-rest.png');
 const SHADOW = require('../../../../../assets/tables/hero-glove-rest-shadow.png');
 
-const HAND_ASPECT = 0.8444;
 /** After scaleX(-1), the old left fingertip sits on the right of the box. */
 const CONTACT = { x: 0.92, y: 0.3684 };
 
@@ -26,6 +26,7 @@ type BarrierHandProps = {
   handWidth: number;
   cardHeight?: number;
   chipSize?: number;
+  viewportHeight: number;
   deal: SharedValue<number>;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
@@ -33,8 +34,8 @@ type BarrierHandProps = {
 };
 
 /**
- * Left glove stays off-screen at rest. It enters only to shield a peek
- * or to grab/toss chips on raise (pitch-glove-reach key).
+ * Left glove stays off-screen at rest and enters from the bottom rail
+ * to shield a peek or grab chips. Peek exit retracts down, not sideways.
  */
 export function BarrierHand({
   contact,
@@ -43,25 +44,25 @@ export function BarrierHand({
   handWidth,
   cardHeight = 80,
   chipSize = CHIP_SIZE,
+  viewportHeight,
   deal: _deal,
   peek,
   muck,
   commit,
 }: BarrierHandProps) {
   void _deal;
-  const handHeight = handWidth * HAND_ASPECT;
-  const left = contact.x - CONTACT.x * handWidth;
-  const top = contact.y - CONTACT.y * handHeight;
-  const hideX = -handWidth * 1.15;
-  const hideY = handWidth * 0.2;
+  const frame = fitGloveToViewport(contact, handWidth, viewportHeight, CONTACT);
+  const { left, top, width: fittedWidth, height: handHeight } = frame;
+  const hideX = fittedWidth * 0.04;
+  const hideY = viewportHeight - top + handHeight * 0.12;
 
   const grabTo = {
-    x: stackAnchor.x + handWidth * 0.18 - contact.x,
-    y: stackAnchor.y - contact.y - handWidth * 0.06,
+    x: stackAnchor.x + fittedWidth * 0.18 - contact.x,
+    y: stackAnchor.y - contact.y - fittedWidth * 0.06,
   };
   const tossTo = {
     x: (stackAnchor.x + tableCenter.x) * 0.58 - contact.x,
-    y: tableCenter.y - contact.y - handWidth * 0.02,
+    y: tableCenter.y - contact.y - fittedWidth * 0.02,
   };
 
   const motion = useAnimatedStyle(() => {
@@ -105,13 +106,13 @@ export function BarrierHand({
     const shown = Math.min(1, shield + reaching);
     return {
       opacity: interpolate(shown, [0, 1], [0, 0.28], Extrapolation.CLAMP),
-      transform: [{ translateX: handWidth * 0.03 }, { translateY: handWidth * 0.04 }],
+      transform: [{ translateX: fittedWidth * 0.03 }, { translateY: fittedWidth * 0.04 }],
     };
   });
 
   return (
     <Animated.View
-      style={[styles.root, { left, top, width: handWidth, height: handHeight, zIndex: 22 }, motion]}
+      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 22 }, motion]}
       pointerEvents="none">
       <Animated.Image source={SHADOW} style={[styles.layer, shadowStyle]} resizeMode="contain" />
       <Animated.Image source={SHIELD} style={styles.layer} resizeMode="contain" />

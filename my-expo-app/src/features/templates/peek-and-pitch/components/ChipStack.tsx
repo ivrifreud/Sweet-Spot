@@ -9,7 +9,7 @@ import Animated, {
 import { artStyle } from '../../../../../theme/artStyle';
 import { Chip, CHIP_ART_ASPECT } from './Chip';
 
-export const CHIP_SIZE = 34;
+export const CHIP_SIZE = 44;
 
 type ChipStackProps = {
   stackLabel: string;
@@ -23,8 +23,8 @@ type ChipStackProps = {
 
 /** Two short 3/4 columns — each PNG chip is its own object, rims stacked. */
 const COLUMNS: { count: number; rotate: number; nudgeX: number }[] = [
-  { count: 5, rotate: -3, nudgeX: 0 },
-  { count: 4, rotate: 2, nudgeX: -18 },
+  { count: 5, rotate: -8, nudgeX: 0 },
+  { count: 4, rotate: 6, nudgeX: 8 },
 ];
 
 export function ChipStack({
@@ -37,7 +37,7 @@ export function ChipStack({
   chipSize = CHIP_SIZE,
 }: ChipStackProps) {
   const chipHeight = chipSize * CHIP_ART_ASPECT;
-  const stackStep = Math.max(6, Math.round(chipHeight * 0.16));
+  const stackStep = Math.max(8, Math.round(chipHeight * 0.2));
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
