@@ -12,12 +12,16 @@ import {
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
+import { StagePlayScreen } from '../screens/StagePlayScreen';
+import { TrackMapScreen } from '../screens/TrackMapScreen';
 import { signOut } from '../lib/auth';
+import { burnChip, MAX_CHIPS } from '../lib/track/chips';
+import { loadRemainingChips } from '../lib/track/chipStack';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
 import { hasSeenPlacement, markPlacementSeen } from '../lib/calibration/placementAck';
 import { pokerActionForDecision, toPeekAndPitchSpot } from '../lib/calibration/presentation';
-import { isAnswerCorrect, routeCalibration } from '../lib/calibration/routing';
+import { isAnswerCorrect, routeCalibration, startingEloForLevel } from '../lib/calibration/routing';
 import { STAGE1_SPOTS, STAGE2_SPOTS } from '../lib/calibration/spots';
 import {
   finalizeSession,
@@ -66,6 +70,9 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
+  const [remainingChips, setRemainingChips] = useState(MAX_CHIPS);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [playingStage, setPlayingStage] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,7 +125,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             reason: 'already_placed',
           });
           const seen = await hasSeenPlacement(userId);
-          if (!cancelled) setContinued(seen);
+          const chips = await loadRemainingChips(userId);
+          if (!cancelled) {
+            setContinued(seen);
+            setRemainingChips(chips);
+          }
           return;
         }
 
@@ -127,9 +138,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
           const seen = await hasSeenPlacement(userId);
+          const chips = await loadRemainingChips(userId);
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
+            setRemainingChips(chips);
           }
         }
       } catch (err) {
@@ -153,6 +166,18 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       return;
     }
     await signOut();
+  }
+
+  function skipToTree(placement: 1 | 2 = 1) {
+    setResult({
+      placement,
+      startingElo: startingEloForLevel(placement),
+      reason: 'already_placed',
+    });
+    setCurrent(null);
+    setContinued(true);
+    setRemainingChips(MAX_CHIPS);
+    setPlayingStage(null);
   }
 
   function leavePlacement() {
@@ -297,18 +322,36 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       );
     }
 
-    // Day 6 replaces this panel with the real Level 1 Stage 1 gameplay screen.
+    if (playingStage != null) {
+      return (
+        <StagePlayScreen
+          reveal={reveal}
+          stageNumber={playingStage}
+          remainingChips={remainingChips}
+          goldBars={0}
+          streakDays={0}
+          onResolved={(correct) => {
+            if (correct) {
+              setCompletedCount((count) => Math.max(count, playingStage));
+              return;
+            }
+            setRemainingChips((count) => burnChip(count));
+          }}
+          onBack={() => setPlayingStage(null)}
+        />
+      );
+    }
+
     return (
-      <SafeAreaView style={styles.statusScreen}>
-        <Text style={styles.kicker}>{reveal.levelName}</Text>
-        <Text style={styles.level}>Level {reveal.placement}</Text>
-        <Text style={styles.bodyText}>Your first stage opens next.</Text>
-        <Text style={styles.muted}>{reveal.worldName}</Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable onPress={() => void handleSignOut()} style={styles.signOut}>
-          <Text style={styles.signOutText}>Sign out</Text>
-        </Pressable>
-      </SafeAreaView>
+      <TrackMapScreen
+        reveal={reveal}
+        remainingChips={remainingChips}
+        goldBars={0}
+        streakDays={0}
+        completedCount={completedCount}
+        onPlayStage={setPlayingStage}
+        onSignOut={() => void handleSignOut()}
+      />
     );
   }
 
@@ -343,6 +386,15 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         <View style={styles.calibrationPill}>
           <Text style={styles.calibrationPillText}>Calibration</Text>
         </View>
+        {devMode ? (
+          <Pressable
+            onPress={() => skipToTree(1)}
+            style={styles.tableSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Skip to the level tree">
+            <Text style={styles.tableSignOutText}>Skip to tree</Text>
+          </Pressable>
+        ) : null}
         <Pressable onPress={() => void handleSignOut()} style={styles.tableSignOut}>
           <Text style={styles.tableSignOutText}>Sign out</Text>
         </Pressable>
