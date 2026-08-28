@@ -3,32 +3,52 @@ import type { Placement } from '../calibration/types';
 /** `current` is the active/playable node. Locked nodes stay unclickable for travel. */
 export type StageStatus = 'completed' | 'current' | 'locked';
 
-/**
- * Overworld checkpoints. `x` and `y` are fractions of the map box (0–1),
- * so they stay put when the phone size changes. Swap the background image
- * later and nudge these until they sit on the painted path.
- */
+export type MapPercent = `${number}%`;
+
+/** Overworld checkpoints use percentage coordinates so each world stays responsive. */
 export type MapNode = {
   id: string;
   number: number;
   title: string;
-  x: number;
-  y: number;
+  chunkIndex: number;
+  left: MapPercent;
+  top: MapPercent;
 };
 
 export type LevelMarker = MapNode & { status: StageStatus };
 
+export type MapChunk = {
+  id: string;
+  index: number;
+  nodes: readonly MapNode[];
+};
+
 /** Portrait map box. Width / height — keep in sync with the eventual map art. */
 export const MAP_ASPECT = 9 / 16;
 
-export const MAP_NODE_SIZE = 52;
+export const MAP_NODE_SIZE = 60;
+export const MAP_NODES_PER_CHUNK = 4;
 
-/** Placeholder 4-stage zigzag. Keep nodes on the table wood until map art lands. */
-export const MAP_NODES: MapNode[] = [
-  { id: 'stage-1', number: 1, title: 'Warm-up', x: 0.3, y: 0.82 },
-  { id: 'stage-2', number: 2, title: 'The concept', x: 0.7, y: 0.68 },
-  { id: 'stage-3', number: 3, title: 'Practice', x: 0.28, y: 0.54 },
-  { id: 'stage-4', number: 4, title: 'Final challenge', x: 0.68, y: 0.42 },
+/** World 1 mock data: four stages laid over Benny's painted garden path. */
+export const BENNYS_GARDEN_NODES: readonly MapNode[] = [
+  { id: 'bennys-stage-1', number: 1, title: 'Warm-up', chunkIndex: 0, left: '44%', top: '78%' },
+  {
+    id: 'bennys-stage-2',
+    number: 2,
+    title: 'The concept',
+    chunkIndex: 0,
+    left: '31%',
+    top: '65%',
+  },
+  { id: 'bennys-stage-3', number: 3, title: 'Practice', chunkIndex: 0, left: '58%', top: '45%' },
+  {
+    id: 'bennys-stage-4',
+    number: 4,
+    title: 'Final challenge',
+    chunkIndex: 0,
+    left: '43%',
+    top: '20%',
+  },
 ];
 
 export function stageStatus(stageNumber: number, completedCount: number): StageStatus {
@@ -37,7 +57,11 @@ export function stageStatus(stageNumber: number, completedCount: number): StageS
   return 'locked';
 }
 
-export function canEnterStage(stageNumber: number, completedCount: number, remainingChips: number): boolean {
+export function canEnterStage(
+  stageNumber: number,
+  completedCount: number,
+  remainingChips: number
+): boolean {
   return remainingChips > 0 && stageStatus(stageNumber, completedCount) === 'current';
 }
 
@@ -46,7 +70,11 @@ export function canStandOn(stageNumber: number, completedCount: number): boolean
   return stageStatus(stageNumber, completedCount) !== 'locked';
 }
 
-export function lockReason(stageNumber: number, completedCount: number, remainingChips: number): string | null {
+export function lockReason(
+  stageNumber: number,
+  completedCount: number,
+  remainingChips: number
+): string | null {
   if (remainingChips <= 0 && stageStatus(stageNumber, completedCount) === 'current') {
     return 'Chips are spent. They refill in 12 hours.';
   }
@@ -56,38 +84,76 @@ export function lockReason(stageNumber: number, completedCount: number, remainin
   return null;
 }
 
-export function currentStageNumber(completedCount: number): number {
-  return Math.min(completedCount + 1, MAP_NODES.length);
+export function currentStageNumber(
+  completedCount: number,
+  nodeCount = BENNYS_GARDEN_NODES.length
+): number {
+  return Math.min(completedCount + 1, nodeCount);
 }
 
-/**
- * Phones are already portrait — fill the remaining screen so the map does
- * not collapse into a letterboxed strip. Wide web canvases still get a 9:16 box.
- */
+/** Fit the largest exact 9:16 map inside the available area. */
 export function fitMap(areaWidth: number, areaHeight: number): { width: number; height: number } {
   if (areaWidth <= 0 || areaHeight <= 0) {
     return { width: 0, height: 0 };
   }
   const areaAspect = areaWidth / areaHeight;
-  if (areaAspect <= MAP_ASPECT + 0.05) {
-    return { width: areaWidth, height: areaHeight };
+  if (areaAspect > MAP_ASPECT) {
+    return { width: areaHeight * MAP_ASPECT, height: areaHeight };
   }
-  return { width: areaHeight * MAP_ASPECT, height: areaHeight };
+  return { width: areaWidth, height: areaWidth / MAP_ASPECT };
 }
 
-export function nodePixels(node: MapNode, map: { width: number; height: number }): { x: number; y: number } {
-  return { x: node.x * map.width, y: node.y * map.height };
+export function mapPercentToUnit(value: MapPercent): number {
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    throw new RangeError(`Map percentage must be between 0% and 100%; received "${value}".`);
+  }
+  return parsed / 100;
 }
 
-export function levelMarkers(completedCount: number): LevelMarker[] {
-  return MAP_NODES.map((node) => ({
+export function nodePixels(
+  node: MapNode,
+  map: { width: number; height: number },
+  chunkCount = 1
+): { x: number; y: number } {
+  const chunkTop = (chunkCount - 1 - node.chunkIndex) * map.height;
+  return {
+    x: mapPercentToUnit(node.left) * map.width,
+    y: chunkTop + mapPercentToUnit(node.top) * map.height,
+  };
+}
+
+export function flattenMapChunks(chunks: readonly MapChunk[]): MapNode[] {
+  return chunks.flatMap((chunk) => chunk.nodes);
+}
+
+export function chunkIndexForStage(stageNumber: number, chunks: readonly MapChunk[]): number {
+  const chunk = chunks.find((candidate) =>
+    candidate.nodes.some((node) => node.number === stageNumber)
+  );
+  return chunk?.index ?? Math.max(0, chunks.length - 1);
+}
+
+export function progressChunkIndex(completedCount: number, chunks: readonly MapChunk[]): number {
+  const nodeCount = flattenMapChunks(chunks).length;
+  return chunkIndexForStage(currentStageNumber(completedCount, nodeCount), chunks);
+}
+
+export function levelMarkers(
+  completedCount: number,
+  nodes: readonly MapNode[] = BENNYS_GARDEN_NODES
+): LevelMarker[] {
+  return nodes.map((node) => ({
     ...node,
     status: stageStatus(node.number, completedCount),
   }));
 }
 
-export function nodeByNumber(stageNumber: number): MapNode | undefined {
-  return MAP_NODES.find((node) => node.number === stageNumber);
+export function nodeByNumber(
+  stageNumber: number,
+  nodes: readonly MapNode[] = BENNYS_GARDEN_NODES
+): MapNode | undefined {
+  return nodes.find((node) => node.number === stageNumber);
 }
 
 export function worldBackdrop(placement: Placement): 'garden' | 'casino' {

@@ -1,10 +1,15 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LevelProgressionMap, trailForWalk, walkDurationMs } from '../components/track/LevelProgressionMap';
+import {
+  LevelProgressionMap,
+  trailForWalk,
+  walkDurationMs,
+} from '../components/track/LevelProgressionMap';
 import { TrackHud } from '../components/track/TrackHud';
+import { BENNYS_GARDEN_WORLD, type WorldMapTemplate } from '../components/track/worldMapTemplates';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import type { Point } from '../lib/track/mapPath';
 import {
@@ -13,6 +18,8 @@ import {
   currentStageNumber,
   fitMap,
   lockReason,
+  MAP_NODES_PER_CHUNK,
+  progressChunkIndex,
 } from '../lib/track/tree';
 import { artStyle } from '../theme/artStyle';
 
@@ -22,6 +29,8 @@ type Props = {
   goldBars: number;
   streakDays: number;
   completedCount: number;
+  currentWorld?: WorldMapTemplate;
+  avatarSource?: ImageSourcePropType;
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
@@ -32,15 +41,19 @@ export function TrackMapScreen({
   goldBars,
   streakDays,
   completedCount,
+  currentWorld,
+  avatarSource,
   onPlayStage,
   onSignOut,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const world = currentWorld ?? BENNYS_GARDEN_WORLD;
+  const progressionChunk = progressChunkIndex(completedCount, world.chunks);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() => {
-    const current = currentStageNumber(completedCount);
+    const current = currentStageNumber(completedCount, world.nodes.length);
     // After a stage clears the screen remounts — start on the cleared node so
     // the walker can hop forward along the path (Mario overworld beat).
     if (completedCount > 0 && completedCount < current) return completedCount;
@@ -49,30 +62,51 @@ export function TrackMapScreen({
   const [trail, setTrail] = useState<Point[]>([]);
   const [trailKey, setTrailKey] = useState(0);
   const [walkDuration, setWalkDuration] = useState(560);
+  const [cameraChunkIndex, setCameraChunkIndex] = useState(() => {
+    const shouldRevealNext =
+      completedCount > 0 &&
+      completedCount % MAP_NODES_PER_CHUNK === 0 &&
+      completedCount < world.nodes.length;
+    return shouldRevealNext ? Math.max(0, progressionChunk - 1) : progressionChunk;
+  });
   const [notice, setNotice] = useState<string | null>(
-    remainingChips <= 0 ? lockReason(currentStageNumber(completedCount), completedCount, remainingChips) : null
+    remainingChips <= 0
+      ? lockReason(
+          currentStageNumber(completedCount, world.nodes.length),
+          completedCount,
+          remainingChips
+        )
+      : null
   );
 
   const map = useMemo(
-    () => (area.width > 0 && area.height > 0 ? fitMap(area.width, area.height) : { width: 0, height: 0 }),
+    () =>
+      area.width > 0 && area.height > 0 ? fitMap(area.width, area.height) : { width: 0, height: 0 },
     [area.height, area.width]
   );
 
-  const playTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const standingRef = useRef(standing);
   const pendingPlay = useRef<number | null>(null);
+  const worldIdRef = useRef(world.id);
 
   useEffect(() => {
-    return () => {
-      if (playTimer.current) clearTimeout(playTimer.current);
-    };
-  }, []);
+    if (worldIdRef.current === world.id) return;
+    worldIdRef.current = world.id;
+    const next = currentStageNumber(completedCount, world.nodes.length);
+    standingRef.current = next;
+    pendingPlay.current = null;
+    setStanding(next);
+    setTrail([]);
+    setTrailKey((key) => key + 1);
+    setCameraChunkIndex(progressChunkIndex(completedCount, world.chunks));
+  }, [completedCount, world.chunks, world.id, world.nodes.length]);
 
-  function clearPlayTimer() {
-    if (playTimer.current) {
-      clearTimeout(playTimer.current);
-      playTimer.current = null;
-    }
+  useEffect(() => {
+    if (map.width <= 0) return;
+    setCameraChunkIndex(progressionChunk);
+  }, [map.width, progressionChunk]);
+
+  function clearPendingPlay() {
     pendingPlay.current = null;
   }
 
@@ -83,7 +117,13 @@ export function TrackMapScreen({
       setTrail([]);
       return 0;
     }
-    const nextTrail = trailForWalk(standingRef.current, stageNumber, map);
+    const nextTrail = trailForWalk(
+      standingRef.current,
+      stageNumber,
+      map,
+      world.nodes,
+      world.chunks.length
+    );
     const duration = walkDurationMs(nextTrail);
     standingRef.current = stageNumber;
     setStanding(stageNumber);
@@ -94,24 +134,26 @@ export function TrackMapScreen({
   }
 
   useEffect(() => {
-    const next = currentStageNumber(completedCount);
+    const next = currentStageNumber(completedCount, world.nodes.length);
     if (map.width <= 0 || next === standingRef.current) return;
-    if (playTimer.current) {
-      clearTimeout(playTimer.current);
-      playTimer.current = null;
-    }
     pendingPlay.current = null;
-    const nextTrail = trailForWalk(standingRef.current, next, map);
+    const nextTrail = trailForWalk(
+      standingRef.current,
+      next,
+      map,
+      world.nodes,
+      world.chunks.length
+    );
     const duration = walkDurationMs(nextTrail);
     standingRef.current = next;
     setStanding(next);
     setTrail(nextTrail);
     setWalkDuration(duration);
     setTrailKey((key) => key + 1);
-  }, [completedCount, map]);
+  }, [completedCount, map, world.chunks.length, world.nodes]);
 
   function handlePress(stageNumber: number) {
-    clearPlayTimer();
+    clearPendingPlay();
     if (!canStandOn(stageNumber, completedCount)) {
       setNotice(lockReason(stageNumber, completedCount, remainingChips));
       return;
@@ -126,12 +168,15 @@ export function TrackMapScreen({
       onPlayStage(stageNumber);
       return;
     }
-    const duration = walkTo(stageNumber);
     pendingPlay.current = stageNumber;
-    playTimer.current = setTimeout(() => {
-      pendingPlay.current = null;
-      onPlayStage(stageNumber);
-    }, duration);
+    walkTo(stageNumber);
+  }
+
+  function handleArrived() {
+    const stageNumber = pendingPlay.current;
+    if (stageNumber === null) return;
+    pendingPlay.current = null;
+    onPlayStage(stageNumber);
   }
 
   return (
@@ -148,12 +193,16 @@ export function TrackMapScreen({
           <LevelProgressionMap
             width={map.width}
             height={map.height}
+            currentWorld={world}
+            activeChunkIndex={cameraChunkIndex}
             completedCount={completedCount}
             standing={standing}
             trail={trail}
             trailKey={trailKey}
             walkDuration={walkDuration}
+            avatarSource={avatarSource}
             onPressNode={handlePress}
+            onArrived={handleArrived}
           />
         ) : null}
       </View>
@@ -161,7 +210,7 @@ export function TrackMapScreen({
       <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 4 }]}>
         <TrackHud remainingChips={remainingChips} goldBars={goldBars} streakDays={streakDays} />
         <Text style={[styles.kicker, display]} accessibilityRole="header">
-          {`LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
+          {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
         {notice ? (
           <View accessible accessibilityRole="alert" style={styles.notice}>

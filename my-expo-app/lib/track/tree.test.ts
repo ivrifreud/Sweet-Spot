@@ -1,20 +1,43 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  MAP_NODES,
+  BENNYS_GARDEN_NODES,
   canEnterStage,
   canStandOn,
+  chunkIndexForStage,
   currentStageNumber,
   fitMap,
+  flattenMapChunks,
   levelMarkers,
   lockReason,
+  mapPercentToUnit,
   nodePixels,
+  progressChunkIndex,
   stageStatus,
+  type MapChunk,
 } from './tree';
+
+const TWO_CHUNKS = [
+  { id: 'chunk-1', index: 0, nodes: BENNYS_GARDEN_NODES },
+  {
+    id: 'chunk-2',
+    index: 1,
+    nodes: [
+      {
+        id: 'stage-5',
+        number: 5,
+        title: 'Garden gate',
+        chunkIndex: 1,
+        left: '56%',
+        top: '78%',
+      },
+    ],
+  },
+] as const satisfies readonly MapChunk[];
 
 describe('overworld unlocks', () => {
   it('opens only Stage 1 for a new placement', () => {
-    expect(MAP_NODES).toHaveLength(4);
+    expect(BENNYS_GARDEN_NODES).toHaveLength(4);
     expect(stageStatus(1, 0)).toBe('current');
     expect(stageStatus(2, 0)).toBe('locked');
     expect(canEnterStage(1, 0, 3)).toBe(true);
@@ -41,15 +64,21 @@ describe('overworld unlocks', () => {
 
   it('stamps completed / current / locked onto the placeholder nodes', () => {
     const markers = levelMarkers(1);
-    expect(markers.map((marker) => marker.status)).toEqual(['completed', 'current', 'locked', 'locked']);
+    expect(markers.map((marker) => marker.status)).toEqual([
+      'completed',
+      'current',
+      'locked',
+      'locked',
+    ]);
   });
 });
 
 describe('map coordinates', () => {
-  it('fills a phone-like portrait area instead of shrinking it', () => {
+  it('keeps an exact 9:16 ratio inside a phone-like portrait area', () => {
     const map = fitMap(390, 660);
-    expect(map.width).toBe(390);
+    expect(map.width).toBeCloseTo(660 * (9 / 16));
     expect(map.height).toBe(660);
+    expect(map.width / map.height).toBeCloseTo(9 / 16);
   });
 
   it('letterboxes when the area is wider than the map', () => {
@@ -58,10 +87,34 @@ describe('map coordinates', () => {
     expect(map.width).toBeCloseTo(800 * (9 / 16));
   });
 
-  it('scales node fractions into pixels', () => {
-    const node = MAP_NODES[0]!;
+  it('scales percentage-based node positions into pixels', () => {
+    const node = BENNYS_GARDEN_NODES[0]!;
     const point = nodePixels(node, { width: 100, height: 200 });
-    expect(point.x).toBeCloseTo(node.x * 100);
-    expect(point.y).toBeCloseTo(node.y * 200);
+    expect(point.x).toBeCloseTo(44);
+    expect(point.y).toBeCloseTo(156);
+  });
+
+  it('places later chunks above the first chunk in world space', () => {
+    const first = nodePixels(BENNYS_GARDEN_NODES[0]!, { width: 100, height: 200 }, 2);
+    const fifth = nodePixels(TWO_CHUNKS[1].nodes[0], { width: 100, height: 200 }, 2);
+    expect(first.y).toBeCloseTo(356);
+    expect(fifth.y).toBeCloseTo(156);
+  });
+
+  it('rejects invalid world-template percentages', () => {
+    expect(mapPercentToUnit('45%')).toBeCloseTo(0.45);
+    expect(() => mapPercentToUnit('120%')).toThrow(RangeError);
+  });
+});
+
+describe('map chunks', () => {
+  it('flattens expandable chunks in progression order', () => {
+    expect(flattenMapChunks(TWO_CHUNKS).map((node) => node.number)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('moves the camera target to the next chunk after stage four', () => {
+    expect(chunkIndexForStage(4, TWO_CHUNKS)).toBe(0);
+    expect(progressChunkIndex(3, TWO_CHUNKS)).toBe(0);
+    expect(progressChunkIndex(4, TWO_CHUNKS)).toBe(1);
   });
 });
