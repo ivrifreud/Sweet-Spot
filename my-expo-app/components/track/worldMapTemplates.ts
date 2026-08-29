@@ -102,9 +102,11 @@ function environmentForChunk(chunkIndex: number): EnvironmentPlacement[] {
       id: `chunk-${chunkIndex}-foreground-tree`,
       asset: 'tree',
       depth: 'foreground',
-      left: mirrored ? '17%' : '49%',
-      top: '49%',
-      width: '34%',
+      // Put the trunk across the node 2 → 3 curve so Benny visibly walks
+      // behind it; mirrored chunks cross the reflected path at the same beat.
+      left: mirrored ? '52%' : '20%',
+      top: '39%',
+      width: '28%',
       mirrored,
     },
     {
