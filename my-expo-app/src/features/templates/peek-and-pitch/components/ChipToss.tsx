@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -31,17 +32,29 @@ export type ChipFlight = {
 
 type ChipTossProps = {
   flights: ChipFlight[];
+  onComplete?: () => void;
 };
 
 /**
  * Individual chips in the air between the player's glove and the pot.
  * Each flight is its own cel chip with a gravity arc and a short settle bounce.
  */
-export function ChipToss({ flights }: ChipTossProps) {
+export function ChipToss({ flights, onComplete }: ChipTossProps) {
+  let last = flights[0];
+  for (const flight of flights) {
+    if (!last || flight.delayMs + flight.durationMs >= last.delayMs + last.durationMs) {
+      last = flight;
+    }
+  }
+
   return (
     <>
       {flights.map((flight) => (
-        <FlyingChip key={flight.id} flight={flight} />
+        <FlyingChip
+          key={flight.id}
+          flight={flight}
+          onLanded={flight.id === last?.id ? onComplete : undefined}
+        />
       ))}
     </>
   );
@@ -69,7 +82,7 @@ function travelEase(progress: number) {
   return 1 - (1 - travel) * (1 - travel);
 }
 
-function FlyingChip({ flight }: { flight: ChipFlight }) {
+function FlyingChip({ flight, onLanded }: { flight: ChipFlight; onLanded?: () => void }) {
   const progress = useSharedValue(0);
   const reducedMotion = useReducedMotion();
   const size = flight.size ?? CHIP_SIZE;
@@ -77,12 +90,17 @@ function FlyingChip({ flight }: { flight: ChipFlight }) {
 
   useEffect(() => {
     const duration = reducedMotion ? Math.min(flight.durationMs, 280) : flight.durationMs;
+    const delay = reducedMotion ? 0 : flight.delayMs;
     progress.value = 0;
     progress.value = withDelay(
-      reducedMotion ? 0 : flight.delayMs,
-      withTiming(1, { duration, easing: Easing.linear })
+      delay,
+      withTiming(1, { duration, easing: Easing.linear }, (finished) => {
+        if (finished && onLanded) {
+          runOnJS(onLanded)();
+        }
+      })
     );
-  }, [flight.delayMs, flight.durationMs, progress, reducedMotion]);
+  }, [flight.delayMs, flight.durationMs, onLanded, progress, reducedMotion]);
 
   const dx = flight.to.x - flight.from.x;
   const dy = flight.to.y - flight.from.y;

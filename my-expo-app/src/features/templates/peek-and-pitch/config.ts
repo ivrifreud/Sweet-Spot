@@ -119,8 +119,8 @@ export function mapBackdropPoint(
 
 /** Hit zone for the hero stack, in overlay (gesture-view) coordinates. */
 export const STACK_HIT = {
-  width: 132,
-  height: 128,
+  width: 168,
+  height: 160,
 } as const;
 
 /** Minimum gap between the chip hitbox and the hole-card hitbox. */

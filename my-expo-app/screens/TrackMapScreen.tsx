@@ -10,6 +10,7 @@ import {
 } from '../components/track/LevelProgressionMap';
 import { TrackHud } from '../components/track/TrackHud';
 import { BENNYS_GARDEN_WORLD, type WorldMapTemplate } from '../components/track/worldMapTemplates';
+import { playSfx, startAmbience, stopAmbience } from '../lib/audio';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import type { Point } from '../lib/track/mapPath';
 import {
@@ -106,6 +107,17 @@ export function TrackMapScreen({
     setCameraChunkIndex(progressionChunk);
   }, [map.width, progressionChunk]);
 
+  const prevReveal = useRef(cameraChunkIndex);
+  useEffect(() => {
+    if (cameraChunkIndex > prevReveal.current) playSfx('clouds');
+    prevReveal.current = cameraChunkIndex;
+  }, [cameraChunkIndex]);
+
+  useEffect(() => {
+    startAmbience(world.id, 'light');
+    return () => stopAmbience();
+  }, [world.id]);
+
   function clearPendingPlay() {
     pendingPlay.current = null;
   }
@@ -173,6 +185,7 @@ export function TrackMapScreen({
   }
 
   function handleArrived() {
+    playSfx('arrive');
     const stageNumber = pendingPlay.current;
     if (stageNumber === null) return;
     pendingPlay.current = null;

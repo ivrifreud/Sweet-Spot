@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { WALK_FRAME_COUNT, walkFrameIndex } from '../../lib/track/avatarAnimation';
+import { playSfx } from '../../lib/audio';
 import type { Point } from '../../lib/track/mapPath';
 
 const IDLE_SPRITE = require('../../assets/brand/artstyle/hero-walk/idle-front.png');
@@ -146,6 +147,8 @@ export function MapAvatar({
         return;
       }
       progress.value = 0;
+      playSfx('step');
+      const stepTimer = setInterval(() => playSfx('step'), 240);
       progress.value = withTiming(
         1,
         { duration, easing: Easing.inOut(Easing.cubic) },
@@ -156,7 +159,7 @@ export function MapAvatar({
           }
         }
       );
-      return;
+      return () => clearInterval(stepTimer);
     }
 
     usePath.value = 0;

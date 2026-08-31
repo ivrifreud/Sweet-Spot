@@ -41,10 +41,11 @@ export function ChipStack({
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
   const pressStyle = useAnimatedStyle(() => ({
+    opacity: 1 - held.value * 0.22,
     transform: [
       { translateX: dragX.value },
-      { translateY: dragY.value + held.value * 3 },
-      { scale: 1 - held.value * 0.04 },
+      { translateY: dragY.value },
+      { scale: 1 - held.value * 0.07 },
     ],
   }));
 

@@ -52,11 +52,9 @@ function tempoForDecision(decision: SpotDecision): FeedbackTempo {
   return 'default';
 }
 
-/** Fold shows feedback ASAP; raise waits for the chip toss to land. */
-function feedbackRevealMs(decision: SpotDecision): number {
-  if (decision === 'fold') return 0;
-  if (decision === 'raise') return 920;
-  return 220;
+/** The Peek and Pitch template waits for toss/muck before calling onDecision. */
+function feedbackRevealMs(_decision: SpotDecision): number {
+  return 0;
 }
 
 export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props) {
@@ -330,12 +328,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           remainingChips={remainingChips}
           goldBars={0}
           streakDays={0}
-          onResolved={(correct) => {
-            if (correct) {
-              setCompletedCount((count) => Math.max(count, playingStage));
-              return;
+          onResolved={(correct, progress) => {
+            if (!correct) {
+              setRemainingChips((count) => burnChip(count));
             }
-            setRemainingChips((count) => burnChip(count));
+            if (progress.stageComplete) {
+              setCompletedCount((count) => Math.max(count, playingStage));
+            }
           }}
           onBack={() => setPlayingStage(null)}
         />
