@@ -19,6 +19,7 @@ import {
   type HoleCards as HoleCardsTuple,
 } from '@/lib/cards';
 
+import { artStyle } from '../../../../theme/artStyle';
 import { ActionBanner } from './components/ActionBanner';
 import { BarrierHand } from './components/BarrierHand';
 import { CardPicker } from './components/CardPicker';
@@ -88,8 +89,12 @@ export function PeekAndPitchTemplate({
   const [flights, setFlights] = useState<ChipFlight[]>([]);
   const [pushedChips, setPushedChips] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pitching, setPitching] = useState(false);
+  const [checkDenied, setCheckDenied] = useState(false);
   const flightSeed = useRef(0);
   const resolvedRef = useRef(false);
+  const pendingChipRef = useRef<'call' | 'raise' | null>(null);
+  const chipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const deal = useSharedValue(0);
   const peek = useSharedValue(0);
@@ -98,7 +103,12 @@ export function PeekAndPitchTemplate({
   const stackPress = useSharedValue(0);
   const stackDragX = useSharedValue(0);
   const stackDragY = useSharedValue(0);
-  const stackHit = useSharedValue<StackHitRect>({ x: 0, y: 0, width: 0, height: 0 });
+  const stackHit = useSharedValue<StackHitRect>({
+    x: 8,
+    y: 8,
+    width: STACK_HIT.width,
+    height: STACK_HIT.height,
+  });
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
@@ -115,8 +125,8 @@ export function PeekAndPitchTemplate({
   const handWidth = stage * 0.46;
   const barrierWidth = stage * 0.42;
   const stackHitSize = {
-    width: Math.max(STACK_HIT.width, chipSize * 3.1 + 20),
-    height: Math.max(STACK_HIT.height, chipSize * 2.4 + 36),
+    width: Math.max(STACK_HIT.width, chipSize * 3.4 + 28, 56),
+    height: Math.max(STACK_HIT.height, chipSize * 2.8 + 44, 56),
   };
 
   const geometry = useMemo(() => {
@@ -135,14 +145,21 @@ export function PeekAndPitchTemplate({
     };
 
     const cardSpan = cardWidth * 2 + cardGap;
-    let cardsLeft = restCenter.x - cardSpan / 2;
+    const stackHitWidth = stackHitSize.width;
+    const stackHitHeight = stackHitSize.height;
+    const maxStackRight = restCenter.x - cardSpan / 2 - CHIP_CARD_GAP;
+    let stackX = Math.max(8, maxStackRight - stackHitWidth);
+    if (stackX + stackHitWidth > width - 8) {
+      stackX = Math.max(8, width - 8 - stackHitWidth);
+    }
     const stackHit = {
-      x: 10,
-      y: restCenter.y + cardHeight * 0.08 - stackHitSize.height,
-      width: stackHitSize.width,
-      height: stackHitSize.height,
+      x: stackX,
+      y: restCenter.y + cardHeight * 0.08 - stackHitHeight,
+      width: stackHitWidth,
+      height: stackHitHeight,
     };
     const stackRight = stackHit.x + stackHit.width;
+    let cardsLeft = restCenter.x - cardSpan / 2;
     if (cardsLeft - stackRight < CHIP_CARD_GAP) {
       cardsLeft = stackRight + CHIP_CARD_GAP;
       restCenter.x = cardsLeft + cardSpan / 2;
@@ -167,7 +184,7 @@ export function PeekAndPitchTemplate({
       stackHit,
       stackAnchor: {
         x: stackHit.x + stackHit.width * 0.42,
-        y: stackHit.y + stackHit.height * 0.48,
+        y: stackHit.y + stackHit.height * 0.82,
       },
       handContact: {
         x: restCenter.x + cardWidth * 0.55,
@@ -193,6 +210,7 @@ export function PeekAndPitchTemplate({
     stackHitSize.width,
     width,
   ]);
+  stackHit.value = geometry.stackHit;
 
   const dealHand = useCallback(
     (nextSpot: PeekAndPitchSpot) => {
@@ -202,6 +220,12 @@ export function PeekAndPitchTemplate({
       setPeeked(false);
       setFlights([]);
       setPushedChips(0);
+      setPitching(false);
+      pendingChipRef.current = null;
+      if (chipTimer.current) {
+        clearTimeout(chipTimer.current);
+        chipTimer.current = null;
+      }
       setPhase('dealing');
       resolvedRef.current = false;
 
@@ -226,6 +250,14 @@ export function PeekAndPitchTemplate({
   useEffect(() => {
     dealHand(spot);
   }, [dealHand, resetKey, spot]);
+
+  useEffect(() => {
+    return () => {
+      if (chipTimer.current) {
+        clearTimeout(chipTimer.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (phase !== 'dealing') {
@@ -257,13 +289,38 @@ export function PeekAndPitchTemplate({
     [cards, onDecision, peeked]
   );
 
+  useEffect(() => {
+    if (!checkDenied) return;
+    const timer = setTimeout(() => setCheckDenied(false), 2200);
+    return () => clearTimeout(timer);
+  }, [checkDenied]);
+
+  const finishChipDecision = useCallback(() => {
+    if (chipTimer.current) {
+      clearTimeout(chipTimer.current);
+      chipTimer.current = null;
+    }
+    const nextDecision = pendingChipRef.current;
+    if (!nextDecision) return;
+    pendingChipRef.current = null;
+    setPitching(false);
+    resolve(nextDecision);
+  }, [resolve]);
+  const finishChipDecisionRef = useRef(finishChipDecision);
+  finishChipDecisionRef.current = finishChipDecision;
+  const onTossComplete = useCallback(() => {
+    finishChipDecisionRef.current();
+  }, []);
+
   const handleChipDecision = useCallback(
     (nextDecision: 'call' | 'raise') => {
-      if (phaseRef.current !== 'live') {
+      if (phaseRef.current !== 'live' || pendingChipRef.current) {
         return;
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      pendingChipRef.current = nextDecision;
+      setPitching(true);
 
       const { stackAnchor, tableCenter } = geometry;
       const flightCount = nextDecision === 'raise' ? 4 : 1;
@@ -271,7 +328,6 @@ export function PeekAndPitchTemplate({
         flightSeed.current += 1;
         const spin = Math.random() > 0.5 ? 1 : -1;
         const column = index % 2;
-        // Launch from the stack top after the left glove grips, then arc to the pot.
         const from = {
           x: stackAnchor.x + (column === 0 ? -chipSize * 0.35 : chipSize * 0.2) + (Math.random() - 0.5) * 6,
           y: stackAnchor.y - chipSize * 0.15 - index * (chipSize * 0.12),
@@ -295,7 +351,7 @@ export function PeekAndPitchTemplate({
         };
       });
 
-      setFlights((current) => [...current, ...nextFlights]);
+      setFlights(nextFlights);
       setPushedChips((current) => current + (nextDecision === 'raise' ? 3 : 1));
       commit.value = 0;
       commit.value = withSequence(
@@ -305,18 +361,30 @@ export function PeekAndPitchTemplate({
 
       cancelAnimation(peek);
       peek.value = 0;
-      resolve(nextDecision);
+
+      const waitMs = nextFlights.reduce((max, flight) => Math.max(max, flight.delayMs + flight.durationMs), 0) + 40;
+      if (chipTimer.current) clearTimeout(chipTimer.current);
+      chipTimer.current = setTimeout(() => finishChipDecisionRef.current(), waitMs);
     },
-    [chipSize, commit, geometry, peek, resolve]
+    [chipSize, commit, geometry, peek]
   );
 
+  const denyCheck = useCallback(() => {
+    if (phaseRef.current !== 'live') return;
+    setCheckDenied(true);
+  }, []);
+
   const handleCheck = useCallback(() => {
-    if (phaseRef.current !== 'live' || !activeSpot.canCheck) {
+    if (phaseRef.current !== 'live') {
+      return;
+    }
+    if (!activeSpot.canCheck) {
+      denyCheck();
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     resolve('check');
-  }, [activeSpot.canCheck, resolve]);
+  }, [activeSpot.canCheck, denyCheck, resolve]);
 
   useEffect(() => {
     stackHit.value = geometry.stackHit;
@@ -412,7 +480,7 @@ export function PeekAndPitchTemplate({
         />
       </View>
 
-      <ChipToss flights={flights} />
+      <ChipToss flights={flights} onComplete={onTossComplete} />
 
       <GestureHints
         peek={peek}
@@ -422,7 +490,7 @@ export function PeekAndPitchTemplate({
       />
 
       <TableGestures
-        live={phase === 'live' && !disabled}
+        live={phase === 'live' && !disabled && !pitching}
         canCheck={Boolean(activeSpot.canCheck)}
         height={height}
         potCenter={geometry.tableCenter}
@@ -437,6 +505,7 @@ export function PeekAndPitchTemplate({
         onCall={() => handleChipDecision('call')}
         onRaise={() => handleChipDecision('raise')}
         onMuck={completeMuck}
+        onIllegalCheck={denyCheck}
       />
 
       <View style={[styles.bannerHolder, { top: insets.top + 10 }]} pointerEvents="box-none">
@@ -459,6 +528,16 @@ export function PeekAndPitchTemplate({
         top={insets.top + 56}
         left={Math.max(12, insets.left + 8)}
       />
+
+      {checkDenied ? (
+        <View
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          style={[styles.toast, { bottom: insets.bottom + 28 }]}>
+          <Text style={styles.toastText}>{STRINGS.cannotCheck}</Text>
+        </View>
+      ) : null}
 
       {phase === 'resolved' && showNextHandControl ? (
         <View
@@ -539,5 +618,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.4,
+  },
+  toast: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    zIndex: 80,
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: artStyle.colors.oxblood,
+    backgroundColor: 'rgba(17,23,20,0.94)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastText: {
+    color: artStyle.colors.cream,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

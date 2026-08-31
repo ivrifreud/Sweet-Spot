@@ -31,6 +31,7 @@ const DROP_SPRING = {
 const MUCK_THROW_MS = 920;
 const STACK_DRAG_THRESHOLD = 26;
 const DOUBLE_TAP_MS = 320;
+const STACK_HIT_PAD = 20;
 
 export type StackHitRect = {
   x: number;
@@ -50,11 +51,13 @@ type TableGesturesProps = {
   stackDragX: SharedValue<number>;
   stackDragY: SharedValue<number>;
   stackHit: SharedValue<StackHitRect>;
+  onPeekHold?: () => void;
   onPeeked: () => void;
   onCheck: () => void;
   onCall: () => void;
   onRaise: () => void;
   onMuck: () => void;
+  onIllegalCheck: () => void;
 };
 
 function clampWorklet(value: number, min: number, max: number) {
@@ -67,7 +70,12 @@ function hitStack(x: number, y: number, rect: StackHitRect) {
   if (rect.width <= 0 || rect.height <= 0) {
     return false;
   }
-  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+  return (
+    x >= rect.x - STACK_HIT_PAD &&
+    x <= rect.x + rect.width + STACK_HIT_PAD &&
+    y >= rect.y - STACK_HIT_PAD &&
+    y <= rect.y + rect.height + STACK_HIT_PAD
+  );
 }
 
 /** Settle the peek onto the felt. Instant on a muck so the throw can start clean. */
@@ -92,11 +100,13 @@ export function TableGestures({
   stackDragX,
   stackDragY,
   stackHit,
+  onPeekHold,
   onPeeked,
   onCheck,
   onCall,
   onRaise,
   onMuck,
+  onIllegalCheck,
 }: TableGesturesProps) {
   const liveEnabled = useSharedValue(live ? 1 : 0);
   const gestureMode = useSharedValue(MODE_UNDECIDED);
@@ -108,6 +118,8 @@ export function TableGestures({
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
   const lastFeltTapAt = useSharedValue(0);
 
+  const onPeekHoldRef = useRef(onPeekHold);
+  onPeekHoldRef.current = onPeekHold;
   const onPeekedRef = useRef(onPeeked);
   onPeekedRef.current = onPeeked;
   const onCheckRef = useRef(onCheck);
@@ -118,7 +130,12 @@ export function TableGestures({
   onRaiseRef.current = onRaise;
   const onMuckRef = useRef(onMuck);
   onMuckRef.current = onMuck;
+  const onIllegalCheckRef = useRef(onIllegalCheck);
+  onIllegalCheckRef.current = onIllegalCheck;
 
+  const firePeekHold = useCallback(() => {
+    onPeekHoldRef.current?.();
+  }, []);
   const firePeeked = useCallback(() => {
     onPeekedRef.current();
   }, []);
@@ -133,6 +150,9 @@ export function TableGestures({
   }, []);
   const fireMuck = useCallback(() => {
     onMuckRef.current();
+  }, []);
+  const fireIllegalCheck = useCallback(() => {
+    onIllegalCheckRef.current();
   }, []);
 
   useEffect(() => {
@@ -194,6 +214,7 @@ export function TableGestures({
             peekedThisTouch.value = 1;
             cancelAnimation(peek);
             peek.value = withSpring(1, PEEK_SPRING);
+            runOnJS(firePeekHold)();
           }
         })
         .onUpdate((event) => {
@@ -240,7 +261,7 @@ export function TableGestures({
             flattenPeek(peek, true);
             if (stackDragged.value === 1) {
               runOnJS(fireRaise)();
-            } else if (canCheckEnabled.value !== 1) {
+            } else {
               runOnJS(fireCall)();
             }
             stackDragged.value = 0;
@@ -250,12 +271,16 @@ export function TableGestures({
           stackPress.value = 0;
 
           const feltTap = Math.abs(event.translationX) < 10 && Math.abs(event.translationY) < 10;
-          if (feltTap && canCheckEnabled.value === 1 && stackPress.value !== 1) {
+          if (feltTap && stackPress.value !== 1) {
             const now = Date.now();
             if (now - lastFeltTapAt.value <= DOUBLE_TAP_MS) {
               lastFeltTapAt.value = 0;
               flattenPeek(peek, true);
-              runOnJS(fireCheck)();
+              if (canCheckEnabled.value === 1) {
+                runOnJS(fireCheck)();
+              } else {
+                runOnJS(fireIllegalCheck)();
+              }
               return;
             }
             lastFeltTapAt.value = now;
@@ -307,9 +332,11 @@ export function TableGestures({
     [
       fireMuck,
       firePeeked,
+      firePeekHold,
       fireCall,
       fireCheck,
       fireRaise,
+      fireIllegalCheck,
       canCheckEnabled,
       fingerDown,
       gestureMode,
@@ -335,15 +362,18 @@ export function TableGestures({
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, styles.hitLayer]}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel={
-          canCheck
-            ? 'Hold to peek. Swipe up to fold. Double-tap the felt to check. Drag chips toward the pot to raise.'
-            : 'Hold to peek. Swipe up to fold. Tap your chips to call. Drag chips toward the pot to raise.'
-        }
+        accessibilityLabel="Hold to peek. Swipe up to fold. Double-tap the felt to check. Tap your chips to call. Drag chips toward the pot to raise."
       />
     </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  hitLayer: {
+    zIndex: 50,
+    elevation: 50,
+  },
+});

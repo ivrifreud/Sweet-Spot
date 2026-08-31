@@ -11,6 +11,7 @@ export const STRINGS = {
   checked: 'Check',
   called: 'Call',
   raised: 'Raise',
+  cannotCheck: 'You cannot check here.',
   nextHand: 'Deal next hand',
   chooseCards: 'Set cards',
   cardPickerTitle: 'Which cards does the player peek?',

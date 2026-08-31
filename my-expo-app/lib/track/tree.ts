@@ -29,6 +29,26 @@ export const MAP_ASPECT = 9 / 16;
 export const MAP_NODE_SIZE = 60;
 export const MAP_NODES_PER_CHUNK = 4;
 
+/** Hands dealt inside one Benny's Garden node before the stage unlocks. */
+export const SPOTS_PER_STAGE = 7;
+
+export function nextSpotIndex(spotsCompleted: number): number {
+  return Math.min(Math.max(0, spotsCompleted), SPOTS_PER_STAGE - 1);
+}
+
+/** Advance after every attempt — a miss still consumes the spot. */
+export function recordSpotAttempt(spotsCompleted: number): {
+  spotsCompleted: number;
+  stageComplete: boolean;
+} {
+  const next = Math.min(SPOTS_PER_STAGE, Math.max(0, spotsCompleted) + 1);
+  return { spotsCompleted: next, stageComplete: next >= SPOTS_PER_STAGE };
+}
+
+export function nodeProgressFraction(spotsCompleted: number): number {
+  return Math.min(1, Math.max(0, spotsCompleted) / SPOTS_PER_STAGE);
+}
+
 /** World 1 mock data: four stages laid over Benny's painted garden path. */
 export const BENNYS_GARDEN_NODES: readonly MapNode[] = [
   { id: 'bennys-stage-1', number: 1, title: 'Warm-up', chunkIndex: 0, left: '44%', top: '78%' },

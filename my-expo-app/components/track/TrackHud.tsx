@@ -1,6 +1,8 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useEffect, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import { isMuted, setMuted } from '../../lib/audio';
 import { artStyle } from '../../theme/artStyle';
 import { LifeChips } from './LifeChips';
 
@@ -23,6 +25,11 @@ export function TrackHud({ remainingChips, goldBars, streakDays, onPressAvatar }
   const avatar = compact ? 40 : 44;
   const chipSize = compact ? 22 : 26;
   const hit = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;
+  const [muted, setMutedState] = useState(isMuted());
+
+  useEffect(() => {
+    setMutedState(isMuted());
+  }, []);
 
   return (
     <View style={styles.bar} accessibilityRole="header">
@@ -75,6 +82,26 @@ export function TrackHud({ remainingChips, goldBars, streakDays, onPressAvatar }
           {streakDays}
         </Text>
       </View>
+
+      <Pressable
+        onPress={() => {
+          const next = !muted;
+          setMutedState(next);
+          void setMuted(next);
+        }}
+        hitSlop={Math.max(0, (hit - 40) / 2)}
+        style={({ pressed }) => [
+          styles.capsule,
+          compact && styles.capsuleCompact,
+          styles.muteCapsule,
+          pressed ? styles.pressed : null,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={muted ? 'Unmute sound' : 'Mute sound'}>
+        <Text style={[styles.capsuleValue, compact && styles.capsuleValueCompact, display]}>
+          {muted ? 'MUTE' : 'SFX'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -123,6 +150,11 @@ const styles = StyleSheet.create({
   chipCapsule: {
     flexGrow: 0,
     flexShrink: 1,
+  },
+  muteCapsule: {
+    flexGrow: 0,
+    minWidth: 44,
+    justifyContent: 'center',
   },
   capsuleValue: {
     color: artStyle.colors.projectorBlack,

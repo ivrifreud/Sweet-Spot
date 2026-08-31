@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,7 +6,8 @@ import { TrackHud } from '../components/track/TrackHud';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
-import { stageContent } from '../lib/track/stageSpot';
+import { stageSpots } from '../lib/track/stageSpot';
+import { SPOTS_PER_STAGE, nextSpotIndex, recordSpotAttempt } from '../lib/track/tree';
 import {
   DecisionFeedbackOverlay,
   ScreenShakeHost,
@@ -24,7 +25,11 @@ type Props = {
   remainingChips: number;
   goldBars: number;
   streakDays: number;
-  onResolved: (correct: boolean) => void;
+  initialSpotsCompleted?: number;
+  onResolved: (
+    correct: boolean,
+    progress: { spotsCompleted: number; stageComplete: boolean }
+  ) => void;
   onBack: () => void;
 };
 
@@ -40,37 +45,35 @@ function tempoForDecision(decision: SpotDecision): FeedbackTempo {
   return 'default';
 }
 
-function feedbackRevealMs(decision: SpotDecision): number {
-  if (decision === 'fold') return 0;
-  if (decision === 'raise') return 920;
-  return 220;
-}
-
 export function StagePlayScreen({
   reveal,
   stageNumber,
   remainingChips,
   goldBars,
   streakDays,
+  initialSpotsCompleted = 0,
   onResolved,
   onBack,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { calibration, table } = useMemo(
-    () => stageContent(reveal.placement, stageNumber),
+  const bundle = useMemo(
+    () => stageSpots(reveal.placement, stageNumber),
     [reveal.placement, stageNumber]
+  );
+  const [spotIndex, setSpotIndex] = useState(() => nextSpotIndex(initialSpotsCompleted));
+  const [spotsCompleted, setSpotsCompleted] = useState(() =>
+    Math.min(SPOTS_PER_STAGE, Math.max(0, initialSpotsCompleted))
   );
   const [busy, setBusy] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [feedback, setFeedback] = useState<Pending | null>(null);
   const [settled, setSettled] = useState<boolean | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stageComplete, setStageComplete] = useState(
+    () => initialSpotsCompleted >= SPOTS_PER_STAGE
+  );
 
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
+  const calibration = bundle.calibration[spotIndex]!;
+  const table = bundle.tables[spotIndex]!;
 
   const handleDecision = useCallback(
     (decision: SpotDecision) => {
@@ -78,36 +81,41 @@ export function StagePlayScreen({
       setBusy(true);
       const chosen = pokerActionForDecision(decision, calibration);
       const correct = isAnswerCorrect(calibration, chosen);
+      const progress = recordSpotAttempt(spotsCompleted);
+      onResolved(correct, progress);
+      setSpotsCompleted(progress.spotsCompleted);
+      setStageComplete(progress.stageComplete);
+
+      const lastHand = progress.stageComplete;
       const copy = buildDecisionFeedbackCopy({
         correct,
         chosen,
         correctAnswer: calibration.correctAnswer,
         lesson: calibration.prompt,
-        continueLabel: 'Back to the tree',
+        continueLabel: lastHand ? 'Back to the tree' : 'Next hand',
       });
-      const pending: Pending = {
+      setSettled(correct);
+      setFeedback({
         copy,
         key: `${calibration.id}-${chosen}-${Date.now()}`,
         tempo: tempoForDecision(decision),
-      };
-
-      const revealOverlay = () => {
-        onResolved(correct);
-        setSettled(correct);
-        setFeedback(pending);
-        setBusy(false);
-      };
-
-      const delay = feedbackRevealMs(decision);
-      if (delay <= 0) {
-        revealOverlay();
-        return;
-      }
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(revealOverlay, delay);
+      });
+      setBusy(false);
     },
-    [busy, calibration, feedback, onResolved]
+    [busy, calibration, feedback, onResolved, spotsCompleted]
   );
+
+  const continueAfterFeedback = useCallback(() => {
+    if (!feedback) return;
+    setFeedback(null);
+    setSettled(null);
+    if (stageComplete) {
+      onBack();
+      return;
+    }
+    setSpotIndex((index) => nextSpotIndex(index + 1));
+    setResetKey((value) => value + 1);
+  }, [feedback, onBack, stageComplete]);
 
   return (
     <ScreenShakeHost
@@ -130,7 +138,6 @@ export function StagePlayScreen({
 
       <Pressable
         onPress={() => {
-          if (timer.current) clearTimeout(timer.current);
           setResetKey((value) => value + 1);
           onBack();
         }}
@@ -151,11 +158,12 @@ export function StagePlayScreen({
             ? `${feedback?.copy.explanation ?? ''} Chips are spent — the stage is locked until they refill.`
             : (feedback?.copy.explanation ?? '')
         }
-        continueLabel={feedback?.copy.continueLabel ?? 'Back to the tree'}
+        continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}
         feedbackKey={feedback?.key}
         tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}
-        onContinue={onBack}
+        celebrateJackpot={feedback?.copy.outcome === 'correct'}
+        onContinue={continueAfterFeedback}
       />
     </ScreenShakeHost>
   );

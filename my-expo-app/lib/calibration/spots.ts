@@ -81,6 +81,24 @@ export const STAGE1_SPOTS: CalibrationSpot[] = [
   },
 ];
 
+/** Seven unique Level-1 table spots for Benny's Garden stages. */
+export const LEVEL1_STAGE1_SPOTS: CalibrationSpot[] = [
+  ...STAGE1_SPOTS,
+  {
+    id: '11111111-1111-4111-8111-111111111107',
+    spotType: 'calibration_stage1',
+    sequenceOrder: 7,
+    heroPosition: 'CO',
+    holeCards: ['Ah', 'Qd'],
+    board: [],
+    potSize: 3,
+    villainAction: 'folds to you',
+    prompt: 'Cutoff, 100bb. Folded to you. You hold AQo. Raise.',
+    correctAnswer: 'raise',
+    isCatastrophicIfWrong: false,
+  },
+];
+
 export const STAGE2_SPOTS: CalibrationSpot[] = [
   {
     id: '22222222-2222-4222-8222-222222222201',

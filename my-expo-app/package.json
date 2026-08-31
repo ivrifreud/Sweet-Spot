@@ -24,6 +24,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "expo": "54",
+    "expo-audio": "~1.1.1",
     "expo-auth-session": "~7.0.11",
     "expo-blur": "~15.0.8",
     "expo-crypto": "~15.0.9",

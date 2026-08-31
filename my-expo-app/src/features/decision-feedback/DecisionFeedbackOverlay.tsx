@@ -25,6 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { playDecisionSfx } from '../../../lib/audio';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
 import { ScreenShakeHost } from './ScreenShakeHost';
@@ -49,6 +50,8 @@ export type DecisionFeedbackOverlayProps = {
   onContinue: () => void;
   /** Remount key so a new decision restarts flash/confetti. */
   feedbackKey?: string;
+  /** Play jackpot with the chime (stage-complete / perfect sequence only). */
+  celebrateJackpot?: boolean;
   /**
    * Shake this overlay. Set false when a parent `ScreenShakeHost` already
    * jolts the table and overlay together.
@@ -71,6 +74,7 @@ export function DecisionFeedbackOverlay({
   continueLabel,
   onContinue,
   feedbackKey,
+  celebrateJackpot = false,
   shakeScreen = true,
   tempo = 'default',
 }: DecisionFeedbackOverlayProps) {
@@ -102,6 +106,7 @@ export function DecisionFeedbackOverlay({
         reducedMotion={reducedMotion}
         restartKey={feedbackKey}
         pace={pace}
+        celebrateJackpot={celebrateJackpot}
       />
 
       <View
@@ -284,11 +289,13 @@ function FlashWash({
   reducedMotion,
   restartKey,
   pace,
+  celebrateJackpot,
 }: {
   outcome: DecisionOutcome;
   reducedMotion: boolean | undefined;
   restartKey?: string;
   pace: number;
+  celebrateJackpot: boolean;
 }) {
   const flash = useSharedValue(reducedMotion ? 0.22 : 0);
 
@@ -319,7 +326,8 @@ function FlashWash({
         ? Haptics.NotificationFeedbackType.Success
         : Haptics.NotificationFeedbackType.Warning;
     Haptics.notificationAsync(type).catch(() => {});
-  }, [outcome, restartKey]);
+    playDecisionSfx(outcome, { jackpot: celebrateJackpot });
+  }, [celebrateJackpot, outcome, restartKey]);
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value }));
   const wash =
