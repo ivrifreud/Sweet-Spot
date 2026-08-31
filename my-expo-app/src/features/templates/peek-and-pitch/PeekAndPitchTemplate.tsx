@@ -19,6 +19,7 @@ import {
   type HoleCards as HoleCardsTuple,
 } from '@/lib/cards';
 
+import { startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
 import { ActionBanner } from './components/ActionBanner';
 import { BarrierHand } from './components/BarrierHand';
@@ -250,6 +251,12 @@ export function PeekAndPitchTemplate({
   useEffect(() => {
     dealHand(spot);
   }, [dealHand, resetKey, spot]);
+
+  useEffect(() => {
+    if (activeSpot.skin !== 'garden') return;
+    startAmbience('bennys-garden', 'night');
+    return () => stopAmbience();
+  }, [activeSpot.skin]);
 
   useEffect(() => {
     return () => {

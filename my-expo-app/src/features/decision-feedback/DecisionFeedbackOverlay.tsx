@@ -326,8 +326,8 @@ function FlashWash({
         ? Haptics.NotificationFeedbackType.Success
         : Haptics.NotificationFeedbackType.Warning;
     Haptics.notificationAsync(type).catch(() => {});
-    playDecisionSfx(outcome, { jackpot: celebrateJackpot });
-  }, [celebrateJackpot, outcome, restartKey]);
+    playDecisionSfx(outcome);
+  }, [outcome, restartKey]);
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value }));
   const wash =

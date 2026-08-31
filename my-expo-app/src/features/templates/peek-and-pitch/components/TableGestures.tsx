@@ -12,6 +12,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { playSfx } from '../../../../../lib/audio';
 import { GESTURES } from '../config';
 
 const MODE_UNDECIDED = 0;
@@ -150,6 +151,9 @@ export function TableGestures({
   }, []);
   const fireMuck = useCallback(() => {
     onMuckRef.current();
+  }, []);
+  const fireMuckCue = useCallback(() => {
+    playSfx('fold');
   }, []);
   const fireIllegalCheck = useCallback(() => {
     onIllegalCheckRef.current();
@@ -293,6 +297,7 @@ export function TableGestures({
             if (committed) {
               muckLocked.value = 1;
               flattenPeek(peek, true);
+              runOnJS(fireMuckCue)();
               muck.value = withTiming(
                 1,
                 { duration: MUCK_THROW_MS, easing: EASE_OUT },
@@ -331,6 +336,7 @@ export function TableGestures({
         }),
     [
       fireMuck,
+      fireMuckCue,
       firePeeked,
       firePeekHold,
       fireCall,

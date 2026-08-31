@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CalibrationHarness } from './components/CalibrationHarness';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { noteActivity, preloadAudio, startIdleWatch, stopIdleWatch } from './lib/audio';
 import { DEV_BYPASS_USER_ID } from './lib/devBypass';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
@@ -114,13 +115,26 @@ function AppInner() {
 }
 
 export default function App() {
+  useEffect(() => {
+    let cancelled = false;
+    void preloadAudio().then(() => {
+      if (!cancelled) startIdleWatch();
+    });
+    return () => {
+      cancelled = true;
+      stopIdleWatch();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={styles.root}>
-        <StatusBar style="auto" />
-        <ErrorBoundary>
-          <AppInner />
-        </ErrorBoundary>
+        <View style={styles.root} onTouchStart={noteActivity}>
+          <StatusBar style="auto" />
+          <ErrorBoundary>
+            <AppInner />
+          </ErrorBoundary>
+        </View>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

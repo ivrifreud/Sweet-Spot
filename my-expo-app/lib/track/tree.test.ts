@@ -6,6 +6,7 @@ import {
   canStandOn,
   chunkIndexForStage,
   currentStageNumber,
+  shouldAutoWalkOnFocus,
   fitMap,
   flattenMapChunks,
   levelMarkers,
@@ -116,5 +117,18 @@ describe('map chunks', () => {
     expect(chunkIndexForStage(4, TWO_CHUNKS)).toBe(0);
     expect(progressChunkIndex(3, TWO_CHUNKS)).toBe(0);
     expect(progressChunkIndex(4, TWO_CHUNKS)).toBe(1);
+  });
+});
+
+describe('shouldAutoWalkOnFocus', () => {
+  it('walks from a just-cleared node to the newly unlocked checkpoint', () => {
+    expect(shouldAutoWalkOnFocus(1, 1, 12)).toBe(2);
+    expect(shouldAutoWalkOnFocus(4, 4, 12)).toBe(5);
+  });
+
+  it('stays put on first load and after the last node', () => {
+    expect(shouldAutoWalkOnFocus(1, 0, 12)).toBeNull();
+    expect(shouldAutoWalkOnFocus(12, 12, 12)).toBeNull();
+    expect(shouldAutoWalkOnFocus(2, 1, 12)).toBeNull();
   });
 });

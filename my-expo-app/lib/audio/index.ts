@@ -2,12 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
   selectAmbience,
-  selectJackpotSfx,
-  selectMistakeSfx,
   type AmbienceName,
   type AudioLighting,
   type AudioWorldId,
 } from './beds';
+import {
+  CORRECT_POOL,
+  GARDEN_NIGHT_POOL,
+  IDLE_POOL,
+  INCORRECT_POOL,
+  pickQueued,
+  type GardenNightBed,
+  type IdleCue,
+} from './cues';
 
 export type {
   AmbienceName,
@@ -15,6 +22,13 @@ export type {
   AudioWorldId,
 } from './beds';
 export { selectAmbience, selectJackpotSfx, selectMistakeSfx } from './beds';
+export {
+  CORRECT_POOL,
+  GARDEN_NIGHT_POOL,
+  IDLE_POOL,
+  INCORRECT_POOL,
+  pickQueued,
+} from './cues';
 
 export type SfxName =
   | 'deal'
@@ -24,9 +38,15 @@ export type SfxName =
   | 'chipPickup'
   | 'call'
   | 'raise'
-  | 'correct'
-  | 'incorrect'
-  | 'incorrectBass'
+  | 'correctClown'
+  | 'correctMelody'
+  | 'correctScream'
+  | 'correctCheer'
+  | 'incorrectPiano'
+  | 'incorrectFail'
+  | 'incorrectTrombone'
+  | 'idleSnore'
+  | 'idleYawn'
   | 'jackpot'
   | 'jackpotHeavy'
   | 'step'
@@ -42,10 +62,22 @@ type Settings = {
 
 const STORAGE_KEY = 'sweet-spot-audio';
 const DEFAULTS: Settings = { muted: false, sfxVolume: 1, ambienceVolume: 0.28 };
+const IDLE_GAP_MS = 22000;
+const DRY_SFX: ReadonlySet<SfxName> = new Set([
+  ...CORRECT_POOL,
+  ...INCORRECT_POOL,
+  ...IDLE_POOL,
+]);
 
 let settings: Settings = { ...DEFAULTS };
 let loaded = false;
 let activeBed: AmbienceName = 'garden-ambience';
+let lastNightBed: GardenNightBed | undefined;
+let lastCorrect: (typeof CORRECT_POOL)[number] | undefined;
+let lastIncorrect: (typeof INCORRECT_POOL)[number] | undefined;
+let lastIdle: IdleCue | undefined;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+let walking = false;
 const lastPlayed: Partial<Record<SfxName | AmbienceName, number>> = {};
 
 const sfxSources: Record<SfxName, number> = {
@@ -56,9 +88,15 @@ const sfxSources: Record<SfxName, number> = {
   chipPickup: require('../../assets/audio/chip-pickup.wav'),
   call: require('../../assets/audio/call.wav'),
   raise: require('../../assets/audio/raise.wav'),
-  correct: require('../../assets/audio/correct.wav'),
-  incorrect: require('../../assets/audio/incorrect.wav'),
-  incorrectBass: require('../../assets/audio/incorrect-bass.wav'),
+  correctClown: require('../../assets/audio/correct-clown.wav'),
+  correctMelody: require('../../assets/audio/correct-melody.wav'),
+  correctScream: require('../../assets/audio/correct-scream.wav'),
+  correctCheer: require('../../assets/audio/correct-cheer.wav'),
+  incorrectPiano: require('../../assets/audio/incorrect-piano.wav'),
+  incorrectFail: require('../../assets/audio/incorrect-fail.wav'),
+  incorrectTrombone: require('../../assets/audio/incorrect-trombone.wav'),
+  idleSnore: require('../../assets/audio/idle-snore.wav'),
+  idleYawn: require('../../assets/audio/idle-yawn.wav'),
   jackpot: require('../../assets/audio/jackpot.wav'),
   jackpotHeavy: require('../../assets/audio/jackpot-heavy.wav'),
   step: require('../../assets/audio/step.wav'),
@@ -71,6 +109,7 @@ const sfxSources: Record<SfxName, number> = {
 const ambienceSources: Partial<Record<AmbienceName, number>> = {
   'garden-ambience': require('../../assets/audio/garden-ambience.wav'),
   'garden-night-ambience': require('../../assets/audio/garden-night-ambience.wav'),
+  'garden-night-forest': require('../../assets/audio/garden-night-forest.wav'),
 };
 
 type Player = {
@@ -151,17 +190,28 @@ function guarded(name: SfxName | AmbienceName, gapMs = 80): boolean {
   return true;
 }
 
+function pauseAllBeds(): void {
+  Object.values(ambiencePlayers).forEach((player) => {
+    try {
+      player?.pause();
+    } catch {
+      // Ignore.
+    }
+  });
+}
+
 export function playSfx(name: SfxName): void {
   if (settings.muted || settings.sfxVolume <= 0) return;
-  if (!guarded(name)) return;
+  if (!guarded(name, name === 'fold' ? 400 : 80)) return;
   const player = sfxPlayers[name];
   if (!player) return;
   try {
+    player.loop = false;
     player.volume = settings.sfxVolume;
     player.seekTo?.(0);
     player.play();
     const ambience = ambiencePlayers[activeBed];
-    if (ambience && name !== 'correct' && name !== 'incorrect' && name !== 'incorrectBass') {
+    if (ambience && !DRY_SFX.has(name) && name !== 'step') {
       ambience.volume = settings.ambienceVolume * 0.32;
       setTimeout(() => {
         if (ambiencePlayers[activeBed] && !settings.muted) {
@@ -174,35 +224,93 @@ export function playSfx(name: SfxName): void {
   }
 }
 
-export function playDecisionSfx(
-  outcome: 'correct' | 'incorrect',
-  options?: {
-    jackpot?: boolean;
-    worldId?: AudioWorldId;
-    lighting?: AudioLighting;
-  }
-): void {
-  const worldId = options?.worldId ?? 'bennys-garden';
-  const lighting = options?.lighting ?? 'light';
+export function playDecisionSfx(outcome: 'correct' | 'incorrect'): void {
   if (outcome === 'correct') {
-    playSfx('correct');
-    if (options?.jackpot) {
-      playSfx(selectJackpotSfx(worldId, lighting));
-    }
+    const cue = pickQueued(CORRECT_POOL, lastCorrect);
+    lastCorrect = cue;
+    playSfx(cue);
     return;
   }
-  playSfx(selectMistakeSfx(worldId, lighting));
+  const cue = pickQueued(INCORRECT_POOL, lastIncorrect);
+  lastIncorrect = cue;
+  playSfx(cue);
+}
+
+export function playIdleSfx(): void {
+  const cue = pickQueued(IDLE_POOL, lastIdle);
+  lastIdle = cue;
+  playSfx(cue);
+}
+
+function fireIdle(): void {
+  playIdleSfx();
+  idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
+}
+
+export function noteActivity(): void {
+  if (!idleTimer) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
+}
+
+export function startIdleWatch(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
+}
+
+export function stopIdleWatch(): void {
+  if (!idleTimer) return;
+  clearTimeout(idleTimer);
+  idleTimer = null;
+}
+
+export function startWalkSfx(): void {
+  walking = true;
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  const player = sfxPlayers.step;
+  if (!player) return;
+  try {
+    player.loop = true;
+    player.volume = settings.sfxVolume * 0.85;
+    player.seekTo?.(0);
+    player.play();
+  } catch {
+    // Ignore playback errors.
+  }
+}
+
+function pauseWalkPlayer(): void {
+  const player = sfxPlayers.step;
+  if (!player) return;
+  try {
+    player.loop = false;
+    player.pause();
+    player.seekTo?.(0);
+  } catch {
+    // Ignore.
+  }
+}
+
+export function stopWalkSfx(): void {
+  walking = false;
+  pauseWalkPlayer();
+}
+
+function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): AmbienceName {
+  const next = worldId ? selectAmbience(worldId, lighting) : activeBed;
+  if (next !== 'garden-night-ambience' && next !== 'garden-night-forest') {
+    return next;
+  }
+  const bed = pickQueued(GARDEN_NIGHT_POOL, lastNightBed);
+  lastNightBed = bed;
+  return bed;
 }
 
 export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): void {
   if (settings.muted || settings.ambienceVolume <= 0) return;
-  const next = worldId ? selectAmbience(worldId, lighting) : activeBed;
+  const next = resolveBed(worldId, lighting);
   if (activeBed !== next) {
-    try {
-      ambiencePlayers[activeBed]?.pause();
-    } catch {
-      // Ignore.
-    }
+    pauseAllBeds();
     activeBed = next;
   }
   const player = ambiencePlayers[activeBed];
@@ -218,7 +326,7 @@ export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 
 
 export function stopAmbience(): void {
   try {
-    Object.values(ambiencePlayers).forEach((player) => player?.pause());
+    pauseAllBeds();
   } catch {
     // Ignore.
   }
@@ -227,8 +335,13 @@ export function stopAmbience(): void {
 export async function setMuted(muted: boolean): Promise<void> {
   settings = { ...settings, muted };
   await persist();
-  if (muted) stopAmbience();
-  else startAmbience();
+  if (muted) {
+    stopAmbience();
+    pauseWalkPlayer();
+    return;
+  }
+  startAmbience();
+  if (walking) startWalkSfx();
 }
 
 export function isMuted(): boolean {

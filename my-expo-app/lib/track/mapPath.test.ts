@@ -49,10 +49,12 @@ describe('overworld path', () => {
     expect(d.startsWith('M 0 0 Q')).toBe(true);
   });
 
-  it('scales walk time with distance', () => {
-    expect(durationForLength(10)).toBe(420);
-    expect(durationForLength(2000)).toBe(980);
-    expect(durationForLength(500)).toBe(600);
+  it('scales walk time with distance without a teleport cap', () => {
+    expect(durationForLength(0)).toBe(0);
+    expect(durationForLength(10)).toBe(360);
+    expect(durationForLength(500)).toBe(1400);
+    expect(durationForLength(2000)).toBe(5600);
+    expect(durationForLength(2000)).toBeGreaterThan(durationForLength(500));
   });
 
   it('interpolates along sampled points', () => {

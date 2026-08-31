@@ -18,8 +18,6 @@ UA = "SweetSpotAudioFetch/1.0"
 
 KENNEY_CASINO = "https://cc0-sounds.exi.software/sounds/kenney_casinoaudio/Audio"
 KENNEY_UI = "https://cc0-sounds.exi.software/sounds/kenney_interfacesounds/Audio"
-KENNEY_RPG = "https://cc0-sounds.exi.software/sounds/kenney_rpgaudio/Audio"
-KENNEY_IMPACT = "https://cc0-sounds.exi.software/sounds/kenney_impactsounds/Audio"
 MIXKIT = "https://assets.mixkit.co/active_storage/sfx"
 
 # name -> url, license, creator, page, notes, kind (sfx|bed)
@@ -27,20 +25,28 @@ CUES: list[tuple[str, str, str, str, str, str, str]] = [
     ("deal.wav", f"{KENNEY_CASINO}/cardSlide1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "card flick", "sfx"),
     ("peek.wav", f"{KENNEY_CASINO}/cardTakeOutPackage1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "card lift", "sfx"),
     ("settle.wav", f"{KENNEY_CASINO}/cardPlace1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "card drop table", "sfx"),
-    ("fold.wav", f"{KENNEY_CASINO}/cardShove1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "cards slide felt", "sfx"),
+    ("fold.wav", f"{MIXKIT}/730/730.mp3", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/whoosh/", "rope throw muck", "sting"),
     ("chip-pickup.wav", f"{KENNEY_CASINO}/chipsHandle1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "chips grab", "sfx"),
     ("call.wav", f"{KENNEY_CASINO}/chipLay1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "single chip clack", "sfx"),
     ("raise.wav", f"{KENNEY_CASINO}/chipsCollide1.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "chip stack clink", "sfx"),
     ("jackpot.wav", f"{KENNEY_CASINO}/chipsHandle3.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "chip cascade", "jackpot"),
     ("jackpot-heavy.wav", f"{KENNEY_CASINO}/chipsStack3.ogg", "CC0", "Kenney", "https://kenney.nl/assets/casino-audio", "heavy chip dump", "jackpot"),
-    ("correct.wav", f"{KENNEY_UI}/confirmation_002.ogg", "CC0", "Kenney", "https://kenney.nl/assets/interface-sounds", "ascending UI chime", "sfx"),
+    ("correct-clown.wav", f"{MIXKIT}/528/528.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/cartoon/", "clown nose hit", "sting"),
+    ("correct-melody.wav", f"{MIXKIT}/2881/2881.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/cartoon/", "funny melody hit", "sting"),
+    ("correct-scream.wav", f"{MIXKIT}/2768/2768.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/scream/", "fighter scream hit", "sting"),
+    ("correct-cheer.wav", f"{MIXKIT}/518/518.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/crowd/", "small cheer hit", "sting"),
+    ("incorrect-piano.wav", f"{MIXKIT}/473/473.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/fail/", "failure piano miss", "sting"),
+    ("incorrect-fail.wav", f"{MIXKIT}/2876/2876.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/fail/", "low-tone fail miss", "sting"),
+    ("incorrect-trombone.wav", f"{MIXKIT}/744/744.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/trombone/", "sad trombone miss", "sting"),
+    ("idle-snore.wav", f"{MIXKIT}/2478/2478.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/snore/", "idle snore", "sting"),
+    ("idle-yawn.wav", f"{MIXKIT}/2278/2278.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/yawn/", "idle yawn", "sting"),
     ("arrive.wav", f"{KENNEY_UI}/confirmation_001.ogg", "CC0", "Kenney", "https://kenney.nl/assets/interface-sounds", "node arrival", "sfx"),
     ("ui-click.wav", f"{KENNEY_UI}/switch_001.ogg", "CC0", "Kenney", "https://kenney.nl/assets/interface-sounds", "elegant UI click", "sfx"),
-    ("incorrect.wav", f"{KENNEY_IMPACT}/impactWood_medium_000.ogg", "CC0", "Kenney", "https://kenney.nl/assets/impact-sounds", "warm wood thunk", "sfx"),
-    ("step.wav", f"{KENNEY_RPG}/footstep00.ogg", "CC0", "Kenney", "https://kenney.nl/assets/rpg-audio", "one footstep", "sfx"),
+    ("step.wav", f"{MIXKIT}/532/532.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/footsteps/", "footsteps on tall grass", "walk"),
     ("clouds.wav", f"{MIXKIT}/1489/1489.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/whoosh/", "soft whoosh / fog part", "sfx"),
-    ("garden-ambience.wav", f"{MIXKIT}/17/17.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/bird/", "little birds singing in the trees", "bed"),
-    ("garden-night-ambience.wav", f"{MIXKIT}/1781/1781.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/cricket/", "crickets at night", "bed"),
+    ("garden-ambience.wav", f"{MIXKIT}/2472/2472.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/bird/", "morning birds", "bed"),
+    ("garden-night-ambience.wav", f"{MIXKIT}/39/39.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/cricket/", "wild crickets", "bed"),
+    ("garden-night-forest.wav", f"{MIXKIT}/2414/2414.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/forest/", "night forest insects", "bed"),
     ("casino-day-ambience.wav", f"{MIXKIT}/470/470.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/arcade/", "arcade bed", "bed"),
     ("casino-night-ambience.wav", f"{MIXKIT}/511/511.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/fan/", "fan / ventilation hum", "bed"),
     ("vip-day-ambience.wav", f"{MIXKIT}/447/447.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/office/", "quiet room tone", "bed"),
@@ -98,6 +104,44 @@ def convert(src: Path, dest: Path, kind: str) -> None:
                 "s16",
                 "-af",
                 "loudnorm=I=-14:LRA=7:TP=-6",
+                str(dest),
+            ]
+        )
+    elif kind == "walk":
+        ffmpeg(
+            [
+                "-stream_loop",
+                "-1",
+                "-i",
+                str(src),
+                "-t",
+                "8",
+                "-ac",
+                "2",
+                "-ar",
+                "44100",
+                "-sample_fmt",
+                "s16",
+                "-af",
+                "loudnorm=I=-20:LRA=9:TP=-8,afade=t=in:st=0:d=0.12,afade=t=out:st=7.7:d=0.3",
+                str(dest),
+            ]
+        )
+    elif kind == "sting":
+        ffmpeg(
+            [
+                "-i",
+                str(src),
+                "-t",
+                "4.2",
+                "-ac",
+                "1",
+                "-ar",
+                "44100",
+                "-sample_fmt",
+                "s16",
+                "-af",
+                "loudnorm=I=-16:LRA=7:TP=-6",
                 str(dest),
             ]
         )
