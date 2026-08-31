@@ -4,6 +4,7 @@ export type AudioLighting = 'light' | 'night';
 export type AmbienceName =
   | 'garden-ambience'
   | 'garden-night-ambience'
+  | 'garden-night-forest'
   | 'casino-day-ambience'
   | 'casino-night-ambience'
   | 'vip-day-ambience'

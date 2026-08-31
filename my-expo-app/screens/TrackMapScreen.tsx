@@ -16,11 +16,11 @@ import type { Point } from '../lib/track/mapPath';
 import {
   canEnterStage,
   canStandOn,
+  chunkIndexForStage,
   currentStageNumber,
   fitMap,
   lockReason,
-  MAP_NODES_PER_CHUNK,
-  progressChunkIndex,
+  shouldAutoWalkOnFocus,
 } from '../lib/track/tree';
 import { artStyle } from '../theme/artStyle';
 
@@ -32,9 +32,17 @@ type Props = {
   completedCount: number;
   currentWorld?: WorldMapTemplate;
   avatarSource?: ImageSourcePropType;
+  /** False while a level covers the map so Benny's shoes stay put until focus. */
+  isActive?: boolean;
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
+
+function initialStanding(completedCount: number, nodeCount: number): number {
+  const current = currentStageNumber(completedCount, nodeCount);
+  if (completedCount > 0 && completedCount < current) return completedCount;
+  return current;
+}
 
 export function TrackMapScreen({
   reveal,
@@ -44,6 +52,7 @@ export function TrackMapScreen({
   completedCount,
   currentWorld,
   avatarSource,
+  isActive = true,
   onPlayStage,
   onSignOut,
 }: Props) {
@@ -51,25 +60,16 @@ export function TrackMapScreen({
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const world = currentWorld ?? BENNYS_GARDEN_WORLD;
-  const progressionChunk = progressChunkIndex(completedCount, world.chunks);
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const [standing, setStanding] = useState(() => {
-    const current = currentStageNumber(completedCount, world.nodes.length);
-    // After a stage clears the screen remounts — start on the cleared node so
-    // the walker can hop forward along the path (Mario overworld beat).
-    if (completedCount > 0 && completedCount < current) return completedCount;
-    return current;
-  });
+  const [standing, setStanding] = useState(() =>
+    initialStanding(completedCount, world.nodes.length)
+  );
   const [trail, setTrail] = useState<Point[]>([]);
   const [trailKey, setTrailKey] = useState(0);
   const [walkDuration, setWalkDuration] = useState(560);
-  const [cameraChunkIndex, setCameraChunkIndex] = useState(() => {
-    const shouldRevealNext =
-      completedCount > 0 &&
-      completedCount % MAP_NODES_PER_CHUNK === 0 &&
-      completedCount < world.nodes.length;
-    return shouldRevealNext ? Math.max(0, progressionChunk - 1) : progressionChunk;
-  });
+  const [cameraChunkIndex, setCameraChunkIndex] = useState(() =>
+    chunkIndexForStage(initialStanding(completedCount, world.nodes.length), world.chunks)
+  );
   const [notice, setNotice] = useState<string | null>(
     remainingChips <= 0
       ? lockReason(
@@ -86,26 +86,79 @@ export function TrackMapScreen({
     [area.height, area.width]
   );
 
-  const standingRef = useRef(standing);
+  const physicalStandingRef = useRef(standing);
+  const destinationRef = useRef<number | null>(null);
+  const walkQueueRef = useRef<number[]>([]);
   const pendingPlay = useRef<number | null>(null);
   const worldIdRef = useRef(world.id);
+  const mapRef = useRef(map);
+  const worldRef = useRef(world);
+  const playStageRef = useRef(onPlayStage);
+  mapRef.current = map;
+  worldRef.current = world;
+  playStageRef.current = onPlayStage;
+
+  function finishArrival(stageNumber: number) {
+    physicalStandingRef.current = stageNumber;
+    destinationRef.current = null;
+    setStanding(stageNumber);
+    setTrail([]);
+    const queued = walkQueueRef.current[0];
+    walkQueueRef.current = [];
+    if (queued != null && queued !== stageNumber) {
+      queueWalk(queued);
+      return;
+    }
+    const play = pendingPlay.current;
+    if (play === null) return;
+    pendingPlay.current = null;
+    if (play === stageNumber) playStageRef.current(play);
+  }
+
+  function startWalk(stageNumber: number): boolean {
+    const mapNow = mapRef.current;
+    const worldNow = worldRef.current;
+    if (mapNow.width <= 0) return false;
+    if (physicalStandingRef.current === stageNumber) return false;
+    const nextTrail = trailForWalk(
+      physicalStandingRef.current,
+      stageNumber,
+      mapNow,
+      worldNow.nodes,
+      worldNow.chunks.length
+    );
+    destinationRef.current = stageNumber;
+    const duration = walkDurationMs(nextTrail);
+    setTrail(nextTrail);
+    setWalkDuration(duration);
+    setTrailKey((key) => key + 1);
+    setCameraChunkIndex(chunkIndexForStage(stageNumber, worldNow.chunks));
+    return true;
+  }
+
+  function queueWalk(stageNumber: number) {
+    if (destinationRef.current != null) {
+      walkQueueRef.current = [stageNumber];
+      return;
+    }
+    if (!startWalk(stageNumber)) {
+      finishArrival(stageNumber);
+    }
+  }
 
   useEffect(() => {
     if (worldIdRef.current === world.id) return;
     worldIdRef.current = world.id;
     const next = currentStageNumber(completedCount, world.nodes.length);
-    standingRef.current = next;
+    physicalStandingRef.current = next;
+    destinationRef.current = null;
+    walkQueueRef.current = [];
     pendingPlay.current = null;
     setStanding(next);
     setTrail([]);
     setTrailKey((key) => key + 1);
-    setCameraChunkIndex(progressChunkIndex(completedCount, world.chunks));
+    setCameraChunkIndex(chunkIndexForStage(next, world.chunks));
   }, [completedCount, world.chunks, world.id, world.nodes.length]);
-
-  useEffect(() => {
-    if (map.width <= 0) return;
-    setCameraChunkIndex(progressionChunk);
-  }, [map.width, progressionChunk]);
 
   const prevReveal = useRef(cameraChunkIndex);
   useEffect(() => {
@@ -114,86 +167,68 @@ export function TrackMapScreen({
   }, [cameraChunkIndex]);
 
   useEffect(() => {
+    if (!isActive) {
+      stopAmbience();
+      return;
+    }
     startAmbience(world.id, 'light');
     return () => stopAmbience();
-  }, [world.id]);
-
-  function clearPendingPlay() {
-    pendingPlay.current = null;
-  }
-
-  function walkTo(stageNumber: number): number {
-    if (map.width <= 0 || standingRef.current === stageNumber) {
-      standingRef.current = stageNumber;
-      setStanding(stageNumber);
-      setTrail([]);
-      return 0;
-    }
-    const nextTrail = trailForWalk(
-      standingRef.current,
-      stageNumber,
-      map,
-      world.nodes,
-      world.chunks.length
-    );
-    const duration = walkDurationMs(nextTrail);
-    standingRef.current = stageNumber;
-    setStanding(stageNumber);
-    setTrail(nextTrail);
-    setWalkDuration(duration);
-    setTrailKey((key) => key + 1);
-    return duration;
-  }
+  }, [isActive, world.id]);
 
   useEffect(() => {
-    const next = currentStageNumber(completedCount, world.nodes.length);
-    if (map.width <= 0 || next === standingRef.current) return;
-    pendingPlay.current = null;
-    const nextTrail = trailForWalk(
-      standingRef.current,
-      next,
-      map,
-      world.nodes,
-      world.chunks.length
+    if (!isActive || map.width <= 0) return;
+    const dest = shouldAutoWalkOnFocus(
+      physicalStandingRef.current,
+      completedCount,
+      world.nodes.length
     );
-    const duration = walkDurationMs(nextTrail);
-    standingRef.current = next;
-    setStanding(next);
-    setTrail(nextTrail);
-    setWalkDuration(duration);
-    setTrailKey((key) => key + 1);
-  }, [completedCount, map, world.chunks.length, world.nodes]);
+    if (dest == null || destinationRef.current === dest) return;
+    pendingPlay.current = null;
+    queueWalk(dest);
+  }, [completedCount, isActive, map, world.chunks.length, world.nodes, world.nodes.length]);
 
   function handlePress(stageNumber: number) {
-    clearPendingPlay();
     if (!canStandOn(stageNumber, completedCount)) {
       setNotice(lockReason(stageNumber, completedCount, remainingChips));
       return;
     }
     setNotice(null);
-    const alreadyThere = standingRef.current === stageNumber;
-    if (!canEnterStage(stageNumber, completedCount, remainingChips)) {
-      if (!alreadyThere) walkTo(stageNumber);
+    const canEnter = canEnterStage(stageNumber, completedCount, remainingChips);
+    const walking = destinationRef.current != null;
+    const alreadyThere = !walking && physicalStandingRef.current === stageNumber;
+
+    if (walking) {
+      walkQueueRef.current = [stageNumber];
+      pendingPlay.current = canEnter ? stageNumber : null;
       return;
     }
+
+    if (!canEnter) {
+      if (!alreadyThere) queueWalk(stageNumber);
+      return;
+    }
+
     if (alreadyThere) {
       onPlayStage(stageNumber);
       return;
     }
+
     pendingPlay.current = stageNumber;
-    walkTo(stageNumber);
+    queueWalk(stageNumber);
   }
 
   function handleArrived() {
     playSfx('arrive');
-    const stageNumber = pendingPlay.current;
-    if (stageNumber === null) return;
-    pendingPlay.current = null;
-    onPlayStage(stageNumber);
+    const dest = destinationRef.current ?? physicalStandingRef.current;
+    finishArrival(dest);
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      style={styles.root}
+      pointerEvents={isActive ? 'auto' : 'none'}
+      accessibilityElementsHidden={!isActive}
+      importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}>
       <View
         style={styles.mapArea}
         onLayout={(event) => {

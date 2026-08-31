@@ -320,37 +320,39 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       );
     }
 
-    if (playingStage != null) {
-      return (
-        <StagePlayScreen
+    return (
+      <View style={styles.treeStack}>
+        <TrackMapScreen
           reveal={reveal}
-          stageNumber={playingStage}
           remainingChips={remainingChips}
           goldBars={0}
           streakDays={0}
-          onResolved={(correct, progress) => {
-            if (!correct) {
-              setRemainingChips((count) => burnChip(count));
-            }
-            if (progress.stageComplete) {
-              setCompletedCount((count) => Math.max(count, playingStage));
-            }
-          }}
-          onBack={() => setPlayingStage(null)}
+          completedCount={completedCount}
+          isActive={playingStage == null}
+          onPlayStage={setPlayingStage}
+          onSignOut={() => void handleSignOut()}
         />
-      );
-    }
-
-    return (
-      <TrackMapScreen
-        reveal={reveal}
-        remainingChips={remainingChips}
-        goldBars={0}
-        streakDays={0}
-        completedCount={completedCount}
-        onPlayStage={setPlayingStage}
-        onSignOut={() => void handleSignOut()}
-      />
+        {playingStage != null ? (
+          <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
+            <StagePlayScreen
+              reveal={reveal}
+              stageNumber={playingStage}
+              remainingChips={remainingChips}
+              goldBars={0}
+              streakDays={0}
+              onResolved={(correct, progress) => {
+                if (!correct) {
+                  setRemainingChips((count) => burnChip(count));
+                }
+                if (progress.stageComplete) {
+                  setCompletedCount((count) => Math.max(count, playingStage));
+                }
+              }}
+              onBack={() => setPlayingStage(null)}
+            />
+          </View>
+        ) : null}
+      </View>
     );
   }
 
@@ -434,6 +436,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111714',
   },
+  treeStack: {
+    flex: 1,
+    backgroundColor: '#111714',
+  },
   statusScreen: {
     flex: 1,
     alignItems: 'center',
@@ -489,6 +495,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 60,
+    elevation: 60,
   },
   calibrationPill: {
     borderRadius: 999,

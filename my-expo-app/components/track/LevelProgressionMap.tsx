@@ -140,7 +140,8 @@ export function LevelProgressionMap({
       width={width}
       height={height}
       world={currentWorld}
-      activeChunkIndex={activeChunkIndex}>
+      activeChunkIndex={activeChunkIndex}
+      cameraDuration={walkDuration}>
       <View collapsable={false} style={[styles.mapLayer, { width, height: contentHeight }]}>
         <Svg width={width} height={contentHeight} style={styles.pathLayer} pointerEvents="none">
           {pixelStops.slice(1).map((to, index) => {

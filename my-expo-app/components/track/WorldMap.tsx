@@ -19,6 +19,7 @@ type Props = {
   height: number;
   world: WorldMapTemplate;
   activeChunkIndex: number;
+  cameraDuration?: number;
   children: ReactNode;
 };
 
@@ -138,7 +139,14 @@ function FogOfWarClouds({ top, width, height, leftAsset, rightAsset, revealed }:
 }
 
 /** 9:16 camera viewport over a vertically expandable stack of world chunks. */
-export function WorldMap({ width, height, world, activeChunkIndex, children }: Props) {
+export function WorldMap({
+  width,
+  height,
+  world,
+  activeChunkIndex,
+  cameraDuration = 980,
+  children,
+}: Props) {
   const reducedMotion = useReducedMotion();
   const safeChunkIndex = Math.max(0, Math.min(activeChunkIndex, world.chunks.length - 1));
   const targetY = -(world.chunks.length - 1 - safeChunkIndex) * height;
@@ -153,10 +161,10 @@ export function WorldMap({ width, height, world, activeChunkIndex, children }: P
       return;
     }
     cameraY.value = withTiming(targetY, {
-      duration: 980,
+      duration: Math.max(1, cameraDuration),
       easing: Easing.inOut(Easing.cubic),
     });
-  }, [cameraY, reducedMotion, targetY]);
+  }, [cameraDuration, cameraY, reducedMotion, targetY]);
 
   const cameraStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: cameraY.value }],

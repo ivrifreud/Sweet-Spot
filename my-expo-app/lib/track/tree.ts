@@ -111,6 +111,21 @@ export function currentStageNumber(
   return Math.min(completedCount + 1, nodeCount);
 }
 
+/**
+ * After a stage pop, walk from the node we just cleared to the newly unlocked
+ * checkpoint. Null means Benny is already on the playable node.
+ */
+export function shouldAutoWalkOnFocus(
+  standing: number,
+  completedCount: number,
+  nodeCount = BENNYS_GARDEN_NODES.length
+): number | null {
+  const next = currentStageNumber(completedCount, nodeCount);
+  if (next <= standing) return null;
+  if (standing <= completedCount) return next;
+  return null;
+}
+
 /** Fit the largest exact 9:16 map inside the available area. */
 export function fitMap(areaWidth: number, areaHeight: number): { width: number; height: number } {
   if (areaWidth <= 0 || areaHeight <= 0) {

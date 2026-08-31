@@ -84,9 +84,15 @@ export function pathLength(points: Point[]): number {
   return length;
 }
 
-/** Keep hops in a Mario-like walk window: never instant, never a slog. */
+/** Milliseconds per path pixel so hop time stays proportional to distance. */
+export const WALK_MS_PER_PX = 2.8;
+/** Short hops still get a rubber-hose beat instead of a flicker. */
+export const WALK_MIN_DURATION_MS = 360;
+
+/** Walk duration scales with path length — long hops take longer, never a teleport cap. */
 export function durationForLength(length: number): number {
-  return Math.round(Math.max(420, Math.min(980, length * 1.2)));
+  if (length <= 0) return 0;
+  return Math.round(Math.max(WALK_MIN_DURATION_MS, length * WALK_MS_PER_PX));
 }
 
 export function pointAlong(points: Point[], t: number): Point {
