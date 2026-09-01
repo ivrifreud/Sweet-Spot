@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TrackHud } from '../components/track/TrackHud';
+import { submitStageAnswer } from '../lib/chip-stack';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
+import { burnChip } from '../lib/track/chips';
 import { stageSpots } from '../lib/track/stageSpot';
 import { SPOTS_PER_STAGE, nextSpotIndex, recordSpotAttempt } from '../lib/track/tree';
 import {
@@ -19,6 +21,12 @@ import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
 import { artStyle } from '../theme/artStyle';
 
+export type StagePlayResolved = {
+  correct: boolean;
+  remainingChips: number;
+  stageComplete: boolean;
+};
+
 type Props = {
   reveal: LevelReveal;
   stageNumber: number;
@@ -26,10 +34,8 @@ type Props = {
   goldBars: number;
   streakDays: number;
   initialSpotsCompleted?: number;
-  onResolved: (
-    correct: boolean,
-    progress: { spotsCompleted: number; stageComplete: boolean }
-  ) => void;
+  stageProgressId?: string | null;
+  onResolved: (update: StagePlayResolved) => void;
   onBack: () => void;
 };
 
@@ -52,6 +58,7 @@ export function StagePlayScreen({
   goldBars,
   streakDays,
   initialSpotsCompleted = 0,
+  stageProgressId = null,
   onResolved,
   onBack,
 }: Props) {
@@ -71,6 +78,12 @@ export function StagePlayScreen({
   const [stageComplete, setStageComplete] = useState(
     () => initialSpotsCompleted >= SPOTS_PER_STAGE
   );
+  const [playError, setPlayError] = useState<string | null>(null);
+  const [hudChips, setHudChips] = useState(remainingChips);
+
+  useEffect(() => {
+    setHudChips(remainingChips);
+  }, [remainingChips]);
 
   const calibration = bundle.calibration[spotIndex]!;
   const table = bundle.tables[spotIndex]!;
@@ -78,31 +91,84 @@ export function StagePlayScreen({
   const handleDecision = useCallback(
     (decision: SpotDecision) => {
       if (busy || feedback) return;
-      setBusy(true);
       const chosen = pokerActionForDecision(decision, calibration);
-      const correct = isAnswerCorrect(calibration, chosen);
-      const progress = recordSpotAttempt(spotsCompleted);
-      onResolved(correct, progress);
-      setSpotsCompleted(progress.spotsCompleted);
-      setStageComplete(progress.stageComplete);
+      const live =
+        Boolean(stageProgressId) &&
+        stageNumber === 1 &&
+        calibration.spotType === 'level1_stage1';
 
-      const lastHand = progress.stageComplete;
-      const copy = buildDecisionFeedbackCopy({
-        correct,
-        chosen,
-        correctAnswer: calibration.correctAnswer,
-        lesson: calibration.prompt,
-        continueLabel: lastHand ? 'Back to the tree' : 'Next hand',
-      });
-      setSettled(correct);
-      setFeedback({
-        copy,
-        key: `${calibration.id}-${chosen}-${Date.now()}`,
-        tempo: tempoForDecision(decision),
-      });
-      setBusy(false);
+      void (async () => {
+        setBusy(true);
+        setPlayError(null);
+        try {
+          let correct = isAnswerCorrect(calibration, chosen);
+          let nextChips = remainingChips;
+          let progress = recordSpotAttempt(spotsCompleted);
+
+          if (live && stageProgressId) {
+            const result = await submitStageAnswer({
+              stageProgressId,
+              spotId: calibration.id,
+              chosenAnswer: chosen,
+            });
+            correct = result.isCorrect;
+            nextChips = result.chips;
+            if (result.alreadySubmitted) {
+              progress = {
+                spotsCompleted,
+                stageComplete:
+                  result.stageStatus === 'completed' || spotsCompleted >= SPOTS_PER_STAGE,
+              };
+            } else {
+              progress = recordSpotAttempt(spotsCompleted);
+              if (result.stageStatus === 'completed') {
+                progress = { ...progress, stageComplete: true };
+              }
+            }
+          } else if (!correct) {
+            nextChips = burnChip(remainingChips);
+          }
+
+          setHudChips(nextChips);
+          onResolved({
+            correct,
+            remainingChips: nextChips,
+            stageComplete: progress.stageComplete,
+          });
+          setSpotsCompleted(progress.spotsCompleted);
+          setStageComplete(progress.stageComplete);
+
+          const lastHand = progress.stageComplete;
+          const copy = buildDecisionFeedbackCopy({
+            correct,
+            chosen,
+            correctAnswer: calibration.correctAnswer,
+            lesson: calibration.prompt,
+            continueLabel: lastHand ? 'Back to the tree' : 'Next hand',
+          });
+          setSettled(correct);
+          setFeedback({
+            copy,
+            key: `${calibration.id}-${chosen}-${Date.now()}`,
+            tempo: tempoForDecision(decision),
+          });
+        } catch (err) {
+          setPlayError(err instanceof Error ? err.message : 'Could not save that hand');
+        } finally {
+          setBusy(false);
+        }
+      })();
     },
-    [busy, calibration, feedback, onResolved, spotsCompleted]
+    [
+      busy,
+      calibration,
+      feedback,
+      onResolved,
+      remainingChips,
+      spotsCompleted,
+      stageNumber,
+      stageProgressId,
+    ]
   );
 
   const continueAfterFeedback = useCallback(() => {
@@ -133,7 +199,7 @@ export function StagePlayScreen({
       />
 
       <View pointerEvents="box-none" style={[styles.hud, { paddingTop: insets.top + 4 }]}>
-        <TrackHud remainingChips={remainingChips} goldBars={goldBars} streakDays={streakDays} />
+        <TrackHud remainingChips={hudChips} goldBars={goldBars} streakDays={streakDays} />
       </View>
 
       <Pressable
@@ -154,7 +220,7 @@ export function StagePlayScreen({
         title={feedback?.copy.title ?? ''}
         kicker={feedback?.copy.kicker ?? ''}
         explanation={
-          settled === false && remainingChips <= 0
+          settled === false && hudChips <= 0
             ? `${feedback?.copy.explanation ?? ''} Chips are spent — the stage is locked until they refill.`
             : (feedback?.copy.explanation ?? '')
         }
@@ -165,6 +231,13 @@ export function StagePlayScreen({
         celebrateJackpot={feedback?.copy.outcome === 'correct'}
         onContinue={continueAfterFeedback}
       />
+
+      {playError ? (
+        <View style={styles.errorBanner} pointerEvents="none">
+          <Text style={styles.errorBannerText}>{playError}</Text>
+          <Text style={styles.errorBannerHint}>The hand was not saved. Try again.</Text>
+        </View>
+      ) : null}
     </ScreenShakeHost>
   );
 }
@@ -197,5 +270,29 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontSize: 13,
     fontWeight: '700',
+  },
+  errorBanner: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 72,
+    zIndex: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f87171',
+    backgroundColor: 'rgba(90,20,20,0.94)',
+    padding: 12,
+  },
+  errorBannerText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  errorBannerHint: {
+    color: '#fecaca',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 3,
   },
 });

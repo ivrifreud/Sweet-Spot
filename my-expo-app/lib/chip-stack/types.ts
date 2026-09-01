@@ -12,6 +12,7 @@ export type StageAnswerResult = ChipStackState & {
   isCorrect: boolean;
   stageStatus: StageStatus;
   alreadySubmitted: boolean;
+  currentElo: number;
 };
 
 export type StoredChipStack = {
