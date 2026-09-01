@@ -6,9 +6,11 @@ export type HeroPosition = 'UTG' | 'MP' | 'CO' | 'BTN' | 'SB' | 'BB';
 
 export type CalibrationSpotType = 'calibration_stage1' | 'calibration_stage2';
 
+export type AuthoredSpotType = CalibrationSpotType | 'level1_stage1';
+
 export type CalibrationSpot = {
   id: string;
-  spotType: CalibrationSpotType;
+  spotType: AuthoredSpotType;
   sequenceOrder: number;
   heroPosition: HeroPosition;
   holeCards: [string, string];

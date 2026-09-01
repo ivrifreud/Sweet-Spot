@@ -74,6 +74,7 @@ describe('RPC payload mapping', () => {
         regen_at: '2026-08-25T18:00:00+00:00',
         stage_status: 'locked_out',
         already_submitted: true,
+        current_elo: 284,
       })
     ).toEqual({
       isCorrect: false,
@@ -82,6 +83,7 @@ describe('RPC payload mapping', () => {
       regenAt: '2026-08-25T18:00:00+00:00',
       stageStatus: 'locked_out',
       alreadySubmitted: true,
+      currentElo: 284,
     });
   });
 

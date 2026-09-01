@@ -15,8 +15,9 @@ import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
 import { signOut } from '../lib/auth';
-import { burnChip, MAX_CHIPS } from '../lib/track/chips';
-import { loadRemainingChips } from '../lib/track/chipStack';
+import { getChipStack } from '../lib/chip-stack';
+import { MAX_CHIPS } from '../lib/track/chips';
+import { getOrCreateStageProgress, loadStageProgress } from '../lib/track/stageProgress';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
 import { hasSeenPlacement, markPlacementSeen } from '../lib/calibration/placementAck';
@@ -52,6 +53,15 @@ function tempoForDecision(decision: SpotDecision): FeedbackTempo {
   return 'default';
 }
 
+async function readChipCount(): Promise<number> {
+  try {
+    const stack = await getChipStack();
+    return stack.chips;
+  } catch {
+    return MAX_CHIPS;
+  }
+}
+
 /** The Peek and Pitch template waits for toss/muck before calling onDecision. */
 function feedbackRevealMs(_decision: SpotDecision): number {
   return 0;
@@ -71,6 +81,8 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [remainingChips, setRemainingChips] = useState(MAX_CHIPS);
   const [completedCount, setCompletedCount] = useState(0);
   const [playingStage, setPlayingStage] = useState<number | null>(null);
+  const [stageProgressId, setStageProgressId] = useState<string | null>(null);
+  const [stageSpotsCompleted, setStageSpotsCompleted] = useState(0);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -123,10 +135,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             reason: 'already_placed',
           });
           const seen = await hasSeenPlacement(userId);
-          const chips = await loadRemainingChips(userId);
+          const chips = await readChipCount();
+          const progress = await loadStageProgress(userId, 1);
           if (!cancelled) {
             setContinued(seen);
             setRemainingChips(chips);
+            setCompletedCount(progress.completedCount);
           }
           return;
         }
@@ -136,11 +150,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
           const seen = await hasSeenPlacement(userId);
-          const chips = await loadRemainingChips(userId);
+          const chips = await readChipCount();
+          const progress = await loadStageProgress(userId, 1);
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
             setRemainingChips(chips);
+            setCompletedCount(progress.completedCount);
           }
         }
       } catch (err) {
@@ -176,6 +192,38 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     setContinued(true);
     setRemainingChips(MAX_CHIPS);
     setPlayingStage(null);
+    setStageProgressId(null);
+    setStageSpotsCompleted(0);
+    setCompletedCount(0);
+  }
+
+  async function openStage(stageNumber: number) {
+    setError(null);
+    if (devMode || stageNumber !== 1) {
+      setStageProgressId(null);
+      setStageSpotsCompleted(0);
+      setPlayingStage(stageNumber);
+      return;
+    }
+
+    try {
+      const stack = await getChipStack();
+      setRemainingChips(stack.chips);
+      if (stack.lockedOut) {
+        setError('Chips are spent. They refill in 12 hours.');
+        return;
+      }
+      const row = await getOrCreateStageProgress({
+        userId,
+        level: 1,
+        stageNumber: 1,
+      });
+      setStageProgressId(row.id);
+      setStageSpotsCompleted(row.spotsCompleted);
+      setPlayingStage(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start the stage');
+    }
   }
 
   function leavePlacement() {
@@ -329,9 +377,14 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           streakDays={0}
           completedCount={completedCount}
           isActive={playingStage == null}
-          onPlayStage={setPlayingStage}
+          onPlayStage={(stageNumber) => void openStage(stageNumber)}
           onSignOut={() => void handleSignOut()}
         />
+        {error ? (
+          <View style={styles.treeError} pointerEvents="none">
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        ) : null}
         {playingStage != null ? (
           <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
             <StagePlayScreen
@@ -340,15 +393,18 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
               remainingChips={remainingChips}
               goldBars={0}
               streakDays={0}
-              onResolved={(correct, progress) => {
-                if (!correct) {
-                  setRemainingChips((count) => burnChip(count));
-                }
-                if (progress.stageComplete) {
+              initialSpotsCompleted={stageSpotsCompleted}
+              stageProgressId={stageProgressId}
+              onResolved={(update) => {
+                setRemainingChips(update.remainingChips);
+                if (update.stageComplete) {
                   setCompletedCount((count) => Math.max(count, playingStage));
                 }
               }}
-              onBack={() => setPlayingStage(null)}
+              onBack={() => {
+                setPlayingStage(null);
+                setStageProgressId(null);
+              }}
             />
           </View>
         ) : null}
@@ -439,6 +495,18 @@ const styles = StyleSheet.create({
   treeStack: {
     flex: 1,
     backgroundColor: '#111714',
+  },
+  treeError: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 28,
+    zIndex: 30,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f87171',
+    backgroundColor: 'rgba(90,20,20,0.94)',
+    padding: 12,
   },
   statusScreen: {
     flex: 1,

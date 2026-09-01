@@ -18,6 +18,7 @@ type StageAnswerPayload = ChipStackPayload & {
   is_correct: unknown;
   stage_status: unknown;
   already_submitted: unknown;
+  current_elo: unknown;
 };
 
 function parseChipCount(value: unknown): ChipCount {
@@ -41,6 +42,16 @@ function parseStageStatus(value: unknown): StageStatus {
     return value;
   }
   throw new Error('Invalid stage status returned by the server');
+}
+
+function parseElo(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+  throw new Error('Invalid elo returned by the server');
 }
 
 export function effectiveChipStack(stored: StoredChipStack, now = new Date()): ChipStackState {
@@ -86,5 +97,6 @@ export function mapStageAnswerPayload(payload: StageAnswerPayload): StageAnswerR
     isCorrect: parseBoolean(payload.is_correct, 'answer result'),
     stageStatus: parseStageStatus(payload.stage_status),
     alreadySubmitted: parseBoolean(payload.already_submitted, 'submission state'),
+    currentElo: parseElo(payload.current_elo),
   };
 }
