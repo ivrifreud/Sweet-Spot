@@ -1,10 +1,10 @@
 /** All player-facing copy for the template, kept in one place for localisation. */
 export const STRINGS = {
-  peekHint: 'Hold to peek',
+  peekHint: 'Hold or swipe down to peek',
   peekHintHeld: 'Release to put them down',
   peekHud: 'Hole cards',
   muckHint: 'Swipe up to fold',
-  checkHint: 'Double-tap felt to check',
+  checkHint: 'Double-tap to check',
   callHint: 'Tap chips to call',
   raiseHint: 'Drag chips to raise',
   folded: 'Mucked',

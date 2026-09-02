@@ -136,10 +136,28 @@ export const GESTURES = {
   muckTravel: 0.16,
   /** Movement needed before the gesture locks into peek or muck. */
   directionLock: 6,
+  /** Pan must move this far so a still double-tap is not stolen on device. */
+  panActivate: 12,
+  /** Stack pan must move this far before Raise wins over Call. */
+  stackRaiseActivate: 16,
+  /** Toward-pot travel that commits a raise. */
+  stackRaiseCommit: 26,
   peekCommit: 0.42,
   muckCommit: 0.38,
   flickVelocity: 750,
+  /** Max interval between the two taps of a Check. */
+  doubleTapMs: 320,
+  tapMaxDuration: 240,
+  tapMaxDistance: 28,
+  peekHoldMs: 140,
 } as const;
+
+export type StackHitRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export const DEFAULT_SPOT: PeekAndPitchSpot = {
   id: 'preflop-btn-vs-utg-open',

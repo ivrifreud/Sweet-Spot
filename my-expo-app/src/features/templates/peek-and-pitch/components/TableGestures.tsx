@@ -13,10 +13,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { playSfx } from '../../../../../lib/audio';
-import { GESTURES } from '../config';
+import { GESTURES, type StackHitRect } from '../config';
 
 const MODE_UNDECIDED = 0;
+const MODE_PEEK = 1;
 const MODE_MUCK = 2;
+const STACK_EXCLUSION_PAD = 8;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const PEEK_SPRING = {
@@ -30,33 +32,17 @@ const DROP_SPRING = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const MUCK_THROW_MS = 920;
-const STACK_DRAG_THRESHOLD = 26;
-const DOUBLE_TAP_MS = 320;
-const STACK_HIT_PAD = 20;
-
-export type StackHitRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
 
 type TableGesturesProps = {
   live: boolean;
   canCheck: boolean;
   height: number;
-  potCenter: { x: number; y: number };
+  stackHit: StackHitRect;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
-  stackPress: SharedValue<number>;
-  stackDragX: SharedValue<number>;
-  stackDragY: SharedValue<number>;
-  stackHit: SharedValue<StackHitRect>;
   onPeekHold?: () => void;
   onPeeked: () => void;
   onCheck: () => void;
-  onCall: () => void;
-  onRaise: () => void;
   onMuck: () => void;
   onIllegalCheck: () => void;
 };
@@ -72,10 +58,10 @@ function hitStack(x: number, y: number, rect: StackHitRect) {
     return false;
   }
   return (
-    x >= rect.x - STACK_HIT_PAD &&
-    x <= rect.x + rect.width + STACK_HIT_PAD &&
-    y >= rect.y - STACK_HIT_PAD &&
-    y <= rect.y + rect.height + STACK_HIT_PAD
+    x >= rect.x - STACK_EXCLUSION_PAD &&
+    x <= rect.x + rect.width + STACK_EXCLUSION_PAD &&
+    y >= rect.y - STACK_EXCLUSION_PAD &&
+    y <= rect.y + rect.height + STACK_EXCLUSION_PAD
   );
 }
 
@@ -87,25 +73,19 @@ function flattenPeek(peek: SharedValue<number>, instant = false) {
 }
 
 /**
- * Full-table pan lives here so parent re-renders cannot rebuild the native
- * gesture mid-touch (that left peek stuck at 1).
+ * Felt-wide native gestures. Check stays a double-tap; Call lives on the
+ * stack target. Peek is hold or swipe-down anywhere except the chip hit box.
  */
 export function TableGestures({
   live,
   canCheck,
   height,
-  potCenter,
+  stackHit,
   peek,
   muck,
-  stackPress,
-  stackDragX,
-  stackDragY,
-  stackHit,
   onPeekHold,
   onPeeked,
   onCheck,
-  onCall,
-  onRaise,
   onMuck,
   onIllegalCheck,
 }: TableGesturesProps) {
@@ -113,11 +93,10 @@ export function TableGestures({
   const gestureMode = useSharedValue(MODE_UNDECIDED);
   const startedLow = useSharedValue(0);
   const peekedThisTouch = useSharedValue(0);
+  const ignoreFelt = useSharedValue(0);
   const muckLocked = useSharedValue(0);
-  const fingerDown = useSharedValue(0);
-  const stackDragged = useSharedValue(0);
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
-  const lastFeltTapAt = useSharedValue(0);
+  const stackHitRect = useSharedValue<StackHitRect>(stackHit);
 
   const onPeekHoldRef = useRef(onPeekHold);
   onPeekHoldRef.current = onPeekHold;
@@ -125,10 +104,6 @@ export function TableGestures({
   onPeekedRef.current = onPeeked;
   const onCheckRef = useRef(onCheck);
   onCheckRef.current = onCheck;
-  const onCallRef = useRef(onCall);
-  onCallRef.current = onCall;
-  const onRaiseRef = useRef(onRaise);
-  onRaiseRef.current = onRaise;
   const onMuckRef = useRef(onMuck);
   onMuckRef.current = onMuck;
   const onIllegalCheckRef = useRef(onIllegalCheck);
@@ -143,12 +118,6 @@ export function TableGestures({
   const fireCheck = useCallback(() => {
     onCheckRef.current();
   }, []);
-  const fireCall = useCallback(() => {
-    onCallRef.current();
-  }, []);
-  const fireRaise = useCallback(() => {
-    onRaiseRef.current();
-  }, []);
   const fireMuck = useCallback(() => {
     onMuckRef.current();
   }, []);
@@ -162,208 +131,189 @@ export function TableGestures({
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
     canCheckEnabled.value = canCheck ? 1 : 0;
+    stackHitRect.value = stackHit;
     if (!live) {
       flattenPeek(peek, true);
       muckLocked.value = 0;
-      stackPress.value = 0;
-      stackDragX.value = 0;
-      stackDragY.value = 0;
-      fingerDown.value = 0;
-      stackDragged.value = 0;
-      lastFeltTapAt.value = 0;
+      peekedThisTouch.value = 0;
+      ignoreFelt.value = 0;
     }
   }, [
     canCheck,
     canCheckEnabled,
-    fingerDown,
-    lastFeltTapAt,
+    ignoreFelt,
     live,
     liveEnabled,
     muckLocked,
     peek,
-    stackDragged,
-    stackDragX,
-    stackDragY,
-    stackPress,
+    peekedThisTouch,
+    stackHit,
+    stackHitRect,
   ]);
 
   const muckTravel = height * GESTURES.muckTravel;
+  const peekTravelPx = height * GESTURES.peekTravel;
   const muckZoneTop = height * GESTURES.muckZoneTop;
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .minDistance(0)
-        .maxPointers(1)
-        .onBegin((event) => {
-          if (liveEnabled.value !== 1) {
-            return;
-          }
+  const gesture = useMemo(() => {
+    const checkTap = Gesture.Tap()
+      .numberOfTaps(2)
+      .maxDuration(GESTURES.tapMaxDuration)
+      .maxDelay(GESTURES.doubleTapMs)
+      .maxDistance(GESTURES.tapMaxDistance)
+      .onEnd((_event, success) => {
+        if (!success || liveEnabled.value !== 1) {
+          return;
+        }
+        flattenPeek(peek, true);
+        if (canCheckEnabled.value === 1) {
+          runOnJS(fireCheck)();
+        } else {
+          runOnJS(fireIllegalCheck)();
+        }
+      });
 
-          const onStack = hitStack(event.x, event.y, stackHit.value);
-          gestureMode.value = MODE_UNDECIDED;
-          startedLow.value = !onStack && event.y > muckZoneTop ? 1 : 0;
-          stackPress.value = onStack ? 1 : 0;
-          stackDragged.value = 0;
-          stackDragX.value = 0;
-          stackDragY.value = 0;
+    const peekHold = Gesture.LongPress()
+      .minDuration(GESTURES.peekHoldMs)
+      .maxDistance(GESTURES.tapMaxDistance)
+      .onStart((event) => {
+        if (liveEnabled.value !== 1 || muckLocked.value === 1) {
+          return;
+        }
+        if (hitStack(event.x, event.y, stackHitRect.value)) {
+          return;
+        }
+        peekedThisTouch.value = 1;
+        cancelAnimation(peek);
+        peek.value = withSpring(1, PEEK_SPRING);
+        runOnJS(firePeekHold)();
+      })
+      .onFinalize(() => {
+        if (muckLocked.value === 1 || ignoreFelt.value === 1) {
+          return;
+        }
+        flattenPeek(peek);
+        if (peekedThisTouch.value === 1) {
           peekedThisTouch.value = 0;
-          fingerDown.value = 1;
+          runOnJS(firePeeked)();
+        }
+      });
 
-          if (onStack) {
+    const feltPan = Gesture.Pan()
+      .minDistance(GESTURES.panActivate)
+      .maxPointers(1)
+      .onBegin((event) => {
+        if (liveEnabled.value !== 1) {
+          return;
+        }
+        const onStack = hitStack(event.x, event.y, stackHitRect.value);
+        ignoreFelt.value = onStack ? 1 : 0;
+        gestureMode.value = MODE_UNDECIDED;
+        startedLow.value = !onStack && event.y > muckZoneTop ? 1 : 0;
+      })
+      .onUpdate((event) => {
+        if (liveEnabled.value !== 1 || muckLocked.value === 1 || ignoreFelt.value === 1) {
+          return;
+        }
+
+        if (gestureMode.value === MODE_UNDECIDED) {
+          if (Math.abs(event.translationY) < GESTURES.directionLock) {
             return;
           }
-
-          if (muckLocked.value !== 1) {
+          if (event.translationY > 0) {
+            gestureMode.value = MODE_PEEK;
             peekedThisTouch.value = 1;
-            cancelAnimation(peek);
-            peek.value = withSpring(1, PEEK_SPRING);
             runOnJS(firePeekHold)();
+          } else if (startedLow.value === 1) {
+            gestureMode.value = MODE_MUCK;
           }
-        })
-        .onUpdate((event) => {
-          if (liveEnabled.value !== 1 || muckLocked.value === 1) {
-            return;
-          }
+        }
 
-          if (stackPress.value === 1) {
-            stackDragX.value = clampWorklet(event.translationX, -16, 96);
-            stackDragY.value = clampWorklet(event.translationY, -96, 24);
-            const stackCenterX = stackHit.value.x + stackHit.value.width / 2;
-            const stackCenterY = stackHit.value.y + stackHit.value.height / 2;
-            const towardPotX = potCenter.x - stackCenterX;
-            const towardPotY = potCenter.y - stackCenterY;
-            const towardPotLength = Math.max(1, Math.hypot(towardPotX, towardPotY));
-            const progress =
-              (event.translationX * towardPotX + event.translationY * towardPotY) / towardPotLength;
-            if (progress >= STACK_DRAG_THRESHOLD) {
-              stackDragged.value = 1;
-            }
-            return;
-          }
+        if (gestureMode.value === MODE_PEEK) {
+          cancelAnimation(peek);
+          peek.value = clampWorklet(event.translationY / peekTravelPx, 0, 1);
+          return;
+        }
 
-          if (gestureMode.value === MODE_UNDECIDED) {
-            if (Math.abs(event.translationY) < GESTURES.directionLock) {
-              return;
-            }
-            if (startedLow.value === 1 && event.translationY < 0 && stackPress.value === 0) {
-              gestureMode.value = MODE_MUCK;
-            }
-          }
+        if (gestureMode.value === MODE_MUCK) {
+          muck.value = clampWorklet(-event.translationY / muckTravel, 0, 0.98);
+        }
+      })
+      .onEnd((event) => {
+        if (ignoreFelt.value === 1) {
+          ignoreFelt.value = 0;
+          return;
+        }
 
-          if (gestureMode.value === MODE_MUCK) {
-            muck.value = clampWorklet(-event.translationY / muckTravel, 0, 0.98);
-          }
-        })
-        .onEnd((event) => {
-          fingerDown.value = 0;
-
-          if (stackPress.value === 1) {
-            stackPress.value = 0;
-            stackDragX.value = withTiming(0, { duration: 180 });
-            stackDragY.value = withTiming(0, { duration: 180 });
-            flattenPeek(peek, true);
-            if (stackDragged.value === 1) {
-              runOnJS(fireRaise)();
-            } else {
-              runOnJS(fireCall)();
-            }
-            stackDragged.value = 0;
-            return;
-          }
-
-          stackPress.value = 0;
-
-          const feltTap = Math.abs(event.translationX) < 10 && Math.abs(event.translationY) < 10;
-          if (feltTap && stackPress.value !== 1) {
-            const now = Date.now();
-            if (now - lastFeltTapAt.value <= DOUBLE_TAP_MS) {
-              lastFeltTapAt.value = 0;
-              flattenPeek(peek, true);
-              if (canCheckEnabled.value === 1) {
-                runOnJS(fireCheck)();
-              } else {
-                runOnJS(fireIllegalCheck)();
-              }
-              return;
-            }
-            lastFeltTapAt.value = now;
-          }
-
-          if (gestureMode.value === MODE_MUCK) {
-            const committed =
-              muck.value > GESTURES.muckCommit || event.velocityY < -GESTURES.flickVelocity;
-
-            if (committed) {
-              muckLocked.value = 1;
-              flattenPeek(peek, true);
-              runOnJS(fireMuckCue)();
-              muck.value = withTiming(
-                1,
-                { duration: MUCK_THROW_MS, easing: EASE_OUT },
-                (finished) => {
-                  if (finished) {
-                    runOnJS(fireMuck)();
-                  }
-                }
-              );
-            } else {
-              muck.value = withSpring(0, PEEK_SPRING);
-              flattenPeek(peek);
-            }
-          } else {
-            flattenPeek(peek);
-          }
-
+        if (gestureMode.value === MODE_PEEK) {
+          flattenPeek(peek);
           if (peekedThisTouch.value === 1) {
             peekedThisTouch.value = 0;
             runOnJS(firePeeked)();
           }
-        })
-        .onFinalize(() => {
-          fingerDown.value = 0;
-          stackPress.value = 0;
-          stackDragX.value = withTiming(0, { duration: 180 });
-          stackDragY.value = withTiming(0, { duration: 180 });
-          stackDragged.value = 0;
-          if (muckLocked.value !== 1) {
-            flattenPeek(peek);
-            if (muck.value < 1) {
-              muck.value = withSpring(0, PEEK_SPRING);
-            }
+          return;
+        }
+
+        if (gestureMode.value === MODE_MUCK) {
+          const committed =
+            muck.value > GESTURES.muckCommit || event.velocityY < -GESTURES.flickVelocity;
+
+          if (committed) {
+            muckLocked.value = 1;
+            flattenPeek(peek, true);
+            peekedThisTouch.value = 0;
+            runOnJS(fireMuckCue)();
+            muck.value = withTiming(
+              1,
+              { duration: MUCK_THROW_MS, easing: EASE_OUT },
+              (finished) => {
+                if (finished) {
+                  runOnJS(fireMuck)();
+                }
+              }
+            );
+            return;
           }
-          peekedThisTouch.value = 0;
-        }),
-    [
-      fireMuck,
-      fireMuckCue,
-      firePeeked,
-      firePeekHold,
-      fireCall,
-      fireCheck,
-      fireRaise,
-      fireIllegalCheck,
-      canCheckEnabled,
-      fingerDown,
-      gestureMode,
-      liveEnabled,
-      lastFeltTapAt,
-      muck,
-      muckLocked,
-      muckTravel,
-      muckZoneTop,
-      peek,
-      peekedThisTouch,
-      potCenter.x,
-      potCenter.y,
-      stackDragged,
-      stackDragX,
-      stackDragY,
-      stackHit,
-      stackPress,
-      startedLow,
-    ]
-  );
+
+          muck.value = withSpring(0, PEEK_SPRING);
+        }
+
+        if (muckLocked.value !== 1) {
+          flattenPeek(peek);
+        }
+      })
+      .onFinalize(() => {
+        ignoreFelt.value = 0;
+        if (muckLocked.value !== 1) {
+          flattenPeek(peek);
+          if (muck.value < 1) {
+            muck.value = withSpring(0, PEEK_SPRING);
+          }
+        }
+      });
+
+    return Gesture.Exclusive(checkTap, Gesture.Simultaneous(peekHold, feltPan));
+  }, [
+    canCheckEnabled,
+    fireCheck,
+    fireIllegalCheck,
+    fireMuck,
+    fireMuckCue,
+    firePeekHold,
+    firePeeked,
+    gestureMode,
+    ignoreFelt,
+    liveEnabled,
+    muck,
+    muckLocked,
+    muckTravel,
+    muckZoneTop,
+    peek,
+    peekTravelPx,
+    peekedThisTouch,
+    stackHitRect,
+    startedLow,
+  ]);
 
   return (
     <GestureDetector gesture={gesture}>
@@ -371,7 +321,7 @@ export function TableGestures({
         style={[StyleSheet.absoluteFill, styles.hitLayer]}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel="Hold to peek. Swipe up to fold. Double-tap the felt to check. Tap your chips to call. Drag chips toward the pot to raise."
+        accessibilityLabel="Hold or swipe down to peek. Swipe up to fold. Double-tap anywhere to check. Tap your chips to call. Drag chips toward the pot to raise."
       />
     </GestureDetector>
   );

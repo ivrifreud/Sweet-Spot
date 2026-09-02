@@ -25,6 +25,7 @@ import { ActionBanner } from './components/ActionBanner';
 import { BarrierHand } from './components/BarrierHand';
 import { CardPicker } from './components/CardPicker';
 import { ChipStack, CHIP_SIZE } from './components/ChipStack';
+import { ChipStackTarget } from './components/ChipStackTarget';
 import { ChipToss, type ChipFlight } from './components/ChipToss';
 import { CommunityCards } from './components/CommunityCards';
 import { FeltPlane } from './components/FeltPlane';
@@ -33,7 +34,7 @@ import { HeroHand } from './components/HeroHand';
 import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
 import { PeekHud } from './components/PeekHud';
 import { CARD_ASPECT } from './components/PlayingCard';
-import { TableGestures, type StackHitRect } from './components/TableGestures';
+import { TableGestures } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
 import { DEFAULT_SPOT, SKINS, STACK_HIT, CHIP_CARD_GAP, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
@@ -64,10 +65,12 @@ export type PeekAndPitchTemplateProps = {
  * Template 1 — "The Peek and Pitch".
  *
  * First-person seat at the table: the dealer pitches two cards to the player.
- *   - hold the felt                            -> pinch, lift, and shield the hole cards
+ *   - hold the felt or swipe down (not on chips) -> pinch, lift, and shield the hole cards
  *   - release                                  -> the cards drop flat on the felt
  *   - swipe up from the same grip              -> throw the cards onto the table
- *   - tap your own stack                       -> left glove grabs chips and throws them in
+ *   - tap your own stack once                  -> Call
+ *   - double-tap anywhere                      -> Check
+ *   - drag chips toward the pot                -> Raise
  */
 export function PeekAndPitchTemplate({
   spot = DEFAULT_SPOT,
@@ -104,12 +107,6 @@ export function PeekAndPitchTemplate({
   const stackPress = useSharedValue(0);
   const stackDragX = useSharedValue(0);
   const stackDragY = useSharedValue(0);
-  const stackHit = useSharedValue<StackHitRect>({
-    x: 8,
-    y: 8,
-    width: STACK_HIT.width,
-    height: STACK_HIT.height,
-  });
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
@@ -211,7 +208,6 @@ export function PeekAndPitchTemplate({
     stackHitSize.width,
     width,
   ]);
-  stackHit.value = geometry.stackHit;
 
   const dealHand = useCallback(
     (nextSpot: PeekAndPitchSpot) => {
@@ -393,10 +389,6 @@ export function PeekAndPitchTemplate({
     resolve('check');
   }, [activeSpot.canCheck, denyCheck, resolve]);
 
-  useEffect(() => {
-    stackHit.value = geometry.stackHit;
-  }, [geometry.stackHit, stackHit]);
-
   const completeMuck = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     resolve('fold');
@@ -442,6 +434,35 @@ export function PeekAndPitchTemplate({
           dragX={stackDragX}
           dragY={stackDragY}
           chipSize={chipSize}
+        />
+      </View>
+
+      <View
+        style={[
+          styles.stackHitLayer,
+          {
+            left: geometry.stackHit.x,
+            top: geometry.stackHit.y,
+            width: geometry.stackHit.width,
+            height: geometry.stackHit.height,
+          },
+        ]}>
+        <ChipStackTarget
+          live={phase === 'live' && !disabled && !pitching}
+          canCheck={Boolean(activeSpot.canCheck)}
+          stackLabel={activeSpot.heroStackLabel}
+          potCenter={geometry.tableCenter}
+          stackCenter={{
+            x: geometry.stackHit.x + geometry.stackHit.width / 2,
+            y: geometry.stackHit.y + geometry.stackHit.height / 2,
+          }}
+          stackPress={stackPress}
+          stackDragX={stackDragX}
+          stackDragY={stackDragY}
+          onCall={() => handleChipDecision('call')}
+          onRaise={() => handleChipDecision('raise')}
+          onCheck={handleCheck}
+          onIllegalCheck={denyCheck}
         />
       </View>
 
@@ -500,17 +521,11 @@ export function PeekAndPitchTemplate({
         live={phase === 'live' && !disabled && !pitching}
         canCheck={Boolean(activeSpot.canCheck)}
         height={height}
-        potCenter={geometry.tableCenter}
+        stackHit={geometry.stackHit}
         peek={peek}
         muck={muck}
-        stackPress={stackPress}
-        stackDragX={stackDragX}
-        stackDragY={stackDragY}
-        stackHit={stackHit}
         onPeeked={markPeeked}
         onCheck={handleCheck}
-        onCall={() => handleChipDecision('call')}
-        onRaise={() => handleChipDecision('raise')}
         onMuck={completeMuck}
         onIllegalCheck={denyCheck}
       />
@@ -604,6 +619,11 @@ const styles = StyleSheet.create({
     elevation: 8,
     alignItems: 'flex-start',
     justifyContent: 'flex-end',
+  },
+  stackHitLayer: {
+    position: 'absolute',
+    zIndex: 55,
+    elevation: 55,
   },
   bannerHolder: {
     position: 'absolute',
