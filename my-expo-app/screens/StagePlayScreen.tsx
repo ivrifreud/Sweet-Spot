@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TrackHud } from '../components/track/TrackHud';
-import { submitStageAnswer } from '../lib/chip-stack';
+import { formatRegenCountdown, submitStageAnswer, type ChipCount } from '../lib/chip-stack';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
@@ -23,14 +23,16 @@ import { artStyle } from '../theme/artStyle';
 
 export type StagePlayResolved = {
   correct: boolean;
-  remainingChips: number;
+  remainingChips: ChipCount;
+  lockedOut: boolean;
+  regenAt: string | null;
   stageComplete: boolean;
 };
 
 type Props = {
   reveal: LevelReveal;
   stageNumber: number;
-  remainingChips: number;
+  remainingChips: ChipCount;
   goldBars: number;
   streakDays: number;
   initialSpotsCompleted?: number;
@@ -79,11 +81,21 @@ export function StagePlayScreen({
     () => initialSpotsCompleted >= SPOTS_PER_STAGE
   );
   const [playError, setPlayError] = useState<string | null>(null);
-  const [hudChips, setHudChips] = useState(remainingChips);
+  const [hudChips, setHudChips] = useState<ChipCount>(remainingChips);
+  const [regenAt, setRegenAt] = useState<string | null>(null);
+  const [lockedOut, setLockedOut] = useState(remainingChips === 0);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     setHudChips(remainingChips);
+    setLockedOut(remainingChips === 0);
   }, [remainingChips]);
+
+  useEffect(() => {
+    if (!feedback || hudChips > 0 || !regenAt) return;
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [feedback, hudChips, regenAt]);
 
   const calibration = bundle.calibration[spotIndex]!;
   const table = bundle.tables[spotIndex]!;
@@ -93,16 +105,16 @@ export function StagePlayScreen({
       if (busy || feedback) return;
       const chosen = pokerActionForDecision(decision, calibration);
       const live =
-        Boolean(stageProgressId) &&
-        stageNumber === 1 &&
-        calibration.spotType === 'level1_stage1';
+        Boolean(stageProgressId) && stageNumber === 1 && calibration.spotType === 'level1_stage1';
 
       void (async () => {
         setBusy(true);
         setPlayError(null);
         try {
           let correct = isAnswerCorrect(calibration, chosen);
-          let nextChips = remainingChips;
+          let nextChips: ChipCount = remainingChips;
+          let nextLockedOut = remainingChips === 0;
+          let nextRegenAt = regenAt;
           let progress = recordSpotAttempt(spotsCompleted);
 
           if (live && stageProgressId) {
@@ -113,6 +125,8 @@ export function StagePlayScreen({
             });
             correct = result.isCorrect;
             nextChips = result.chips;
+            nextLockedOut = result.lockedOut;
+            nextRegenAt = result.regenAt;
             if (result.alreadySubmitted) {
               progress = {
                 spotsCompleted,
@@ -126,19 +140,24 @@ export function StagePlayScreen({
               }
             }
           } else if (!correct) {
-            nextChips = burnChip(remainingChips);
+            nextChips = burnChip(remainingChips) as ChipCount;
+            nextLockedOut = nextChips === 0;
           }
 
           setHudChips(nextChips);
+          setLockedOut(nextLockedOut);
+          setRegenAt(nextRegenAt);
           onResolved({
             correct,
             remainingChips: nextChips,
+            lockedOut: nextLockedOut,
+            regenAt: nextRegenAt,
             stageComplete: progress.stageComplete,
           });
           setSpotsCompleted(progress.spotsCompleted);
           setStageComplete(progress.stageComplete);
 
-          const lastHand = progress.stageComplete;
+          const lastHand = progress.stageComplete || nextLockedOut;
           const copy = buildDecisionFeedbackCopy({
             correct,
             chosen,
@@ -165,6 +184,7 @@ export function StagePlayScreen({
       feedback,
       onResolved,
       remainingChips,
+      regenAt,
       spotsCompleted,
       stageNumber,
       stageProgressId,
@@ -175,13 +195,13 @@ export function StagePlayScreen({
     if (!feedback) return;
     setFeedback(null);
     setSettled(null);
-    if (stageComplete) {
+    if (stageComplete || lockedOut) {
       onBack();
       return;
     }
     setSpotIndex((index) => nextSpotIndex(index + 1));
     setResetKey((value) => value + 1);
-  }, [feedback, onBack, stageComplete]);
+  }, [feedback, lockedOut, onBack, stageComplete]);
 
   return (
     <ScreenShakeHost
@@ -221,7 +241,9 @@ export function StagePlayScreen({
         kicker={feedback?.copy.kicker ?? ''}
         explanation={
           settled === false && hudChips <= 0
-            ? `${feedback?.copy.explanation ?? ''} Chips are spent — the stage is locked until they refill.`
+            ? `${feedback?.copy.explanation ?? ''} Chips are spent. Refills in ${
+                regenAt ? formatRegenCountdown(regenAt, now) : '12 hours'
+              }.`
             : (feedback?.copy.explanation ?? '')
         }
         continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}

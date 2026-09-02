@@ -93,9 +93,11 @@ export function canStandOn(stageNumber: number, completedCount: number): boolean
 export function lockReason(
   stageNumber: number,
   completedCount: number,
-  remainingChips: number
+  remainingChips: number,
+  regenCopy?: string | null
 ): string | null {
   if (remainingChips <= 0 && stageStatus(stageNumber, completedCount) === 'current') {
+    if (regenCopy) return `Chips are spent. Refills in ${regenCopy}.`;
     return 'Chips are spent. They refill in 12 hours.';
   }
   if (stageStatus(stageNumber, completedCount) === 'locked') {

@@ -56,6 +56,7 @@ describe('overworld unlocks', () => {
   it('blocks play when chips are spent', () => {
     expect(canEnterStage(1, 0, 0)).toBe(false);
     expect(lockReason(1, 0, 0)).toMatch(/12 hours/i);
+    expect(lockReason(1, 0, 0, '7h 12m')).toBe('Chips are spent. Refills in 7h 12m.');
   });
 
   it('keeps later nodes locked until the previous stage is done', () => {

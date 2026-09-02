@@ -76,6 +76,25 @@ export function effectiveChipStack(stored: StoredChipStack, now = new Date()): C
   };
 }
 
+export function applyLocalRegen(state: ChipStackState, now = new Date()): ChipStackState {
+  if (state.regenAt == null) return state;
+  const regenAt = Date.parse(state.regenAt);
+  if (!Number.isFinite(regenAt) || regenAt > now.getTime()) return state;
+  return { chips: 3, lockedOut: false, regenAt: null };
+}
+
+export function formatRegenCountdown(regenAt: string, now = new Date()): string {
+  const target = Date.parse(regenAt);
+  const remainingMs = Number.isFinite(target) ? Math.max(0, target - now.getTime()) : 0;
+  if (remainingMs < 60_000) return 'less than a minute';
+
+  const remainingMinutes = Math.ceil(remainingMs / 60_000);
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  if (hours <= 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+
 export function mapChipStackPayload(payload: ChipStackPayload): ChipStackState {
   const chips = parseChipCount(payload.chips);
   const lockedOut = parseBoolean(payload.locked_out, 'lock state');

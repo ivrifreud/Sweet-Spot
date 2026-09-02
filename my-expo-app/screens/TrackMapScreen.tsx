@@ -8,6 +8,7 @@ import {
   trailForWalk,
   walkDurationMs,
 } from '../components/track/LevelProgressionMap';
+import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
 import { TrackHud } from '../components/track/TrackHud';
 import { BENNYS_GARDEN_WORLD, type WorldMapTemplate } from '../components/track/worldMapTemplates';
 import { playSfx, startAmbience, stopAmbience } from '../lib/audio';
@@ -34,6 +35,7 @@ type Props = {
   avatarSource?: ImageSourcePropType;
   /** False while a level covers the map so Benny's shoes stay put until focus. */
   isActive?: boolean;
+  lockMessage?: string | null;
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
@@ -53,6 +55,7 @@ export function TrackMapScreen({
   currentWorld,
   avatarSource,
   isActive = true,
+  lockMessage = null,
   onPlayStage,
   onSignOut,
 }: Props) {
@@ -70,15 +73,7 @@ export function TrackMapScreen({
   const [cameraChunkIndex, setCameraChunkIndex] = useState(() =>
     chunkIndexForStage(initialStanding(completedCount, world.nodes.length), world.chunks)
   );
-  const [notice, setNotice] = useState<string | null>(
-    remainingChips <= 0
-      ? lockReason(
-          currentStageNumber(completedCount, world.nodes.length),
-          completedCount,
-          remainingChips
-        )
-      : null
-  );
+  const [notice, setNotice] = useState<string | null>(null);
 
   const map = useMemo(
     () =>
@@ -260,12 +255,18 @@ export function TrackMapScreen({
         <Text style={[styles.kicker, display]} accessibilityRole="header">
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
-        {notice ? (
-          <View accessible accessibilityRole="alert" style={styles.notice}>
+        {!lockMessage && notice ? (
+          <View
+            accessible
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={styles.notice}>
             <Text style={styles.noticeText}>{notice}</Text>
           </View>
         ) : null}
       </View>
+
+      {lockMessage ? <ChipLockoutCard countdown={lockMessage} /> : null}
 
       <Pressable
         onPress={onSignOut}
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 8,
+    zIndex: 16,
     paddingHorizontal: 8,
     paddingBottom: 8,
     gap: 6,

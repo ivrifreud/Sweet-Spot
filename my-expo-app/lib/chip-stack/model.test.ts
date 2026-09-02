@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { effectiveChipStack, mapChipStackPayload, mapStageAnswerPayload } from './model';
+import {
+  applyLocalRegen,
+  effectiveChipStack,
+  formatRegenCountdown,
+  mapChipStackPayload,
+  mapStageAnswerPayload,
+} from './model';
 
 const BURNED_AT = '2026-08-25T06:00:00.000Z';
 
@@ -47,6 +53,60 @@ describe('effectiveChipStack', () => {
         new Date('2026-08-25T18:00:00.000Z')
       )
     ).toEqual({ chips: 3, lockedOut: false, regenAt: null });
+  });
+});
+
+describe('applyLocalRegen', () => {
+  const locked = {
+    chips: 0 as const,
+    lockedOut: true,
+    regenAt: '2026-08-25T18:00:00.000Z',
+  };
+
+  it('keeps a locked stack before the cooldown expires', () => {
+    expect(applyLocalRegen(locked, new Date('2026-08-25T17:59:59.999Z'))).toEqual(locked);
+  });
+
+  it('refills at the exact regen boundary', () => {
+    expect(applyLocalRegen(locked, new Date('2026-08-25T18:00:00.000Z'))).toEqual({
+      chips: 3,
+      lockedOut: false,
+      regenAt: null,
+    });
+  });
+
+  it('refills after the cooldown has passed', () => {
+    expect(applyLocalRegen(locked, new Date('2026-08-25T18:00:00.001Z'))).toEqual({
+      chips: 3,
+      lockedOut: false,
+      regenAt: null,
+    });
+  });
+
+  it('leaves a stack with no regen timestamp unchanged', () => {
+    const full = { chips: 3 as const, lockedOut: false, regenAt: null };
+    expect(applyLocalRegen(full, new Date('2026-08-25T18:00:00.000Z'))).toEqual(full);
+  });
+});
+
+describe('formatRegenCountdown', () => {
+  const regenAt = '2026-08-25T18:00:00.000Z';
+
+  it('formats hours and minutes', () => {
+    expect(formatRegenCountdown(regenAt, new Date('2026-08-25T10:48:00.000Z'))).toBe('7h 12m');
+  });
+
+  it('formats remaining minutes under an hour', () => {
+    expect(formatRegenCountdown(regenAt, new Date('2026-08-25T17:41:01.000Z'))).toBe('19m');
+  });
+
+  it('uses less than a minute when under 60 seconds or already due', () => {
+    expect(formatRegenCountdown(regenAt, new Date('2026-08-25T17:59:01.000Z'))).toBe(
+      'less than a minute'
+    );
+    expect(formatRegenCountdown(regenAt, new Date('2026-08-25T18:00:01.000Z'))).toBe(
+      'less than a minute'
+    );
   });
 });
 

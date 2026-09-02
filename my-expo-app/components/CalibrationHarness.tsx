@@ -15,8 +15,12 @@ import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
 import { signOut } from '../lib/auth';
-import { getChipStack } from '../lib/chip-stack';
-import { MAX_CHIPS } from '../lib/track/chips';
+import {
+  applyLocalRegen,
+  formatRegenCountdown,
+  getChipStack,
+  type ChipStackState,
+} from '../lib/chip-stack';
 import { getOrCreateStageProgress, loadStageProgress } from '../lib/track/stageProgress';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
@@ -53,12 +57,17 @@ function tempoForDecision(decision: SpotDecision): FeedbackTempo {
   return 'default';
 }
 
-async function readChipCount(): Promise<number> {
+const FULL_CHIP_STACK: ChipStackState = {
+  chips: 3,
+  lockedOut: false,
+  regenAt: null,
+};
+
+async function readChipStack(): Promise<ChipStackState> {
   try {
-    const stack = await getChipStack();
-    return stack.chips;
+    return await getChipStack();
   } catch {
-    return MAX_CHIPS;
+    return FULL_CHIP_STACK;
   }
 }
 
@@ -78,13 +87,15 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
-  const [remainingChips, setRemainingChips] = useState(MAX_CHIPS);
+  const [chipStack, setChipStack] = useState<ChipStackState>(FULL_CHIP_STACK);
+  const [now, setNow] = useState(() => new Date());
   const [completedCount, setCompletedCount] = useState(0);
   const [playingStage, setPlayingStage] = useState<number | null>(null);
   const [stageProgressId, setStageProgressId] = useState<string | null>(null);
   const [stageSpotsCompleted, setStageSpotsCompleted] = useState(0);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmingRegen = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -93,6 +104,29 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       }
     };
   }, []);
+
+  const refreshChipStack = useCallback(async () => {
+    const stack = await readChipStack();
+    setChipStack(stack);
+    return stack;
+  }, []);
+
+  useEffect(() => {
+    if (!chipStack.lockedOut || playingStage != null) return;
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [chipStack.lockedOut, playingStage]);
+
+  useEffect(() => {
+    if (!chipStack.lockedOut || !chipStack.regenAt) return;
+    if (Date.parse(chipStack.regenAt) > now.getTime()) return;
+    setChipStack((current) => applyLocalRegen(current, now));
+    if (confirmingRegen.current) return;
+    confirmingRegen.current = true;
+    void refreshChipStack().finally(() => {
+      confirmingRegen.current = false;
+    });
+  }, [chipStack.lockedOut, chipStack.regenAt, now, refreshChipStack]);
 
   const applyAnswers = useCallback((loaded: LoadedSpots, nextAnswers: SpotAnswer[]) => {
     const action = nextCalibrationAction(loaded.stage1, loaded.stage2, nextAnswers);
@@ -135,11 +169,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             reason: 'already_placed',
           });
           const seen = await hasSeenPlacement(userId);
-          const chips = await readChipCount();
+          const stack = await readChipStack();
           const progress = await loadStageProgress(userId, 1);
           if (!cancelled) {
             setContinued(seen);
-            setRemainingChips(chips);
+            setChipStack(stack);
             setCompletedCount(progress.completedCount);
           }
           return;
@@ -150,12 +184,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
           const seen = await hasSeenPlacement(userId);
-          const chips = await readChipCount();
+          const stack = await readChipStack();
           const progress = await loadStageProgress(userId, 1);
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
-            setRemainingChips(chips);
+            setChipStack(stack);
             setCompletedCount(progress.completedCount);
           }
         }
@@ -190,7 +224,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     });
     setCurrent(null);
     setContinued(true);
-    setRemainingChips(MAX_CHIPS);
+    setChipStack(FULL_CHIP_STACK);
     setPlayingStage(null);
     setStageProgressId(null);
     setStageSpotsCompleted(0);
@@ -208,9 +242,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
 
     try {
       const stack = await getChipStack();
-      setRemainingChips(stack.chips);
+      setChipStack(stack);
       if (stack.lockedOut) {
-        setError('Chips are spent. They refill in 12 hours.');
+        const copy = stack.regenAt
+          ? `Chips are spent. Refills in ${formatRegenCountdown(stack.regenAt)}.`
+          : 'Chips are spent. They refill in 12 hours.';
+        setError(copy);
         return;
       }
       const row = await getOrCreateStageProgress({
@@ -372,7 +409,14 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       <View style={styles.treeStack}>
         <TrackMapScreen
           reveal={reveal}
-          remainingChips={remainingChips}
+          remainingChips={chipStack.chips}
+          lockMessage={
+            chipStack.lockedOut && chipStack.regenAt
+              ? `Chips are spent. Refills in ${formatRegenCountdown(chipStack.regenAt, now)}.`
+              : chipStack.lockedOut
+                ? 'Chips are spent. They refill in 12 hours.'
+                : null
+          }
           goldBars={0}
           streakDays={0}
           completedCount={completedCount}
@@ -390,13 +434,17 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             <StagePlayScreen
               reveal={reveal}
               stageNumber={playingStage}
-              remainingChips={remainingChips}
+              remainingChips={chipStack.chips}
               goldBars={0}
               streakDays={0}
               initialSpotsCompleted={stageSpotsCompleted}
               stageProgressId={stageProgressId}
               onResolved={(update) => {
-                setRemainingChips(update.remainingChips);
+                setChipStack({
+                  chips: update.remainingChips,
+                  lockedOut: update.lockedOut,
+                  regenAt: update.regenAt,
+                });
                 if (update.stageComplete) {
                   setCompletedCount((count) => Math.max(count, playingStage));
                 }
