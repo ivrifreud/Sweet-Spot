@@ -107,23 +107,3 @@ export async function loadStageProgress(
   }
   return { completedCount, spotsByStage };
 }
-
-export async function saveStageProgress(input: {
-  userId: string;
-  level: number;
-  stageNumber: number;
-  spotsCompleted: number;
-}): Promise<void> {
-  if (!supabase) return;
-  const status = input.spotsCompleted >= SPOTS_PER_STAGE ? 'completed' : 'in_progress';
-  await supabase.from('stage_progress').upsert(
-    {
-      user_id: input.userId,
-      level: input.level,
-      stage_number: input.stageNumber,
-      spots_completed: input.spotsCompleted,
-      status,
-    },
-    { onConflict: 'user_id,level,stage_number' }
-  );
-}
