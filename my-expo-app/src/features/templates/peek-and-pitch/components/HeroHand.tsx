@@ -33,7 +33,7 @@ type HeroHandProps = {
 
 /**
  * First-person right glove. Rest pose sits on the near corner; pinch then lift
- * follow the card curl. Chip pitch is owned by the left BarrierHand.
+ * follow the restored card curl. Chip pitch is owned by the left BarrierHand.
  */
 export function HeroHand({
   contact,
@@ -69,7 +69,6 @@ export function HeroHand({
       [0, 1, 0.48, 0.06],
       Extrapolation.CLAMP
     );
-    // Slight settle while the left hand pitches chips — stay glued to the cards.
     const settle = interpolate(commit.value, [0, 0.2, 0.85, 1], [0, 1, 1, 0], Extrapolation.CLAMP);
 
     return {
@@ -84,13 +83,10 @@ export function HeroHand({
         {
           rotate: `${
             (1 - entry) * 10 +
-            interpolate(lift, [0, 0.22, 1], [4, -2, -6]) -
+            interpolate(pull, [0, 0.22, 1], [4, -2, -8]) -
             pitch * 14 +
             settle * 4
           }deg`,
-        },
-        {
-          scale: interpolate(lift, [0, 0.45, 1], [1, 1.03, 1.01]) - pitch * 0.05,
         },
       ],
     };
@@ -98,24 +94,24 @@ export function HeroHand({
 
   const restPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    return { opacity: interpolate(lift, [0, 0.22], [1, 0], Extrapolation.CLAMP) };
+    return { opacity: interpolate(lift, [0, 0.18], [1, 0], Extrapolation.CLAMP) };
   });
 
   const pinchPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
     return {
-      opacity: interpolate(lift, [0.08, 0.28], [0, 1], Extrapolation.CLAMP),
+      opacity: interpolate(lift, [0.1, 0.2, 0.58, 0.7], [0, 1, 1, 0], Extrapolation.CLAMP),
     };
   });
 
   const liftPose = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    return { opacity: interpolate(lift, [0.72, 1], [0, 0.35], Extrapolation.CLAMP) };
+    return { opacity: interpolate(lift, [0.58, 0.7], [0, 1], Extrapolation.CLAMP) };
   });
 
   return (
     <Animated.View
-      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 30 }, motion]}
+      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 36 }, motion]}
       pointerEvents="none">
       <Animated.Image source={REST} style={[styles.layer, restPose]} resizeMode="contain" />
       <Animated.Image source={PINCH} style={[styles.layer, pinchPose]} resizeMode="contain" />
