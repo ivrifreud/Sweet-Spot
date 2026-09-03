@@ -66,6 +66,14 @@ export function svgQuadSegment(a: Point, b: Point, index: number, bulge: number)
   return `M ${a.x} ${a.y} Q ${c.x} ${c.y} ${b.x} ${b.y}`;
 }
 
+/** Straight centerline path — used when the route is already authored on the road. */
+export function svgPolyline(points: readonly Point[]): string {
+  if (points.length === 0) return '';
+  const first = points[0]!;
+  if (points.length === 1) return `M ${first.x} ${first.y}`;
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+}
+
 /** Inclusive stage numbers between two checkpoints, walking the path. */
 export function routeStages(from: number, to: number): number[] {
   if (from === to) return [from];

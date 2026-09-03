@@ -13,6 +13,8 @@ export type MapNode = {
   chunkIndex: number;
   left: MapPercent;
   top: MapPercent;
+  /** Index on the chunk's authored route, when the world supplies one. */
+  routeIndex?: number;
 };
 
 export type LevelMarker = MapNode & { status: StageStatus };
@@ -28,6 +30,11 @@ export const MAP_ASPECT = 9 / 16;
 
 export const MAP_NODE_SIZE = 60;
 export const MAP_NODES_PER_CHUNK = 4;
+
+/** Fog parts left/right this long, then the camera climbs to the next chunk. */
+export const FOG_PART_MS = 920;
+/** Camera climb after fog has fully parted. Independent of Benny's walk. */
+export const CAMERA_CLIMB_MS = 980;
 
 /** Hands dealt inside one Benny's Garden node before the stage unlocks. */
 export const SPOTS_PER_STAGE = 7;

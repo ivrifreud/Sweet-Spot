@@ -1,6 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -9,12 +10,19 @@ import {
   walkDurationMs,
 } from '../components/track/LevelProgressionMap';
 import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
+import { FogClimbPreviewButton } from '../components/track/FogClimbPreviewButton';
 import { TrackHud } from '../components/track/TrackHud';
-import { BENNYS_GARDEN_WORLD, type WorldMapTemplate } from '../components/track/worldMapTemplates';
+import {
+  createBennysGardenWorld,
+  type WorldMapTemplate,
+} from '../components/track/worldMapTemplates';
 import { playSfx, startAmbience, stopAmbience } from '../lib/audio';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
+import { initialFogPhase, reduceFog, type FogPhase } from '../lib/track/fogCycle';
 import type { Point } from '../lib/track/mapPath';
 import {
+  FOG_PART_MS,
+  MAP_NODES_PER_CHUNK,
   canEnterStage,
   canStandOn,
   chunkIndexForStage,
@@ -60,9 +68,11 @@ export function TrackMapScreen({
   onSignOut,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
-  const world = currentWorld ?? BENNYS_GARDEN_WORLD;
+  const [sessionWorld] = useState(() => currentWorld ?? createBennysGardenWorld());
+  const world = currentWorld ?? sessionWorld;
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() =>
     initialStanding(completedCount, world.nodes.length)
@@ -72,6 +82,9 @@ export function TrackMapScreen({
   const [walkDuration, setWalkDuration] = useState(560);
   const [cameraChunkIndex, setCameraChunkIndex] = useState(() =>
     chunkIndexForStage(initialStanding(completedCount, world.nodes.length), world.chunks)
+  );
+  const [fogPhase, setFogPhase] = useState<FogPhase>(() =>
+    initialFogPhase(Math.floor(completedCount / MAP_NODES_PER_CHUNK), world.chunks.length)
   );
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -89,9 +102,19 @@ export function TrackMapScreen({
   const mapRef = useRef(map);
   const worldRef = useRef(world);
   const playStageRef = useRef(onPlayStage);
+  const fogPhaseRef = useRef(fogPhase);
+  const fogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fogPendingRef = useRef(false);
+  const reducedMotionRef = useRef(reducedMotion);
+  const requestTravelRef = useRef<(stageNumber: number) => void>(() => {});
+  const pendingAfterCamera = useRef<(() => void) | null>(null);
+  const cameraChunkIndexRef = useRef(cameraChunkIndex);
   mapRef.current = map;
   worldRef.current = world;
   playStageRef.current = onPlayStage;
+  fogPhaseRef.current = fogPhase;
+  reducedMotionRef.current = reducedMotion;
+  cameraChunkIndexRef.current = cameraChunkIndex;
 
   function finishArrival(stageNumber: number) {
     physicalStandingRef.current = stageNumber;
@@ -101,7 +124,7 @@ export function TrackMapScreen({
     const queued = walkQueueRef.current[0];
     walkQueueRef.current = [];
     if (queued != null && queued !== stageNumber) {
-      queueWalk(queued);
+      requestTravel(queued);
       return;
     }
     const play = pendingPlay.current;
@@ -115,24 +138,17 @@ export function TrackMapScreen({
     const worldNow = worldRef.current;
     if (mapNow.width <= 0) return false;
     if (physicalStandingRef.current === stageNumber) return false;
-    const nextTrail = trailForWalk(
-      physicalStandingRef.current,
-      stageNumber,
-      mapNow,
-      worldNow.nodes,
-      worldNow.chunks.length
-    );
+    const nextTrail = trailForWalk(physicalStandingRef.current, stageNumber, mapNow, worldNow);
     destinationRef.current = stageNumber;
     const duration = walkDurationMs(nextTrail);
     setTrail(nextTrail);
     setWalkDuration(duration);
     setTrailKey((key) => key + 1);
-    setCameraChunkIndex(chunkIndexForStage(stageNumber, worldNow.chunks));
     return true;
   }
 
   function queueWalk(stageNumber: number) {
-    if (destinationRef.current != null) {
+    if (destinationRef.current != null || fogTimerRef.current || fogPendingRef.current) {
       walkQueueRef.current = [stageNumber];
       return;
     }
@@ -140,6 +156,115 @@ export function TrackMapScreen({
       finishArrival(stageNumber);
     }
   }
+
+  function applyFog(next: FogPhase) {
+    fogPhaseRef.current = next;
+    setFogPhase(next);
+  }
+
+  function climbThenWalk(stageNumber: number) {
+    const destChunk = chunkIndexForStage(stageNumber, worldRef.current.chunks);
+    applyFog(reduceFog(fogPhaseRef.current, { type: 'parting-finished' }));
+    if (destChunk === cameraChunkIndexRef.current) {
+      fogPendingRef.current = false;
+      applyFog('closed');
+      queueWalk(stageNumber);
+      return;
+    }
+    pendingAfterCamera.current = () => {
+      fogPendingRef.current = false;
+      applyFog('closed');
+      queueWalk(stageNumber);
+    };
+    setCameraChunkIndex(destChunk);
+  }
+
+  function partFogThenWalk(stageNumber: number) {
+    if (destinationRef.current != null || fogTimerRef.current || fogPendingRef.current) {
+      walkQueueRef.current = [stageNumber];
+      return;
+    }
+    const next = reduceFog(fogPhaseRef.current, {
+      type: 'chunk-cleared',
+      nextChunkExists: true,
+      reducedMotion: Boolean(reducedMotionRef.current),
+    });
+    applyFog(next);
+    fogPendingRef.current = true;
+    playSfx('clouds');
+    const afterPart = () => {
+      fogTimerRef.current = null;
+      climbThenWalk(stageNumber);
+    };
+    if (next === 'hidden' || reducedMotionRef.current) {
+      afterPart();
+      return;
+    }
+    fogTimerRef.current = setTimeout(afterPart, FOG_PART_MS);
+  }
+
+  function requestTravel(stageNumber: number) {
+    const destChunk = chunkIndexForStage(stageNumber, worldRef.current.chunks);
+    const fromChunk = chunkIndexForStage(physicalStandingRef.current, worldRef.current.chunks);
+    if (destChunk > fromChunk) {
+      partFogThenWalk(stageNumber);
+      return;
+    }
+    if (destChunk !== fromChunk) {
+      setCameraChunkIndex(destChunk);
+    }
+    queueWalk(stageNumber);
+  }
+
+  /**
+   * TEMPORARY DEV PREVIEW — delete with `FogClimbPreviewButton.tsx`.
+   * Plays fog parting, then camera climb, then restores closed clouds.
+   * Does not complete stages, move Benny, or change progression.
+   */
+  function previewFogAndClimb() {
+    if (
+      !isActive ||
+      destinationRef.current != null ||
+      fogTimerRef.current ||
+      fogPendingRef.current
+    ) {
+      return;
+    }
+    const chunkCount = worldRef.current.chunks.length;
+    if (chunkCount < 2) return;
+    const from = cameraChunkIndexRef.current;
+    const destChunk = from >= chunkCount - 1 ? 0 : from + 1;
+    fogPendingRef.current = true;
+    applyFog(
+      reduceFog('closed', {
+        type: 'chunk-cleared',
+        nextChunkExists: true,
+        reducedMotion: Boolean(reducedMotionRef.current),
+      })
+    );
+    playSfx('clouds');
+    const afterPart = () => {
+      fogTimerRef.current = null;
+      applyFog(reduceFog(fogPhaseRef.current, { type: 'parting-finished' }));
+      if (destChunk === cameraChunkIndexRef.current) {
+        fogPendingRef.current = false;
+        applyFog('closed');
+        return;
+      }
+      pendingAfterCamera.current = () => {
+        fogPendingRef.current = false;
+        applyFog('closed');
+      };
+      setCameraChunkIndex(destChunk);
+    };
+    if (reducedMotionRef.current) {
+      afterPart();
+      return;
+    }
+    fogTimerRef.current = setTimeout(afterPart, FOG_PART_MS);
+  }
+
+  requestTravelRef.current = requestTravel;
 
   useEffect(() => {
     if (worldIdRef.current === world.id) return;
@@ -149,17 +274,27 @@ export function TrackMapScreen({
     destinationRef.current = null;
     walkQueueRef.current = [];
     pendingPlay.current = null;
+    if (fogTimerRef.current) {
+      clearTimeout(fogTimerRef.current);
+      fogTimerRef.current = null;
+    }
+    fogPendingRef.current = false;
+    pendingAfterCamera.current = null;
+    const chunk = chunkIndexForStage(next, world.chunks);
     setStanding(next);
     setTrail([]);
     setTrailKey((key) => key + 1);
-    setCameraChunkIndex(chunkIndexForStage(next, world.chunks));
+    setCameraChunkIndex(chunk);
+    applyFog(
+      initialFogPhase(Math.floor(completedCount / MAP_NODES_PER_CHUNK), world.chunks.length)
+    );
   }, [completedCount, world.chunks, world.id, world.nodes.length]);
 
-  const prevReveal = useRef(cameraChunkIndex);
   useEffect(() => {
-    if (cameraChunkIndex > prevReveal.current) playSfx('clouds');
-    prevReveal.current = cameraChunkIndex;
-  }, [cameraChunkIndex]);
+    return () => {
+      if (fogTimerRef.current) clearTimeout(fogTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isActive) {
@@ -177,9 +312,15 @@ export function TrackMapScreen({
       completedCount,
       world.nodes.length
     );
-    if (dest == null || destinationRef.current === dest) return;
+    if (dest == null) {
+      if (completedCount >= world.nodes.length) {
+        applyFog('hidden');
+      }
+      return;
+    }
+    if (destinationRef.current === dest || fogPendingRef.current) return;
     pendingPlay.current = null;
-    queueWalk(dest);
+    requestTravelRef.current(dest);
   }, [completedCount, isActive, map, world.chunks.length, world.nodes, world.nodes.length]);
 
   function handlePress(stageNumber: number) {
@@ -189,7 +330,7 @@ export function TrackMapScreen({
     }
     setNotice(null);
     const canEnter = canEnterStage(stageNumber, completedCount, remainingChips);
-    const walking = destinationRef.current != null;
+    const walking = destinationRef.current != null || fogPendingRef.current;
     const alreadyThere = !walking && physicalStandingRef.current === stageNumber;
 
     if (walking) {
@@ -199,7 +340,7 @@ export function TrackMapScreen({
     }
 
     if (!canEnter) {
-      if (!alreadyThere) queueWalk(stageNumber);
+      if (!alreadyThere) requestTravel(stageNumber);
       return;
     }
 
@@ -209,13 +350,20 @@ export function TrackMapScreen({
     }
 
     pendingPlay.current = stageNumber;
-    queueWalk(stageNumber);
+    requestTravel(stageNumber);
   }
 
   function handleArrived() {
     playSfx('arrive');
     const dest = destinationRef.current ?? physicalStandingRef.current;
     finishArrival(dest);
+  }
+
+  function handleCameraSettled() {
+    const cb = pendingAfterCamera.current;
+    if (!cb) return;
+    pendingAfterCamera.current = null;
+    cb();
   }
 
   return (
@@ -238,6 +386,7 @@ export function TrackMapScreen({
             height={map.height}
             currentWorld={world}
             activeChunkIndex={cameraChunkIndex}
+            fogPhase={fogPhase}
             completedCount={completedCount}
             standing={standing}
             trail={trail}
@@ -246,6 +395,7 @@ export function TrackMapScreen({
             avatarSource={avatarSource}
             onPressNode={handlePress}
             onArrived={handleArrived}
+            onCameraSettled={handleCameraSettled}
           />
         ) : null}
       </View>
@@ -267,6 +417,9 @@ export function TrackMapScreen({
       </View>
 
       {lockMessage ? <ChipLockoutCard countdown={lockMessage} /> : null}
+
+      {/* TEMPORARY DEV PREVIEW — delete this JSX with FogClimbPreviewButton.tsx */}
+      <FogClimbPreviewButton onPress={previewFogAndClimb} />
 
       <Pressable
         onPress={onSignOut}

@@ -1,19 +1,14 @@
 import type { ImageSourcePropType } from 'react-native';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { svgRouteSegment, walkGardenTrail } from '../../lib/track/gardenMap';
+import type { FogPhase } from '../../lib/track/fogCycle';
+import { durationForLength, pathLength, type Point } from '../../lib/track/mapPath';
 import {
-  durationForLength,
-  pathLength,
-  routeStages,
-  svgQuadSegment,
-  walkPolyline,
-  type Point,
-} from '../../lib/track/mapPath';
-import {
+  CAMERA_CLIMB_MS,
   MAP_NODE_SIZE,
   levelMarkers,
-  mapPercentToUnit,
   nodeByNumber,
   nodePixels,
   stageStatus,
@@ -23,13 +18,14 @@ import { artStyle } from '../../theme/artStyle';
 import { MapAvatar, MAP_AVATAR_SIZE } from './MapAvatar';
 import { MapCheckpoint } from './MapCheckpoint';
 import { WorldMap } from './WorldMap';
-import type { EnvironmentDepth, WorldMapTemplate } from './worldMapTemplates';
+import type { WorldMapTemplate } from './worldMapTemplates';
 
 type Props = {
   width: number;
   height: number;
   currentWorld: WorldMapTemplate;
   activeChunkIndex: number;
+  fogPhase: FogPhase;
   completedCount: number;
   standing: number;
   trail: Point[];
@@ -38,6 +34,7 @@ type Props = {
   avatarSource?: ImageSourcePropType;
   onPressNode: (stageNumber: number) => void;
   onArrived?: () => void;
+  onCameraSettled?: () => void;
 };
 
 export function avatarAnchor(point: Point): Point {
@@ -51,60 +48,13 @@ export function trailForWalk(
   fromStage: number,
   toStage: number,
   map: { width: number; height: number },
-  nodes: readonly MapNode[],
-  chunkCount: number
+  world: Pick<WorldMapTemplate, 'nodes' | 'chunks'>
 ): Point[] {
-  const bulge = Math.min(map.width, map.height) * 0.08;
-  const stops = routeStages(fromStage, toStage)
-    .map((number) => nodeByNumber(number, nodes))
-    .filter((node): node is NonNullable<typeof node> => Boolean(node))
-    .map((node) => avatarAnchor(nodePixels(node, map, chunkCount)));
-  return walkPolyline(stops, bulge);
+  return walkGardenTrail(fromStage, toStage, map, world.nodes, world.chunks).map(avatarAnchor);
 }
 
 export function walkDurationMs(trail: Point[]): number {
   return durationForLength(pathLength(trail));
-}
-
-type EnvironmentLayerProps = {
-  depth: EnvironmentDepth;
-  width: number;
-  height: number;
-  world: WorldMapTemplate;
-};
-
-function EnvironmentLayer({ depth, width, height, world }: EnvironmentLayerProps) {
-  return world.chunks.flatMap((chunk) => {
-    const chunkTop = (world.chunks.length - 1 - chunk.index) * height;
-    return chunk.environment
-      .filter((placement) => placement.depth === depth)
-      .map((placement) => {
-        const asset = world.environmentAssets[placement.asset];
-        return (
-          <View
-            key={placement.id}
-            pointerEvents="none"
-            style={[
-              styles.environment,
-              {
-                left: mapPercentToUnit(placement.left) * width,
-                top: chunkTop + mapPercentToUnit(placement.top) * height,
-                width: mapPercentToUnit(placement.width) * width,
-                aspectRatio: asset.aspectRatio,
-                transform: [{ scaleX: placement.mirrored ? -1 : 1 }],
-                zIndex: depth === 'foreground' ? 12 : 3,
-              },
-            ]}>
-            <Image
-              source={asset.source}
-              resizeMode="contain"
-              accessible={false}
-              style={styles.environmentImage}
-            />
-          </View>
-        );
-      });
-  });
 }
 
 /**
@@ -116,6 +66,7 @@ export function LevelProgressionMap({
   height,
   currentWorld,
   activeChunkIndex,
+  fogPhase,
   completedCount,
   standing,
   trail,
@@ -124,16 +75,14 @@ export function LevelProgressionMap({
   avatarSource,
   onPressNode,
   onArrived,
+  onCameraSettled,
 }: Props) {
-  const bulge = Math.min(width, height) * 0.08;
   const chunkCount = currentWorld.chunks.length;
   const contentHeight = height * chunkCount;
   const markers = levelMarkers(completedCount, currentWorld.nodes);
-  const pixelStops = currentWorld.nodes.map((node) =>
-    nodePixels(node, { width, height }, chunkCount)
-  );
+  const map = { width, height };
   const standingNode = nodeByNumber(standing, currentWorld.nodes) ?? currentWorld.nodes[0]!;
-  const standingPoint = avatarAnchor(nodePixels(standingNode, { width, height }, chunkCount));
+  const standingPoint = avatarAnchor(nodePixels(standingNode, map, chunkCount));
 
   return (
     <WorldMap
@@ -141,12 +90,14 @@ export function LevelProgressionMap({
       height={height}
       world={currentWorld}
       activeChunkIndex={activeChunkIndex}
-      cameraDuration={walkDuration}>
+      fogPhase={fogPhase}
+      cameraDuration={CAMERA_CLIMB_MS}
+      onCameraSettled={onCameraSettled}>
       <View collapsable={false} style={[styles.mapLayer, { width, height: contentHeight }]}>
         <Svg width={width} height={contentHeight} style={styles.pathLayer} pointerEvents="none">
-          {pixelStops.slice(1).map((to, index) => {
-            const from = pixelStops[index]!;
-            const d = svgQuadSegment(from, to, index, bulge);
+          {currentWorld.nodes.slice(1).map((toNode, index) => {
+            const fromNode = currentWorld.nodes[index] as MapNode;
+            const d = svgRouteSegment(fromNode, toNode, map, currentWorld.chunks);
             return (
               <Path
                 key={`path-under-${index}`}
@@ -161,10 +112,9 @@ export function LevelProgressionMap({
             );
           })}
           {currentWorld.nodes.slice(1).map((toNode, index) => {
-            const from = pixelStops[index]!;
-            const to = pixelStops[index + 1]!;
+            const fromNode = currentWorld.nodes[index] as MapNode;
             const opened = stageStatus(toNode.number, completedCount) !== 'locked';
-            const d = svgQuadSegment(from, to, index, bulge);
+            const d = svgRouteSegment(fromNode, toNode, map, currentWorld.chunks);
             return (
               <Path
                 key={`path-${index}`}
@@ -180,10 +130,8 @@ export function LevelProgressionMap({
           })}
         </Svg>
 
-        <EnvironmentLayer depth="rear" width={width} height={height} world={currentWorld} />
-
         {markers.map((marker) => {
-          const point = nodePixels(marker, { width, height }, chunkCount);
+          const point = nodePixels(marker, map, chunkCount);
           return (
             <View
               key={marker.id}
@@ -218,8 +166,6 @@ export function LevelProgressionMap({
           source={avatarSource}
           onArrived={onArrived}
         />
-
-        <EnvironmentLayer depth="foreground" width={width} height={height} world={currentWorld} />
       </View>
     </WorldMap>
   );
@@ -240,12 +186,5 @@ const styles = StyleSheet.create({
   nodeAnchor: {
     position: 'absolute',
     zIndex: 4,
-  },
-  environment: {
-    position: 'absolute',
-  },
-  environmentImage: {
-    width: '100%',
-    height: '100%',
   },
 });

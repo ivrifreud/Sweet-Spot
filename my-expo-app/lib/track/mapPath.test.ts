@@ -8,6 +8,7 @@ import {
   quadPoint,
   routeStages,
   svgQuadPath,
+  svgPolyline,
   walkPolyline,
 } from './mapPath';
 
@@ -47,6 +48,17 @@ describe('overworld path', () => {
       4
     );
     expect(d.startsWith('M 0 0 Q')).toBe(true);
+  });
+
+  it('builds a straight SVG polyline from authored route points', () => {
+    expect(svgPolyline([])).toBe('');
+    expect(
+      svgPolyline([
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+        { x: 5, y: 6 },
+      ])
+    ).toBe('M 1 2 L 3 4 L 5 6');
   });
 
   it('scales walk time with distance without a teleport cap', () => {
