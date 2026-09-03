@@ -28,6 +28,7 @@ import Svg, { Path } from 'react-native-svg';
 import { playDecisionSfx } from '../../../lib/audio';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
+import { CHIP_3Q_ASPECT, chipArt } from '../../../theme/chipArt';
 import { ScreenShakeHost } from './ScreenShakeHost';
 import { tempoScale, type FeedbackTempo } from './tempo';
 import type { DecisionOutcome } from './types';
@@ -35,7 +36,6 @@ import type { DecisionOutcome } from './types';
 export type { FeedbackTempo } from './tempo';
 export { tempoScale } from './tempo';
 
-const CHIP = require('../../../assets/brand/poker-chip-sm.png');
 const INK = '#171713';
 const CREAM = artStyle.colors.cream;
 const CONTINUE_MIN_HEIGHT = Platform.select({ ios: 44, android: 48, default: 48 }) ?? 48;
@@ -94,72 +94,72 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-    <View
-      testID="decision-feedback-overlay"
-      accessibilityViewIsModal
-      accessibilityRole="alert"
-      accessibilityLabel={`${title}. ${kicker}. ${explanation}`}
-      style={StyleSheet.absoluteFill}
-      pointerEvents="auto">
-      <FlashWash
-        outcome={outcome}
-        reducedMotion={reducedMotion}
-        restartKey={feedbackKey}
-        pace={pace}
-        celebrateJackpot={celebrateJackpot}
-      />
-
       <View
-        style={[
-          styles.stage,
-          { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) + 8 },
-        ]}>
-        <View style={styles.column}>
-          <OutcomeMark
-            outcome={outcome}
-            reducedMotion={reducedMotion}
-            fontsLoaded={fontsLoaded}
-            title={title}
-            pace={pace}
-          />
+        testID="decision-feedback-overlay"
+        accessibilityViewIsModal
+        accessibilityRole="alert"
+        accessibilityLabel={`${title}. ${kicker}. ${explanation}`}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="auto">
+        <FlashWash
+          outcome={outcome}
+          reducedMotion={reducedMotion}
+          restartKey={feedbackKey}
+          pace={pace}
+          celebrateJackpot={celebrateJackpot}
+        />
 
-          <CoachCard
-            outcome={outcome}
-            kicker={kicker}
-            explanation={explanation}
-            reducedMotion={reducedMotion}
-            pace={pace}
-          />
+        <View
+          style={[
+            styles.stage,
+            { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) + 8 },
+          ]}>
+          <View style={styles.column}>
+            <OutcomeMark
+              outcome={outcome}
+              reducedMotion={reducedMotion}
+              fontsLoaded={fontsLoaded}
+              title={title}
+              pace={pace}
+            />
 
-          <Pressable
-            testID="decision-feedback-continue"
-            accessibilityRole="button"
-            accessibilityLabel={continueLabel}
-            hitSlop={8}
-            onPress={onContinue}
-            style={({ pressed }) => [
-              styles.continue,
-              outcome === 'correct' ? styles.continueCorrect : styles.continueMiss,
-              pressed ? styles.continuePressed : null,
-              { minHeight: CONTINUE_MIN_HEIGHT },
-            ]}>
-            <Text
-              style={[
-                styles.continueText,
-                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+            <CoachCard
+              outcome={outcome}
+              kicker={kicker}
+              explanation={explanation}
+              reducedMotion={reducedMotion}
+              pace={pace}
+            />
+
+            <Pressable
+              testID="decision-feedback-continue"
+              accessibilityRole="button"
+              accessibilityLabel={continueLabel}
+              hitSlop={8}
+              onPress={onContinue}
+              style={({ pressed }) => [
+                styles.continue,
+                outcome === 'correct' ? styles.continueCorrect : styles.continueMiss,
+                pressed ? styles.continuePressed : null,
+                { minHeight: CONTINUE_MIN_HEIGHT },
               ]}>
-              {continueLabel}
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.continueText,
+                  fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+                ]}>
+                {continueLabel}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      {outcome === 'correct' && !reducedMotion ? (
-        <View pointerEvents="none" style={styles.confettiLayer}>
-          <ConfettiBurst restartKey={feedbackKey} pace={pace} />
-        </View>
-      ) : null}
-    </View>
+        {outcome === 'correct' && !reducedMotion ? (
+          <View pointerEvents="none" style={styles.confettiLayer}>
+            <ConfettiBurst restartKey={feedbackKey} pace={pace} />
+          </View>
+        ) : null}
+      </View>
     </ScreenShakeHost>
   );
 }
@@ -192,7 +192,10 @@ function OutcomeMark({
   }, [outcome, pace, pop, reducedMotion]);
 
   const popStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pop.value }, { translateY: interpolate(pop.value, [0.72, 1.1], [18, -6]) }],
+    transform: [
+      { scale: pop.value },
+      { translateY: interpolate(pop.value, [0.72, 1.1], [18, -6]) },
+    ],
   }));
 
   const accent = outcome === 'correct' ? brand.goldBright : artStyle.colors.cream;
@@ -330,8 +333,7 @@ function FlashWash({
   }, [outcome, restartKey]);
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value }));
-  const wash =
-    outcome === 'correct' ? artStyle.colors.feltGreen : artStyle.colors.oxblood;
+  const wash = outcome === 'correct' ? artStyle.colors.feltGreen : artStyle.colors.oxblood;
 
   return (
     <>
@@ -442,7 +444,11 @@ function ConfettiBurst({ restartKey, pace }: { restartKey?: string; pace: number
   return (
     <>
       {particles.map((particle) => (
-        <ConfettiPiece key={`${restartKey ?? 'burst'}-${particle.id}`} particle={particle} elapsed={elapsed} />
+        <ConfettiPiece
+          key={`${restartKey ?? 'burst'}-${particle.id}`}
+          particle={particle}
+          elapsed={elapsed}
+        />
       ))}
     </>
   );
@@ -477,10 +483,12 @@ function ConfettiPiece({ particle, elapsed }: { particle: Particle; elapsed: num
 
 function ConfettiShape({ particle }: { particle: Particle }) {
   if (particle.kind === 'chip') {
+    const width = particle.size + 10;
     return (
       <Image
-        source={CHIP}
-        style={{ width: particle.size + 10, height: particle.size + 10 }}
+        source={chipArt.threeQuarter}
+        style={{ width, height: width * CHIP_3Q_ASPECT }}
+        accessibilityElementsHidden
       />
     );
   }

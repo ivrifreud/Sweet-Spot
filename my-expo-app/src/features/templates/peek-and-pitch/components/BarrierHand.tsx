@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { PEEL_RISE, cornerPeel, peekPull } from '../feltPlane';
-import { Chip } from './Chip';
+import { ChipSprite } from './ChipSprite';
 import { CHIP_SIZE } from './ChipStack';
 import { fitGloveToViewport } from './gloveLayout';
 
@@ -73,7 +73,12 @@ export function BarrierHand({
     const shield = interpolate(lift, [0, 0.16], [0, 1], Extrapolation.CLAMP);
     const grab = interpolate(commit.value, [0, 0.22, 0.4, 0.52], [0, 1, 1, 0], Extrapolation.CLAMP);
     const toss = interpolate(commit.value, [0.4, 0.62, 0.88], [0, 1, 0], Extrapolation.CLAMP);
-    const reaching = interpolate(commit.value, [0, 0.1, 0.86, 1], [0, 1, 1, 0], Extrapolation.CLAMP);
+    const reaching = interpolate(
+      commit.value,
+      [0, 0.1, 0.86, 1],
+      [0, 1, 1, 0],
+      Extrapolation.CLAMP
+    );
     const shown = Math.min(1, shield + reaching);
     const size = 0.9 + pull * 0.04 + reaching * 0.08;
 
@@ -81,17 +86,13 @@ export function BarrierHand({
       opacity: interpolate(shown, [0, 0.18], [0, 1], Extrapolation.CLAMP),
       transform: [
         {
-          translateX:
-            hideX * (1 - shown) + grabTo.x * grab + tossTo.x * toss,
+          translateX: hideX * (1 - shown) + grabTo.x * grab + tossTo.x * toss,
         },
         {
-          translateY:
-            hideY * (1 - shown) - follow * 0.45 + grabTo.y * grab + tossTo.y * toss,
+          translateY: hideY * (1 - shown) - follow * 0.45 + grabTo.y * grab + tossTo.y * toss,
         },
         {
-          rotate: `${
-            interpolate(pull, [0, 1], [-14, -22]) + grab * 28 - toss * 36
-          }deg`,
+          rotate: `${interpolate(pull, [0, 1], [-14, -22]) + grab * 28 - toss * 36}deg`,
         },
         { scaleX: -size },
         { scaleY: size },
@@ -102,7 +103,12 @@ export function BarrierHand({
   const shadowStyle = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
     const shield = interpolate(lift, [0, 0.16], [0, 1], Extrapolation.CLAMP);
-    const reaching = interpolate(commit.value, [0, 0.1, 0.86, 1], [0, 1, 1, 0], Extrapolation.CLAMP);
+    const reaching = interpolate(
+      commit.value,
+      [0, 0.1, 0.86, 1],
+      [0, 1, 1, 0],
+      Extrapolation.CLAMP
+    );
     const shown = Math.min(1, shield + reaching);
     return {
       opacity: interpolate(shown, [0, 1], [0, 0.28], Extrapolation.CLAMP),
@@ -112,7 +118,11 @@ export function BarrierHand({
 
   return (
     <Animated.View
-      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 22 }, motion]}
+      style={[
+        styles.root,
+        { left, top, width: fittedWidth, height: handHeight, zIndex: 22 },
+        motion,
+      ]}
       pointerEvents="none">
       <Animated.Image source={SHADOW} style={[styles.layer, shadowStyle]} resizeMode="contain" />
       <Animated.Image source={SHIELD} style={styles.layer} resizeMode="contain" />
@@ -127,13 +137,7 @@ const HELD = [
   { x: 0.56, y: 0.22, rotate: 16, size: 0.8 },
 ];
 
-function HeldChips({
-  commit,
-  chipSize,
-}: {
-  commit: SharedValue<number>;
-  chipSize: number;
-}) {
+function HeldChips({ commit, chipSize }: { commit: SharedValue<number>; chipSize: number }) {
   const motion = useAnimatedStyle(() => {
     const shown = interpolate(
       commit.value,
@@ -161,7 +165,7 @@ function HeldChips({
               zIndex: index + 1,
             },
           ]}>
-          <Chip size={chipSize * chip.size} rotate={chip.rotate} />
+          <ChipSprite size={chipSize * chip.size} view="threeQuarter" rotate={chip.rotate} />
         </View>
       ))}
     </Animated.View>
