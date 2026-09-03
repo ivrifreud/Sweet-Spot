@@ -7,17 +7,24 @@ import { artStyle } from '../../theme/artStyle';
 import { LifeChips } from './LifeChips';
 
 const AVATAR = require('../../assets/brand/artstyle/characters-1930s-canonical-hero.png');
-const GOLD_BARS = require('../../assets/brand/artstyle/gold-bars-hud.png');
-const STREAK_FLAME = require('../../assets/brand/artstyle/streak-flame-hud.png');
+const GOLD_BARS = require('../../assets/brand/artstyle/gold-bars-transparent.png');
+const STREAK_FLAME = require('../../assets/brand/artstyle/streak-flame-transparent.png');
 
 type Props = {
   remainingChips: number;
   goldBars: number;
   streakDays: number;
   onPressAvatar?: () => void;
+  onPressStreak?: () => void;
 };
 
-export function TrackHud({ remainingChips, goldBars, streakDays, onPressAvatar }: Props) {
+export function TrackHud({
+  remainingChips,
+  goldBars,
+  streakDays,
+  onPressAvatar,
+  onPressStreak,
+}: Props) {
   const { width } = useWindowDimensions();
   const compact = width < 420;
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
@@ -68,19 +75,42 @@ export function TrackHud({ remainingChips, goldBars, streakDays, onPressAvatar }
       </View>
 
       <View
-        style={[styles.capsule, compact && styles.capsuleCompact]}
-        accessible
-        accessibilityRole="text"
-        accessibilityLabel={`Streak, ${streakDays} days`}>
-        <Image
-          source={STREAK_FLAME}
-          style={compact ? styles.flameArtCompact : styles.flameArt}
-          resizeMode="contain"
-          accessibilityElementsHidden
+        style={[
+          styles.capsule,
+          compact && styles.capsuleCompact,
+          styles.streakCapsule,
+          compact && styles.streakCapsuleCompact,
+        ]}>
+        <View style={styles.streakContent} pointerEvents="none">
+          <Image
+            source={STREAK_FLAME}
+            style={compact ? styles.flameArtCompact : styles.flameArt}
+            resizeMode="contain"
+            accessibilityElementsHidden
+          />
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.capsuleValue,
+              styles.streakValue,
+              compact && styles.capsuleValueCompact,
+              display,
+            ]}>
+            {streakDays}
+          </Text>
+        </View>
+        <Pressable
+          onPress={onPressStreak}
+          disabled={!onPressStreak}
+          hitSlop={Math.max(0, (hit - 40) / 2)}
+          style={styles.streakButton}
+          accessibilityRole={onPressStreak ? 'button' : 'text'}
+          accessibilityLabel={
+            onPressStreak
+              ? `Streak, ${streakDays} days. Open streak details`
+              : `Streak, ${streakDays} days`
+          }
         />
-        <Text numberOfLines={1} style={[styles.capsuleValue, compact && styles.capsuleValueCompact, display]}>
-          {streakDays}
-        </Text>
       </View>
 
       <Pressable
@@ -151,6 +181,26 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 1,
   },
+  streakCapsule: {
+    flexGrow: 0,
+    flexShrink: 0,
+    width: 68,
+    height: 40,
+    justifyContent: 'center',
+  },
+  streakCapsuleCompact: {
+    width: 62,
+    height: 36,
+  },
+  streakContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  streakButton: {
+    ...StyleSheet.absoluteFillObject,
+  },
   muteCapsule: {
     flexGrow: 0,
     minWidth: 44,
@@ -175,11 +225,13 @@ const styles = StyleSheet.create({
   flameArt: {
     width: 26,
     height: 26,
-    borderRadius: 7,
   },
   flameArtCompact: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+  },
+  streakValue: {
+    minWidth: 12,
+    textAlign: 'center',
   },
 });

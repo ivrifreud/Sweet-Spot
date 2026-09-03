@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TrackHud } from '../components/track/TrackHud';
+import { StreakModal } from '../components/track/StreakModal';
 import { formatRegenCountdown, submitStageAnswer, type ChipCount } from '../lib/chip-stack';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
+import { markStreakActivity, toLocalDay } from '../lib/streak';
 import { burnChip } from '../lib/track/chips';
 import { stageSpots } from '../lib/track/stageSpot';
 import { SPOTS_PER_STAGE, nextSpotIndex, recordSpotAttempt } from '../lib/track/tree';
@@ -27,6 +29,8 @@ export type StagePlayResolved = {
   lockedOut: boolean;
   regenAt: string | null;
   stageComplete: boolean;
+  streakCurrent?: number;
+  streakBest?: number;
 };
 
 type Props = {
@@ -35,6 +39,7 @@ type Props = {
   remainingChips: ChipCount;
   goldBars: number;
   streakDays: number;
+  streakBestDays: number;
   initialSpotsCompleted?: number;
   stageProgressId?: string | null;
   onResolved: (update: StagePlayResolved) => void;
@@ -59,6 +64,7 @@ export function StagePlayScreen({
   remainingChips,
   goldBars,
   streakDays,
+  streakBestDays,
   initialSpotsCompleted = 0,
   stageProgressId = null,
   onResolved,
@@ -85,6 +91,7 @@ export function StagePlayScreen({
   const [regenAt, setRegenAt] = useState<string | null>(null);
   const [lockedOut, setLockedOut] = useState(remainingChips === 0);
   const [now, setNow] = useState(() => new Date());
+  const [showStreak, setShowStreak] = useState(false);
 
   useEffect(() => {
     setHudChips(remainingChips);
@@ -116,6 +123,8 @@ export function StagePlayScreen({
           let nextLockedOut = remainingChips === 0;
           let nextRegenAt = regenAt;
           let progress = recordSpotAttempt(spotsCompleted);
+          let streakCurrent: number | undefined;
+          let streakBest: number | undefined;
 
           if (live && stageProgressId) {
             const result = await submitStageAnswer({
@@ -127,6 +136,15 @@ export function StagePlayScreen({
             nextChips = result.chips;
             nextLockedOut = result.lockedOut;
             nextRegenAt = result.regenAt;
+            if (!result.alreadySubmitted) {
+              try {
+                const streak = await markStreakActivity(toLocalDay());
+                streakCurrent = streak.currentStreak;
+                streakBest = streak.bestStreak;
+              } catch {
+                // Do not block answer resolution if streak sync fails.
+              }
+            }
             if (result.alreadySubmitted) {
               progress = {
                 spotsCompleted,
@@ -153,6 +171,13 @@ export function StagePlayScreen({
             lockedOut: nextLockedOut,
             regenAt: nextRegenAt,
             stageComplete: progress.stageComplete,
+            ...(live && stageProgressId
+              ? {
+                  streakCurrent:
+                    typeof streakCurrent === 'number' ? streakCurrent : undefined,
+                  streakBest: typeof streakBest === 'number' ? streakBest : undefined,
+                }
+              : {}),
           });
           setSpotsCompleted(progress.spotsCompleted);
           setStageComplete(progress.stageComplete);
@@ -219,7 +244,12 @@ export function StagePlayScreen({
       />
 
       <View pointerEvents="box-none" style={[styles.hud, { paddingTop: insets.top + 4 }]}>
-        <TrackHud remainingChips={hudChips} goldBars={goldBars} streakDays={streakDays} />
+        <TrackHud
+          remainingChips={hudChips}
+          goldBars={goldBars}
+          streakDays={streakDays}
+          onPressStreak={() => setShowStreak(true)}
+        />
       </View>
 
       <Pressable
@@ -260,6 +290,13 @@ export function StagePlayScreen({
           <Text style={styles.errorBannerHint}>The hand was not saved. Try again.</Text>
         </View>
       ) : null}
+
+      <StreakModal
+        visible={showStreak}
+        currentStreak={streakDays}
+        bestStreak={streakBestDays}
+        onClose={() => setShowStreak(false)}
+      />
     </ScreenShakeHost>
   );
 }
