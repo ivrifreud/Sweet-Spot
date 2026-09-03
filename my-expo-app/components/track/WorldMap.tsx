@@ -4,13 +4,15 @@ import { Image, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
-import { MAP_ASPECT } from '../../lib/track/tree';
+import type { FogPhase } from '../../lib/track/fogCycle';
+import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
 import type { WorldMapAsset, WorldMapTemplate } from './worldMapTemplates';
 
@@ -19,62 +21,58 @@ type Props = {
   height: number;
   world: WorldMapTemplate;
   activeChunkIndex: number;
+  fogPhase: FogPhase;
   cameraDuration?: number;
+  onCameraSettled?: () => void;
   children: ReactNode;
 };
 
 type FogProps = {
-  top: number;
   width: number;
   height: number;
   leftAsset: WorldMapAsset;
   rightAsset: WorldMapAsset;
-  revealed: boolean;
+  phase: FogPhase;
 };
 
-function FogOfWarClouds({ top, width, height, leftAsset, rightAsset, revealed }: FogProps) {
+function FogOfWarClouds({ width, height, leftAsset, rightAsset, phase }: FogProps) {
   const reducedMotion = useReducedMotion();
-  const reveal = useSharedValue(revealed ? 1 : 0);
+  const reveal = useSharedValue(phase === 'closed' ? 0 : 1);
   const mounted = useRef(false);
+  const cloudWidth = width * 0.53;
+  const leftHeight = cloudWidth / leftAsset.aspectRatio;
+  const rightHeight = cloudWidth / rightAsset.aspectRatio;
 
   useEffect(() => {
     cancelAnimation(reveal);
-    const target = revealed ? 1 : 0;
-    if (!mounted.current || reducedMotion) {
+    const target = phase === 'closed' ? 0 : 1;
+    if (!mounted.current || reducedMotion || phase === 'closed') {
       mounted.current = true;
       reveal.value = target;
       return;
     }
     reveal.value = withTiming(target, {
-      duration: target === 1 ? 920 : 260,
+      duration: FOG_PART_MS,
       easing: Easing.inOut(Easing.cubic),
     });
-  }, [reducedMotion, reveal, revealed]);
+  }, [phase, reducedMotion, reveal]);
 
   const leftStyle = useAnimatedStyle(() => ({
-    opacity: 1 - reveal.value,
-    transform: [{ translateX: -reveal.value * width * 0.72 }, { scale: 1 + reveal.value * 0.08 }],
+    opacity: 1 - reveal.value * 0.12,
+    transform: [{ translateX: -reveal.value * width * 0.92 }, { scale: 1 + reveal.value * 0.04 }],
   }));
   const rightStyle = useAnimatedStyle(() => ({
-    opacity: 1 - reveal.value,
-    transform: [{ translateX: reveal.value * width * 0.72 }, { scale: 1 + reveal.value * 0.08 }],
+    opacity: 1 - reveal.value * 0.12,
+    transform: [{ translateX: reveal.value * width * 0.92 }, { scale: 1 + reveal.value * 0.04 }],
   }));
-  const scrimStyle = useAnimatedStyle(() => ({
-    opacity: (1 - reveal.value) * 0.42,
-  }));
-
-  const cloudWidth = width * 0.82;
 
   return (
     <View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.fog, { top, width, height }]}>
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: artStyle.colors.cream }, scrimStyle]}
-      />
-      <Animated.View style={[StyleSheet.absoluteFill, leftStyle]}>
+      style={styles.fog}>
+      <Animated.View style={[styles.cloudLayer, leftStyle]}>
         <Image
           source={leftAsset.source}
           resizeMode="contain"
@@ -82,29 +80,16 @@ function FogOfWarClouds({ top, width, height, leftAsset, rightAsset, revealed }:
           style={[
             styles.cloud,
             {
-              left: -width * 0.17,
-              top: height * 0.08,
+              left: -width * 0.03,
+              top: -height * 0.12,
               width: cloudWidth,
-              aspectRatio: leftAsset.aspectRatio,
-            },
-          ]}
-        />
-        <Image
-          source={leftAsset.source}
-          resizeMode="contain"
-          accessible={false}
-          style={[
-            styles.cloud,
-            {
-              left: -width * 0.08,
-              top: height * 0.49,
-              width: cloudWidth,
+              height: leftHeight,
               aspectRatio: leftAsset.aspectRatio,
             },
           ]}
         />
       </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, rightStyle]}>
+      <Animated.View style={[styles.cloudLayer, rightStyle]}>
         <Image
           source={rightAsset.source}
           resizeMode="contain"
@@ -112,23 +97,10 @@ function FogOfWarClouds({ top, width, height, leftAsset, rightAsset, revealed }:
           style={[
             styles.cloud,
             {
-              right: -width * 0.17,
-              top: height * 0.18,
+              right: -width * 0.03,
+              top: -height * 0.11,
               width: cloudWidth,
-              aspectRatio: rightAsset.aspectRatio,
-            },
-          ]}
-        />
-        <Image
-          source={rightAsset.source}
-          resizeMode="contain"
-          accessible={false}
-          style={[
-            styles.cloud,
-            {
-              right: -width * 0.08,
-              top: height * 0.58,
-              width: cloudWidth,
+              height: rightHeight,
               aspectRatio: rightAsset.aspectRatio,
             },
           ]}
@@ -144,7 +116,9 @@ export function WorldMap({
   height,
   world,
   activeChunkIndex,
-  cameraDuration = 980,
+  fogPhase,
+  cameraDuration = CAMERA_CLIMB_MS,
+  onCameraSettled,
   children,
 }: Props) {
   const reducedMotion = useReducedMotion();
@@ -152,19 +126,42 @@ export function WorldMap({
   const targetY = -(world.chunks.length - 1 - safeChunkIndex) * height;
   const cameraY = useSharedValue(targetY);
   const mounted = useRef(false);
+  const prevChunk = useRef(safeChunkIndex);
+  const onSettledRef = useRef(onCameraSettled);
+  onSettledRef.current = onCameraSettled;
 
   useEffect(() => {
+    const notifySettled = () => {
+      onSettledRef.current?.();
+    };
     cancelAnimation(cameraY);
-    if (!mounted.current || reducedMotion) {
+    if (!mounted.current) {
       mounted.current = true;
+      prevChunk.current = safeChunkIndex;
       cameraY.value = targetY;
       return;
     }
-    cameraY.value = withTiming(targetY, {
-      duration: Math.max(1, cameraDuration),
-      easing: Easing.inOut(Easing.cubic),
-    });
-  }, [cameraDuration, cameraY, reducedMotion, targetY]);
+    if (prevChunk.current === safeChunkIndex) {
+      cameraY.value = targetY;
+      return;
+    }
+    prevChunk.current = safeChunkIndex;
+    if (reducedMotion) {
+      cameraY.value = targetY;
+      notifySettled();
+      return;
+    }
+    cameraY.value = withTiming(
+      targetY,
+      {
+        duration: Math.max(1, cameraDuration),
+        easing: Easing.inOut(Easing.cubic),
+      },
+      (finished) => {
+        if (finished) runOnJS(notifySettled)();
+      }
+    );
+  }, [cameraDuration, cameraY, reducedMotion, safeChunkIndex, targetY]);
 
   const cameraStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: cameraY.value }],
@@ -179,7 +176,7 @@ export function WorldMap({
           return (
             <Image
               key={`background-${chunk.id}`}
-              source={world.background}
+              source={chunk.background}
               resizeMode="cover"
               accessible={false}
               style={[
@@ -188,25 +185,20 @@ export function WorldMap({
                   top,
                   width,
                   height,
-                  transform: [{ scaleX: chunk.index % 2 === 1 ? -1 : 1 }],
                 },
               ]}
             />
           );
         })}
         {children}
-        {world.chunks.map((chunk) => (
-          <FogOfWarClouds
-            key={`fog-${chunk.id}`}
-            top={(world.chunks.length - 1 - chunk.index) * height}
-            width={width}
-            height={height}
-            leftAsset={world.fogAssets.left}
-            rightAsset={world.fogAssets.right}
-            revealed={chunk.index <= safeChunkIndex}
-          />
-        ))}
       </Animated.View>
+      <FogOfWarClouds
+        width={width}
+        height={height}
+        leftAsset={world.fogAssets.left}
+        rightAsset={world.fogAssets.right}
+        phase={fogPhase}
+      />
       <LinearGradient
         colors={[
           `${artStyle.colors.projectorBlack}14`,
@@ -215,7 +207,7 @@ export function WorldMap({
         ]}
         locations={[0, 0.5, 1]}
         pointerEvents="none"
-        style={StyleSheet.absoluteFill}
+        style={styles.vignette}
       />
     </View>
   );
@@ -231,18 +223,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
+    zIndex: 1,
   },
   chunkBackground: {
     position: 'absolute',
     left: 0,
   },
   fog: {
-    position: 'absolute',
-    left: 0,
-    zIndex: 30,
-    overflow: 'hidden',
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+  cloudLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   cloud: {
     position: 'absolute',
+  },
+  vignette: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 8,
   },
 });
