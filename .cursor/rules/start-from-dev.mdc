@@ -1,0 +1,14 @@
+---
+description: New branches always start from a freshly pulled origin/dev. Do not open feature work from a stale or leftover branch.
+alwaysApply: true
+---
+
+# Start from origin/dev
+
+Canonical integration branch: `origin/dev` (not `main`, not a leftover feature branch).
+
+When the user asks to **open / create a new branch**, read and follow `.cursor/skills/start-from-dev/SKILL.md` first. Fetch + pull `origin/dev`, then create the branch from that tip. Do not branch off `devops/*`, `cursor/*`, `main`, or a stale local `dev`.
+
+When the user is **already on an existing feature branch** and just continuing work: do **not** pull `dev` unless they asked to sync, or the work requires latest `dev`.
+
+Never force-push. Never discard uncommitted work to sync. On PowerShell use `;` not `&&`.

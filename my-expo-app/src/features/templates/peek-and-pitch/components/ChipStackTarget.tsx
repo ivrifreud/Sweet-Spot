@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 48,
     minHeight: 48,
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'flex-end',
   },
 });

@@ -9,6 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { isMuted, setMuted } from '../../lib/audio';
 import { artStyle } from '../../theme/artStyle';
@@ -24,6 +25,8 @@ type Props = {
   streakDays: number;
   onPressAvatar?: () => void;
   onPressStreak?: () => void;
+  /** When set, a back-to-tree control sits on the left of the bar. */
+  onPressBack?: () => void;
 };
 
 export function TrackHud({
@@ -32,6 +35,7 @@ export function TrackHud({
   streakDays,
   onPressAvatar,
   onPressStreak,
+  onPressBack,
 }: Props) {
   const { width } = useWindowDimensions();
   /** True phone widths — keep the whole strip on one row. */
@@ -49,6 +53,29 @@ export function TrackHud({
 
   return (
     <View style={[styles.bar, compact && styles.barCompact]} accessibilityRole="header">
+      {onPressBack ? (
+        <Pressable
+          onPress={onPressBack}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.capsule,
+            styles.backCapsule,
+            compact && styles.capsuleCompact,
+            compact && styles.backCapsuleCompact,
+            pressed ? styles.pressed : null,
+            { minHeight: hit, minWidth: hit },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Back to the tree">
+          <BackArrow compact={compact} />
+          <Text
+            numberOfLines={1}
+            style={[styles.backLabel, compact && styles.backLabelCompact, display]}>
+            TREE
+          </Text>
+        </Pressable>
+      ) : null}
+
       <Pressable
         onPress={onPressAvatar}
         disabled={!onPressAvatar}
@@ -147,6 +174,22 @@ export function TrackHud({
   );
 }
 
+function BackArrow({ compact }: { compact: boolean }) {
+  const size = compact ? 16 : 18;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 18 18" accessibilityElementsHidden>
+      <Path
+        d="M11.5 3.5 5.5 9l6 5.5"
+        fill="none"
+        stroke={artStyle.colors.projectorBlack}
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
@@ -224,6 +267,26 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minWidth: 44,
     justifyContent: 'center',
+  },
+  backCapsule: {
+    flexGrow: 0,
+    flexShrink: 0,
+    paddingHorizontal: 10,
+    gap: 4,
+    backgroundColor: artStyle.colors.goldBright,
+    borderColor: artStyle.colors.gold,
+  },
+  backCapsuleCompact: {
+    paddingHorizontal: 8,
+  },
+  backLabel: {
+    color: artStyle.colors.projectorBlack,
+    fontSize: 16,
+    letterSpacing: 1.2,
+  },
+  backLabelCompact: {
+    fontSize: 13,
+    letterSpacing: 1,
   },
   capsuleValue: {
     color: artStyle.colors.projectorBlack,

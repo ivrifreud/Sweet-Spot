@@ -18,7 +18,7 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withDelay,
+  withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
@@ -94,13 +94,14 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-      <View
+      <Pressable
         testID="decision-feedback-overlay"
         accessibilityViewIsModal
-        accessibilityRole="alert"
-        accessibilityLabel={`${title}. ${kicker}. ${explanation}`}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="auto">
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to ${continueLabel.toLowerCase()}.`}
+        accessibilityHint="Tap anywhere on the screen to continue"
+        onPress={onContinue}
+        style={StyleSheet.absoluteFill}>
         <FlashWash
           outcome={outcome}
           reducedMotion={reducedMotion}
@@ -110,6 +111,7 @@ export function DecisionFeedbackOverlay({
         />
 
         <View
+          pointerEvents="none"
           style={[
             styles.stage,
             { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) + 8 },
@@ -131,26 +133,13 @@ export function DecisionFeedbackOverlay({
               pace={pace}
             />
 
-            <Pressable
-              testID="decision-feedback-continue"
-              accessibilityRole="button"
-              accessibilityLabel={continueLabel}
-              hitSlop={8}
-              onPress={onContinue}
-              style={({ pressed }) => [
-                styles.continue,
-                outcome === 'correct' ? styles.continueCorrect : styles.continueMiss,
-                pressed ? styles.continuePressed : null,
-                { minHeight: CONTINUE_MIN_HEIGHT },
-              ]}>
-              <Text
-                style={[
-                  styles.continueText,
-                  fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
-                ]}>
-                {continueLabel}
-              </Text>
-            </Pressable>
+            <ContinueInbox
+              label={continueLabel}
+              outcome={outcome}
+              fontsLoaded={fontsLoaded}
+              reducedMotion={reducedMotion}
+              pace={pace}
+            />
           </View>
         </View>
 
@@ -159,8 +148,66 @@ export function DecisionFeedbackOverlay({
             <ConfettiBurst restartKey={feedbackKey} pace={pace} />
           </View>
         ) : null}
-      </View>
+      </Pressable>
     </ScreenShakeHost>
+  );
+}
+
+/** Non-button hint box — the whole overlay is the tap target. */
+function ContinueInbox({
+  label,
+  outcome,
+  fontsLoaded,
+  reducedMotion,
+  pace,
+}: {
+  label: string;
+  outcome: DecisionOutcome;
+  fontsLoaded: boolean;
+  reducedMotion: boolean | undefined;
+  pace: number;
+}) {
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    cancelAnimation(pulse);
+    if (reducedMotion) {
+      pulse.value = 1;
+      return;
+    }
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+  }, [pace, pulse, reducedMotion]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    opacity: interpolate(pulse.value, [1, 1.04], [0.92, 1]),
+  }));
+
+  return (
+    <Animated.View
+      testID="decision-feedback-continue"
+      style={[
+        styles.continueInbox,
+        outcome === 'correct' ? styles.continueInboxCorrect : styles.continueInboxMiss,
+        { minHeight: CONTINUE_MIN_HEIGHT },
+        pulseStyle,
+      ]}>
+      <Text style={styles.continueHint}>Tap anywhere</Text>
+      <Text
+        style={[
+          styles.continueText,
+          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+        ]}>
+        {label}
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -686,29 +733,34 @@ const styles = StyleSheet.create({
     marginLeft: '-12%',
     marginTop: '-4%',
   },
-  continue: {
+  continueInbox: {
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: INK,
     paddingHorizontal: 18,
+    paddingVertical: 8,
+    gap: 2,
   },
-  continueCorrect: {
+  continueInboxCorrect: {
     backgroundColor: brand.goldBright,
   },
-  continueMiss: {
+  continueInboxMiss: {
     backgroundColor: artStyle.colors.gold,
   },
-  continuePressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.97 }],
+  continueHint: {
+    color: 'rgba(23, 23, 19, 0.72)',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   continueText: {
     color: INK,
-    fontSize: 22,
-    letterSpacing: 1.6,
-    paddingVertical: 4,
+    fontSize: 24,
+    letterSpacing: 1.8,
+    paddingVertical: 2,
   },
   confettiInk: {
     borderWidth: 1.5,

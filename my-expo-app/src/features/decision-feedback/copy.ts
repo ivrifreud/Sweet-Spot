@@ -29,7 +29,7 @@ export function buildDecisionFeedbackCopy(input: {
   const chosen = labelForAction(input.chosen);
   const correctAnswer = labelForAction(input.correctAnswer);
   const lesson = tidyLesson(input.lesson);
-  const continueLabel = input.continueLabel ?? 'Next hand';
+  const continueLabel = input.continueLabel ?? 'Deal me the next';
 
   if (input.correct) {
     const explanation = lesson
