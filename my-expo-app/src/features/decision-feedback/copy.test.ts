@@ -37,6 +37,6 @@ describe('decision feedback copy', () => {
     expect(copy.kicker.toLowerCase()).not.toContain('wrong');
     expect(copy.explanation).toContain('Call');
     expect(copy.explanation).toContain('Fold');
-    expect(copy.continueLabel).toBe('Next hand');
+    expect(copy.continueLabel).toBe('Deal me the next');
   });
 });

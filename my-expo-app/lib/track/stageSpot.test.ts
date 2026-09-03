@@ -32,6 +32,6 @@ describe('stage spots', () => {
 
   it('indexes into the bundle without completing the stage early', () => {
     expect(stageContent(1, 1, 2).calibration.id).toBe(stageSpots(1, 1).calibration[2]?.id);
-    expect(stageContent(1, 1, 6).table.progressLabel).toBe('7 / 7');
+    expect(stageContent(1, 1, 6).table.progressLabel).toBe('Stage 1 · 7 / 7');
   });
 });

@@ -18,7 +18,7 @@ export function stageSpots(
   return {
     calibration,
     tables: calibration.map((spot, index) => ({
-      ...toPeekAndPitchSpot(spot, `${index + 1} / ${SPOTS_PER_STAGE}`),
+      ...toPeekAndPitchSpot(spot, `Stage ${stageNumber} · ${index + 1} / ${SPOTS_PER_STAGE}`),
       skin,
     })),
   };

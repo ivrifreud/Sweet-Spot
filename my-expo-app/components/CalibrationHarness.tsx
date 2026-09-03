@@ -306,7 +306,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         chosen,
         correctAnswer: current.correctAnswer,
         lesson: current.prompt,
-        continueLabel: 'Next hand',
+        continueLabel: 'Deal me the next hand',
       });
 
       const nextAnswers = devMode
@@ -402,7 +402,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   }
 
   const stageLabel =
-    current?.spotType === 'calibration_stage1' ? 'Stage 1 · Pre-flop' : 'Stage 2 · Post-flop';
+    current?.spotType === 'calibration_stage1' ? 'Stage 1' : 'Stage 2';
   const progress = current ? `${current.sequenceOrder} / 6` : result ? 'Done' : '…';
   const tableSpot = useMemo(
     () => (current ? toPeekAndPitchSpot(current, `${stageLabel} · ${progress}`) : null),
@@ -573,7 +573,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         title={feedback?.copy.title ?? ''}
         kicker={feedback?.copy.kicker ?? ''}
         explanation={feedback?.copy.explanation ?? ''}
-        continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}
+        continueLabel={feedback?.copy.continueLabel ?? 'Deal me the next'}
         feedbackKey={feedback?.key}
         tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}

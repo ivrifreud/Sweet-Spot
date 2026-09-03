@@ -1,0 +1,31 @@
+---
+description: Before any feature or product task, check MVP scope, art style, phone-first design, and screen tokens.
+alwaysApply: true
+---
+
+# Feature preflight — MVP, art, design
+
+Before planning or implementing a **new feature, screen, mechanic, or product task**, read the relevant parts of these sources. Do not invent scope or look.
+
+1. **MVP scope** — `docs/mvp.md` (Section 10 = out of scope). Then `docs/sprint-current.md` for what this sprint actually builds.
+2. **Art style** — `docs/art-style-guide.md` (characters, worlds, palette, motion, UI vs illustration). Moodboard: `docs/moodboard/README.md`.
+3. **Design / UI** — `.cursor/skills/sweet-spot-screen-style/SKILL.md`, tokens in `my-expo-app/theme/artStyle.ts` and `my-expo-app/theme/brand.ts`. For screens or UX, also follow `.cursor/skills/ui-ux/SKILL.md`. Level mechanics: `docs/Question_Templates.md`.
+
+## How to use them
+
+- Open the files with `@` / Read. Do not dump the whole spec into chat.
+- If the request is outside MVP Section 10, refuse to build it and say so.
+- If a mockup, plugin, or skill (including generic design skills) conflicts with the art style or tokens, the repo guides win.
+- Spec conflicts still follow `docs-hierarchy`: MVP > current sprint > feature docs.
+
+## Phone app, not a website
+
+Every feature is designed for a **phone app** (Expo / React Native), not for the web.
+
+- Primary target: a phone in the hand. Touch, thumb reach, safe areas, portrait, hit targets ≥44pt.
+- Do not ship desktop/web layouts, hover-only controls, `cursor-pointer`, CSS frameworks, or a separate website for the same feature.
+- Expo web (if used) is only a preview of the **same phone UI**. It must still look and behave like the mobile app, not a redesigned web product.
+
+## Skip the full visual read when
+
+The task is purely mechanical and cannot change product look or scope (typo, git, CI, comments). Still do not add out-of-scope features.

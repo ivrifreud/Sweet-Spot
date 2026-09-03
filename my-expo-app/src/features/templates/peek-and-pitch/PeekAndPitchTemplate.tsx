@@ -21,7 +21,9 @@ import {
 
 import { startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
+import { CHIP_EDGE_RATIO } from '../../../../theme/chipArt';
 import { ActionBanner } from './components/ActionBanner';
+import { streetLabelForBoard } from './street';
 import { BarrierHand } from './components/BarrierHand';
 import { CardPicker } from './components/CardPicker';
 import { ChipStack, CHIP_SIZE } from './components/ChipStack';
@@ -47,6 +49,13 @@ const DEAL_LIVE_FALLBACK_MS = 1920;
 const CARD_SCALE = 0.78;
 /** Chips stay under card width so stacks read as coins, not one merged stamp. */
 const CHIP_TO_CARD = 0.55;
+/**
+ * TrackHud sits at insets.top + 4 with ~44pt capsules.
+ * Extra gap drops the hand-info block into mid-upper felt, clear of the lives pill.
+ */
+const ACTION_BANNER_BELOW_HUD = 76;
+/** Compact ActionBanner height so PeekHud stays just under the pot/street block. */
+const ACTION_BANNER_HEIGHT = 68;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -123,7 +132,7 @@ export function PeekAndPitchTemplate({
   const handWidth = stage * 0.46;
   const barrierWidth = stage * 0.42;
   const stackHitSize = {
-    width: Math.max(STACK_HIT.width, chipSize * 3.4 + 28, 56),
+    width: Math.max(STACK_HIT.width, chipSize * 3.6 + 28, 56),
     height: Math.max(STACK_HIT.height, chipSize * 2.8 + 44, 56),
   };
 
@@ -181,7 +190,7 @@ export function PeekAndPitchTemplate({
       restCenter,
       stackHit,
       stackAnchor: {
-        x: stackHit.x + stackHit.width * 0.42,
+        x: stackHit.x + stackHit.width * 0.5,
         y: stackHit.y + stackHit.height * 0.82,
       },
       handContact: {
@@ -330,13 +339,9 @@ export function PeekAndPitchTemplate({
       const nextFlights: ChipFlight[] = Array.from({ length: flightCount }, (_, index) => {
         flightSeed.current += 1;
         const spin = Math.random() > 0.5 ? 1 : -1;
-        const column = index % 2;
         const from = {
-          x:
-            stackAnchor.x +
-            (column === 0 ? -chipSize * 0.35 : chipSize * 0.2) +
-            (Math.random() - 0.5) * 6,
-          y: stackAnchor.y - chipSize * 0.15 - index * (chipSize * 0.12),
+          x: stackAnchor.x + (Math.random() - 0.5) * 6,
+          y: stackAnchor.y - chipSize * 0.15 - index * (chipSize * CHIP_EDGE_RATIO),
         };
         const scatterX = (Math.random() - 0.5) * chipSize * 1.8;
         const scatterY = (Math.random() - 0.5) * chipSize * 1.1;
@@ -536,11 +541,14 @@ export function PeekAndPitchTemplate({
         onIllegalCheck={denyCheck}
       />
 
-      <View style={[styles.bannerHolder, { top: insets.top + 10 }]} pointerEvents="box-none">
+      <View
+        style={[styles.bannerHolder, { top: insets.top + ACTION_BANNER_BELOW_HUD }]}
+        pointerEvents="box-none">
         <ActionBanner
           position={activeSpot.position}
           actionLine={activeSpot.actionLine}
           potLabel={activeSpot.potLabel}
+          streetLabel={streetLabelForBoard(activeSpot.board.length)}
           progressLabel={activeSpot.progressLabel}
           accent={skin.accent}
           decision={decision}
@@ -553,7 +561,7 @@ export function PeekAndPitchTemplate({
         cards={cards}
         peek={peek}
         muck={muck}
-        top={insets.top + 56}
+        top={insets.top + ACTION_BANNER_BELOW_HUD + ACTION_BANNER_HEIGHT}
         left={Math.max(12, insets.left + 8)}
       />
 
@@ -623,7 +631,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 8,
     elevation: 8,
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'flex-end',
   },
   stackHitLayer: {
@@ -635,6 +643,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    zIndex: 25,
   },
   footer: {
     position: 'absolute',

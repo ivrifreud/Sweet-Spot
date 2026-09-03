@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TrackHud } from '../components/track/TrackHud';
@@ -189,7 +189,7 @@ export function StagePlayScreen({
             chosen,
             correctAnswer: calibration.correctAnswer,
             lesson: calibration.prompt,
-            continueLabel: lastHand ? 'Back to the tree' : 'Next hand',
+            continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
           });
           setSettled(correct);
           setFeedback({
@@ -250,20 +250,12 @@ export function StagePlayScreen({
           goldBars={goldBars}
           streakDays={streakDays}
           onPressStreak={() => setShowStreak(true)}
+          onPressBack={() => {
+            setResetKey((value) => value + 1);
+            onBack();
+          }}
         />
       </View>
-
-      <Pressable
-        onPress={() => {
-          setResetKey((value) => value + 1);
-          onBack();
-        }}
-        hitSlop={10}
-        style={[styles.back, { top: insets.top + 72 }]}
-        accessibilityRole="button"
-        accessibilityLabel="Back to the tree">
-        <Text style={styles.backText}>Tree</Text>
-      </Pressable>
 
       <DecisionFeedbackOverlay
         visible={Boolean(feedback)}
@@ -277,7 +269,7 @@ export function StagePlayScreen({
               }.`
             : (feedback?.copy.explanation ?? '')
         }
-        continueLabel={feedback?.copy.continueLabel ?? 'Next hand'}
+        continueLabel={feedback?.copy.continueLabel ?? 'Deal me the next hand'}
         feedbackKey={feedback?.key}
         tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}
@@ -312,24 +304,6 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     zIndex: 40,
-  },
-  back: {
-    position: 'absolute',
-    left: 14,
-    zIndex: 41,
-    minHeight: 44,
-    minWidth: 44,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(17,23,20,0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(200,155,60,0.45)',
-  },
-  backText: {
-    color: artStyle.colors.cream,
-    fontSize: 13,
-    fontWeight: '700',
   },
   errorBanner: {
     position: 'absolute',
