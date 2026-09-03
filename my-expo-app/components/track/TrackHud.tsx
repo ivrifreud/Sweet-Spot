@@ -34,11 +34,12 @@ export function TrackHud({
   onPressStreak,
 }: Props) {
   const { width } = useWindowDimensions();
-  const compact = width < 420;
+  /** True phone widths — keep the whole strip on one row. */
+  const compact = width < 430;
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
-  const avatar = compact ? 40 : 44;
-  const chipSize = compact ? 22 : 26;
+  const avatar = compact ? 34 : 44;
+  const chipSize = compact ? 18 : 26;
   const hit = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;
   const [muted, setMutedState] = useState(isMuted());
 
@@ -47,7 +48,7 @@ export function TrackHud({
   }, []);
 
   return (
-    <View style={styles.bar} accessibilityRole="header">
+    <View style={[styles.bar, compact && styles.barCompact]} accessibilityRole="header">
       <Pressable
         onPress={onPressAvatar}
         disabled={!onPressAvatar}
@@ -112,7 +113,7 @@ export function TrackHud({
         <Pressable
           onPress={onPressStreak}
           disabled={!onPressStreak}
-          hitSlop={Math.max(0, (hit - 40) / 2)}
+          hitSlop={Math.max(0, (hit - 36) / 2)}
           style={styles.streakButton}
           accessibilityRole={onPressStreak ? 'button' : 'text'}
           accessibilityLabel={
@@ -129,7 +130,7 @@ export function TrackHud({
           setMutedState(next);
           void setMuted(next);
         }}
-        hitSlop={Math.max(0, (hit - 40) / 2)}
+        hitSlop={Math.max(0, (hit - 36) / 2)}
         style={({ pressed }) => [
           styles.capsule,
           compact && styles.capsuleCompact,
@@ -150,8 +151,13 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 6,
     width: '100%',
+    zIndex: 2,
+  },
+  barCompact: {
+    gap: 4,
   },
   avatarFrame: {
     borderRadius: 10,
@@ -183,13 +189,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   capsuleCompact: {
-    minHeight: 36,
-    paddingHorizontal: 6,
+    minHeight: 34,
+    paddingHorizontal: 5,
     paddingVertical: 2,
+    borderWidth: 1.5,
   },
   chipCapsule: {
     flexGrow: 0,
-    flexShrink: 1,
+    flexShrink: 0,
     backgroundColor: artStyle.colors.projectorBlack,
   },
   streakCapsule: {
@@ -200,20 +207,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   streakCapsuleCompact: {
-    width: 62,
-    height: 36,
+    width: 52,
+    height: 34,
   },
   streakContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
   streakButton: {
     ...StyleSheet.absoluteFillObject,
   },
   muteCapsule: {
     flexGrow: 0,
+    flexShrink: 0,
     minWidth: 44,
     justifyContent: 'center',
   },
@@ -223,23 +231,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   capsuleValueCompact: {
-    fontSize: 16,
+    fontSize: 14,
   },
   goldArt: {
     width: 32,
     height: 26,
   },
   goldArtCompact: {
-    width: 26,
-    height: 22,
+    width: 22,
+    height: 18,
   },
   flameArt: {
     width: 26,
     height: 26,
   },
   flameArtCompact: {
-    width: 22,
-    height: 22,
+    width: 18,
+    height: 18,
   },
   streakValue: {
     minWidth: 12,

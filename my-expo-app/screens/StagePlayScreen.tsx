@@ -29,6 +29,7 @@ export type StagePlayResolved = {
   lockedOut: boolean;
   regenAt: string | null;
   stageComplete: boolean;
+  spotsCompleted: number;
   streakCurrent?: number;
   streakBest?: number;
 };
@@ -171,10 +172,10 @@ export function StagePlayScreen({
             lockedOut: nextLockedOut,
             regenAt: nextRegenAt,
             stageComplete: progress.stageComplete,
+            spotsCompleted: progress.spotsCompleted,
             ...(live && stageProgressId
               ? {
-                  streakCurrent:
-                    typeof streakCurrent === 'number' ? streakCurrent : undefined,
+                  streakCurrent: typeof streakCurrent === 'number' ? streakCurrent : undefined,
                   streakBest: typeof streakBest === 'number' ? streakBest : undefined,
                 }
               : {}),

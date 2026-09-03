@@ -1,6 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,6 +42,7 @@ type Props = {
   streakDays: number;
   streakBestDays: number;
   completedCount: number;
+  spotsByStage?: Record<number, number>;
   currentWorld?: WorldMapTemplate;
   avatarSource?: ImageSourcePropType;
   /** False while a level covers the map so Benny's shoes stay put until focus. */
@@ -63,6 +65,7 @@ export function TrackMapScreen({
   streakDays,
   streakBestDays,
   completedCount,
+  spotsByStage = {},
   currentWorld,
   avatarSource,
   isActive = true,
@@ -392,6 +395,7 @@ export function TrackMapScreen({
             activeChunkIndex={cameraChunkIndex}
             fogPhase={fogPhase}
             completedCount={completedCount}
+            spotsByStage={spotsByStage}
             standing={standing}
             trail={trail}
             trailKey={trailKey}
@@ -405,13 +409,19 @@ export function TrackMapScreen({
       </View>
 
       <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 4 }]}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(17,23,20,0.72)', 'rgba(17,23,20,0.28)', 'rgba(17,23,20,0)']}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
         <TrackHud
           remainingChips={remainingChips}
           goldBars={goldBars}
           streakDays={streakDays}
           onPressStreak={() => setShowStreak(true)}
         />
-        <Text style={[styles.kicker, display]} accessibilityRole="header">
+        <Text style={[styles.kicker, display]} accessibilityRole="header" numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
         {!lockMessage && notice ? (
@@ -428,7 +438,11 @@ export function TrackMapScreen({
       {lockMessage ? <ChipLockoutCard countdown={lockMessage} /> : null}
 
       {/* TEMPORARY DEV PREVIEW — delete this JSX with FogClimbPreviewButton.tsx */}
-      <FogClimbPreviewButton onPress={previewFogAndClimb} />
+      <FogClimbPreviewButton
+        onPress={previewFogAndClimb}
+        bottom={insets.bottom + 48}
+        left={12}
+      />
 
       <Pressable
         onPress={onSignOut}
@@ -464,17 +478,20 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 16,
+    zIndex: 40,
+    elevation: 12,
     paddingHorizontal: 8,
-    paddingBottom: 8,
-    gap: 6,
-    backgroundColor: 'rgba(17,23,20,0.35)',
+    paddingBottom: 10,
+    gap: 4,
   },
   kicker: {
     color: artStyle.colors.goldBright,
-    fontSize: 13,
-    letterSpacing: 1.8,
+    fontSize: 11,
+    letterSpacing: 1.4,
     textAlign: 'center',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   notice: {
     borderRadius: 14,

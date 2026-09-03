@@ -10,14 +10,23 @@ import { artStyle } from '../../theme/artStyle';
  * product control. Remove the import and JSX in `screens/TrackMapScreen.tsx`
  * at the same time as this file.
  */
-export function FogClimbPreviewButton({ onPress }: { onPress: () => void }) {
-  if (!__DEV__) return null;
+type Props = {
+  onPress: () => void;
+  /** Distance from the bottom safe edge (above Sign out). */
+  bottom?: number;
+  left?: number;
+};
 
+export function FogClimbPreviewButton({ onPress, bottom = 56, left = 12 }: Props) {
   return (
     <Pressable
       onPress={onPress}
       hitSlop={8}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.button,
+        { bottom, left },
+        pressed && styles.pressed,
+      ]}
       accessibilityRole="button"
       accessibilityLabel="Preview fog parting and camera climb. Development only.">
       <Text style={styles.label}>FOG UP</Text>
@@ -28,18 +37,16 @@ export function FogClimbPreviewButton({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   button: {
     position: 'absolute',
-    left: 8,
-    top: '42%',
-    zIndex: 24,
+    zIndex: 30,
     minWidth: 44,
     minHeight: 44,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: artStyle.colors.gold,
-    backgroundColor: 'rgba(17,23,20,0.78)',
+    backgroundColor: 'rgba(17,23,20,0.92)',
   },
   pressed: {
     opacity: 0.82,
@@ -47,7 +54,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: artStyle.colors.goldBright,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
     fontWeight: '700',
   },

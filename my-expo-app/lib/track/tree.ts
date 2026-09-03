@@ -17,7 +17,11 @@ export type MapNode = {
   routeIndex?: number;
 };
 
-export type LevelMarker = MapNode & { status: StageStatus };
+export type LevelMarker = MapNode & {
+  status: StageStatus;
+  spotsCompleted: number;
+  progressFraction: number;
+};
 
 export type MapChunk = {
   id: string;
@@ -28,8 +32,21 @@ export type MapChunk = {
 /** Portrait map box. Width / height — keep in sync with the eventual map art. */
 export const MAP_ASPECT = 9 / 16;
 
-export const MAP_NODE_SIZE = 60;
+export const MAP_NODE_CHIP_SIZE = 30;
+export const MAP_NODE_SIZE = MAP_NODE_CHIP_SIZE;
+export const MAP_NODE_CAPTION_WIDTH = 76;
 export const MAP_NODES_PER_CHUNK = 4;
+
+/** Visual height of the three-quarter map chip (matches chip-3q aspect). */
+export const MAP_NODE_CHIP_HEIGHT = MAP_NODE_CHIP_SIZE * (450 / 512);
+
+/** Offset from the authored path point to the top-left of the checkpoint wrap. */
+export function mapNodeAnchorOffset(): { x: number; y: number } {
+  return {
+    x: MAP_NODE_CAPTION_WIDTH / 2,
+    y: MAP_NODE_CHIP_HEIGHT / 2,
+  };
+}
 
 /** Fog parts left/right this long, then the camera climbs to the next chunk. */
 export const FOG_PART_MS = 920;
@@ -54,6 +71,10 @@ export function recordSpotAttempt(spotsCompleted: number): {
 
 export function nodeProgressFraction(spotsCompleted: number): number {
   return Math.min(1, Math.max(0, spotsCompleted) / SPOTS_PER_STAGE);
+}
+
+export function stageProgressPercent(spotsCompleted: number): number {
+  return Math.round(nodeProgressFraction(spotsCompleted) * 100);
 }
 
 /** World 1 mock data: four stages laid over Benny's painted garden path. */
@@ -185,12 +206,21 @@ export function progressChunkIndex(completedCount: number, chunks: readonly MapC
 
 export function levelMarkers(
   completedCount: number,
-  nodes: readonly MapNode[] = BENNYS_GARDEN_NODES
+  nodes: readonly MapNode[] = BENNYS_GARDEN_NODES,
+  spotsByStage: Record<number, number> = {}
 ): LevelMarker[] {
-  return nodes.map((node) => ({
-    ...node,
-    status: stageStatus(node.number, completedCount),
-  }));
+  return nodes.map((node) => {
+    const status = stageStatus(node.number, completedCount);
+    const rawSpots = spotsByStage[node.number] ?? 0;
+    const spotsCompleted =
+      status === 'completed' ? SPOTS_PER_STAGE : Math.min(SPOTS_PER_STAGE, Math.max(0, rawSpots));
+    return {
+      ...node,
+      status,
+      spotsCompleted,
+      progressFraction: nodeProgressFraction(spotsCompleted),
+    };
+  });
 }
 
 export function nodeByNumber(
