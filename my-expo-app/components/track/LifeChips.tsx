@@ -29,7 +29,7 @@ export function LifeChips({ remaining, size = 26 }: Props) {
           key={index}
           source={filled ? chipArt.face : chipArt.faceEmpty}
           resizeMode="contain"
-          style={{ width: size, height, marginLeft: index > 0 ? 5 : 0 }}
+          style={{ width: size, height, marginLeft: index > 0 ? (size > 20 ? 5 : 2) : 0 }}
           accessibilityElementsHidden
         />
       ))}

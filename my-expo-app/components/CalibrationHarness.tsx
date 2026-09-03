@@ -108,6 +108,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [chipStack, setChipStack] = useState<ChipStackState>(FULL_CHIP_STACK);
   const [now, setNow] = useState(() => new Date());
   const [completedCount, setCompletedCount] = useState(0);
+  const [spotsByStage, setSpotsByStage] = useState<Record<number, number>>({});
   const [playingStage, setPlayingStage] = useState<number | null>(null);
   const [stageProgressId, setStageProgressId] = useState<string | null>(null);
   const [stageSpotsCompleted, setStageSpotsCompleted] = useState(0);
@@ -195,6 +196,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             setContinued(seen);
             setChipStack(stack);
             setCompletedCount(progress.completedCount);
+            setSpotsByStage(progress.spotsByStage);
             setStreak(streakState);
           }
           return;
@@ -213,6 +215,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             setContinued(seen);
             setChipStack(stack);
             setCompletedCount(progress.completedCount);
+            setSpotsByStage(progress.spotsByStage);
             setStreak(streakState);
           }
         }
@@ -252,6 +255,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     setStageProgressId(null);
     setStageSpotsCompleted(0);
     setCompletedCount(0);
+    setSpotsByStage({});
   }
 
   async function openStage(stageNumber: number) {
@@ -443,6 +447,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           streakDays={streak.currentStreak}
           streakBestDays={streak.bestStreak}
           completedCount={completedCount}
+          spotsByStage={spotsByStage}
           isActive={playingStage == null}
           onPlayStage={(stageNumber) => void openStage(stageNumber)}
           onSignOut={() => void handleSignOut()}
@@ -472,7 +477,15 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
                 if (update.stageComplete) {
                   setCompletedCount((count) => Math.max(count, playingStage));
                 }
-                if (typeof update.streakCurrent === 'number' || typeof update.streakBest === 'number') {
+                setSpotsByStage((current) => ({
+                  ...current,
+                  [playingStage]: update.spotsCompleted,
+                }));
+                setStageSpotsCompleted(update.spotsCompleted);
+                if (
+                  typeof update.streakCurrent === 'number' ||
+                  typeof update.streakBest === 'number'
+                ) {
                   setStreak((current) => ({
                     currentStreak: update.streakCurrent ?? current.currentStreak,
                     bestStreak: update.streakBest ?? current.bestStreak,

@@ -8,6 +8,7 @@ Place the two Gemini attachments here as:
 
 - `physics-arrangements.jpg` — four panels on felt: tall stack, clustered stacks, messy pot heap, clash/bounce leftovers
 - `pose-sheet.jpg` — 3/4 rest, top-down, side/edge, falling with trail, reverse + 3-chip stack
+- `map-node-medallion-target.jpg` — ornate bronze plate + seated chip; look target for world-map checkpoints (runtime uses `map-node-plate.png` + chip sprites)
 
 | Panel | Automation |
 | --- | --- |

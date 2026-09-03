@@ -7,8 +7,8 @@ import type { FogPhase } from '../../lib/track/fogCycle';
 import { durationForLength, pathLength, type Point } from '../../lib/track/mapPath';
 import {
   CAMERA_CLIMB_MS,
-  MAP_NODE_SIZE,
   levelMarkers,
+  mapNodeAnchorOffset,
   nodeByNumber,
   nodePixels,
   stageStatus,
@@ -27,6 +27,7 @@ type Props = {
   activeChunkIndex: number;
   fogPhase: FogPhase;
   completedCount: number;
+  spotsByStage?: Record<number, number>;
   standing: number;
   trail: Point[];
   trailKey: number;
@@ -68,6 +69,7 @@ export function LevelProgressionMap({
   activeChunkIndex,
   fogPhase,
   completedCount,
+  spotsByStage = {},
   standing,
   trail,
   trailKey,
@@ -79,7 +81,7 @@ export function LevelProgressionMap({
 }: Props) {
   const chunkCount = currentWorld.chunks.length;
   const contentHeight = height * chunkCount;
-  const markers = levelMarkers(completedCount, currentWorld.nodes);
+  const markers = levelMarkers(completedCount, currentWorld.nodes, spotsByStage);
   const map = { width, height };
   const standingNode = nodeByNumber(standing, currentWorld.nodes) ?? currentWorld.nodes[0]!;
   const standingPoint = avatarAnchor(nodePixels(standingNode, map, chunkCount));
@@ -132,6 +134,7 @@ export function LevelProgressionMap({
 
         {markers.map((marker) => {
           const point = nodePixels(marker, map, chunkCount);
+          const anchor = mapNodeAnchorOffset();
           return (
             <View
               key={marker.id}
@@ -143,14 +146,15 @@ export function LevelProgressionMap({
               style={[
                 styles.nodeAnchor,
                 {
-                  left: point.x - MAP_NODE_SIZE / 2,
-                  top: point.y - MAP_NODE_SIZE / 2,
+                  left: point.x - anchor.x,
+                  top: point.y - anchor.y,
                 },
               ]}>
               <MapCheckpoint
                 number={marker.number}
                 title={marker.title}
                 status={marker.status}
+                spotsCompleted={marker.spotsCompleted}
                 onPress={() => onPressNode(marker.number)}
               />
             </View>

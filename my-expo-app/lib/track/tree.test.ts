@@ -12,8 +12,11 @@ import {
   levelMarkers,
   lockReason,
   mapPercentToUnit,
+  mapNodeAnchorOffset,
+  MAP_NODE_CHIP_HEIGHT,
   nodePixels,
   progressChunkIndex,
+  stageProgressPercent,
   stageStatus,
   type MapChunk,
 } from './tree';
@@ -72,6 +75,20 @@ describe('overworld unlocks', () => {
       'locked',
       'locked',
     ]);
+    expect(markers[0]?.spotsCompleted).toBe(7);
+    expect(markers[0]?.progressFraction).toBe(1);
+    expect(markers[1]?.spotsCompleted).toBe(0);
+    expect(markers[2]?.spotsCompleted).toBe(0);
+  });
+
+  it('attaches in-progress spot counts to the current node', () => {
+    const markers = levelMarkers(1, undefined, { 2: 3 });
+    expect(markers[1]?.status).toBe('current');
+    expect(markers[1]?.spotsCompleted).toBe(3);
+    expect(markers[1]?.progressFraction).toBeCloseTo(3 / 7);
+    expect(stageProgressPercent(3)).toBe(43);
+    expect(mapNodeAnchorOffset().x).toBe(38);
+    expect(mapNodeAnchorOffset().y).toBeCloseTo(MAP_NODE_CHIP_HEIGHT / 2);
   });
 });
 
