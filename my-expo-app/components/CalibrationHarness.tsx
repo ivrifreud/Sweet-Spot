@@ -409,7 +409,6 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     return (
       <SafeAreaView style={styles.statusScreen}>
         <ActivityIndicator size="large" color="#E6C46A" />
-        <Text style={styles.statusText}>Loading calibration…</Text>
       </SafeAreaView>
     );
   }
@@ -599,10 +598,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 16,
     backgroundColor: '#111714',
-  },
-  statusText: {
-    color: '#E8D7A7',
-    fontSize: 16,
   },
   kicker: {
     fontSize: 13,
