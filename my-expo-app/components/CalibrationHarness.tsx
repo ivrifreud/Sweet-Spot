@@ -11,6 +11,7 @@ import {
 } from '../src/features/decision-feedback';
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
@@ -22,6 +23,8 @@ import {
   type ChipStackState,
 } from '../lib/chip-stack';
 import { getOrCreateStageProgress, loadStageProgress } from '../lib/track/stageProgress';
+import { getStreakState } from '../lib/streak';
+import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
 import { toLevelReveal } from '../lib/calibration/levelReveal';
 import { hasSeenPlacement, markPlacementSeen } from '../lib/calibration/placementAck';
@@ -63,11 +66,25 @@ const FULL_CHIP_STACK: ChipStackState = {
   regenAt: null,
 };
 
+const EMPTY_STREAK: StreakState = {
+  currentStreak: 0,
+  bestStreak: 0,
+  lastActiveDay: null,
+};
+
 async function readChipStack(): Promise<ChipStackState> {
   try {
     return await getChipStack();
   } catch {
     return FULL_CHIP_STACK;
+  }
+}
+
+async function readStreakState(): Promise<StreakState> {
+  try {
+    return await getStreakState();
+  } catch {
+    return EMPTY_STREAK;
   }
 }
 
@@ -87,12 +104,14 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
+  const [welcomeSeen, setWelcomeSeen] = useState(false);
   const [chipStack, setChipStack] = useState<ChipStackState>(FULL_CHIP_STACK);
   const [now, setNow] = useState(() => new Date());
   const [completedCount, setCompletedCount] = useState(0);
   const [playingStage, setPlayingStage] = useState<number | null>(null);
   const [stageProgressId, setStageProgressId] = useState<string | null>(null);
   const [stageSpotsCompleted, setStageSpotsCompleted] = useState(0);
+  const [streak, setStreak] = useState<StreakState>(EMPTY_STREAK);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmingRegen = useRef(false);
@@ -171,10 +190,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
           const progress = await loadStageProgress(userId, 1);
+          const streakState = await readStreakState();
           if (!cancelled) {
             setContinued(seen);
             setChipStack(stack);
             setCompletedCount(progress.completedCount);
+            setStreak(streakState);
           }
           return;
         }
@@ -186,11 +207,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
           const progress = await loadStageProgress(userId, 1);
+          const streakState = await readStreakState();
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
             setChipStack(stack);
             setCompletedCount(progress.completedCount);
+            setStreak(streakState);
           }
         }
       } catch (err) {
@@ -386,7 +409,6 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     return (
       <SafeAreaView style={styles.statusScreen}>
         <ActivityIndicator size="large" color="#E6C46A" />
-        <Text style={styles.statusText}>Loading calibration…</Text>
       </SafeAreaView>
     );
   }
@@ -418,7 +440,8 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
                 : null
           }
           goldBars={0}
-          streakDays={0}
+          streakDays={streak.currentStreak}
+          streakBestDays={streak.bestStreak}
           completedCount={completedCount}
           isActive={playingStage == null}
           onPlayStage={(stageNumber) => void openStage(stageNumber)}
@@ -436,7 +459,8 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
               stageNumber={playingStage}
               remainingChips={chipStack.chips}
               goldBars={0}
-              streakDays={0}
+              streakDays={streak.currentStreak}
+              streakBestDays={streak.bestStreak}
               initialSpotsCompleted={stageSpotsCompleted}
               stageProgressId={stageProgressId}
               onResolved={(update) => {
@@ -447,6 +471,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
                 });
                 if (update.stageComplete) {
                   setCompletedCount((count) => Math.max(count, playingStage));
+                }
+                if (typeof update.streakCurrent === 'number' || typeof update.streakBest === 'number') {
+                  setStreak((current) => ({
+                    currentStreak: update.streakCurrent ?? current.currentStreak,
+                    bestStreak: update.streakBest ?? current.bestStreak,
+                    lastActiveDay: current.lastActiveDay,
+                  }));
                 }
               }}
               onBack={() => {
@@ -470,6 +501,10 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         )}
       </SafeAreaView>
     );
+  }
+
+  if (!welcomeSeen) {
+    return <CalibrationWelcomeScreen onBegin={() => setWelcomeSeen(true)} />;
   }
 
   return (
@@ -563,10 +598,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 16,
     backgroundColor: '#111714',
-  },
-  statusText: {
-    color: '#E8D7A7',
-    fontSize: 16,
   },
   kicker: {
     fontSize: 13,

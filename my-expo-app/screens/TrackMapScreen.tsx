@@ -11,6 +11,7 @@ import {
 } from '../components/track/LevelProgressionMap';
 import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
 import { FogClimbPreviewButton } from '../components/track/FogClimbPreviewButton';
+import { StreakModal } from '../components/track/StreakModal';
 import { TrackHud } from '../components/track/TrackHud';
 import {
   createBennysGardenWorld,
@@ -38,6 +39,7 @@ type Props = {
   remainingChips: number;
   goldBars: number;
   streakDays: number;
+  streakBestDays: number;
   completedCount: number;
   currentWorld?: WorldMapTemplate;
   avatarSource?: ImageSourcePropType;
@@ -59,6 +61,7 @@ export function TrackMapScreen({
   remainingChips,
   goldBars,
   streakDays,
+  streakBestDays,
   completedCount,
   currentWorld,
   avatarSource,
@@ -87,6 +90,7 @@ export function TrackMapScreen({
     initialFogPhase(Math.floor(completedCount / MAP_NODES_PER_CHUNK), world.chunks.length)
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [showStreak, setShowStreak] = useState(false);
 
   const map = useMemo(
     () =>
@@ -401,7 +405,12 @@ export function TrackMapScreen({
       </View>
 
       <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 4 }]}>
-        <TrackHud remainingChips={remainingChips} goldBars={goldBars} streakDays={streakDays} />
+        <TrackHud
+          remainingChips={remainingChips}
+          goldBars={goldBars}
+          streakDays={streakDays}
+          onPressStreak={() => setShowStreak(true)}
+        />
         <Text style={[styles.kicker, display]} accessibilityRole="header">
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
@@ -429,6 +438,13 @@ export function TrackMapScreen({
         accessibilityLabel="Sign out">
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
+
+      <StreakModal
+        visible={showStreak}
+        currentStreak={streakDays}
+        bestStreak={streakBestDays}
+        onClose={() => setShowStreak(false)}
+      />
     </View>
   );
 }
