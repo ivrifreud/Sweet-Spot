@@ -11,6 +11,7 @@ import {
 } from '../src/features/decision-feedback';
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
@@ -87,6 +88,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [booting, setBooting] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [continued, setContinued] = useState(false);
+  const [welcomeSeen, setWelcomeSeen] = useState(false);
   const [chipStack, setChipStack] = useState<ChipStackState>(FULL_CHIP_STACK);
   const [now, setNow] = useState(() => new Date());
   const [completedCount, setCompletedCount] = useState(0);
@@ -470,6 +472,10 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         )}
       </SafeAreaView>
     );
+  }
+
+  if (!welcomeSeen) {
+    return <CalibrationWelcomeScreen onBegin={() => setWelcomeSeen(true)} />;
   }
 
   return (
