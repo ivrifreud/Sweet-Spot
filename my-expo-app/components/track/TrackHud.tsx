@@ -1,6 +1,14 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { isMuted, setMuted } from '../../lib/audio';
 import { artStyle } from '../../theme/artStyle';
@@ -65,7 +73,9 @@ export function TrackHud({
           resizeMode="contain"
           accessibilityElementsHidden
         />
-        <Text numberOfLines={1} style={[styles.capsuleValue, compact && styles.capsuleValueCompact, display]}>
+        <Text
+          numberOfLines={1}
+          style={[styles.capsuleValue, compact && styles.capsuleValueCompact, display]}>
           {goldBars}
         </Text>
       </View>
@@ -180,6 +190,7 @@ const styles = StyleSheet.create({
   chipCapsule: {
     flexGrow: 0,
     flexShrink: 1,
+    backgroundColor: artStyle.colors.projectorBlack,
   },
   streakCapsule: {
     flexGrow: 0,

@@ -13,10 +13,11 @@ export const artStyle = {
     coachMiss: require('../assets/brand/artstyle/coach-wave-miss.png'),
   },
   chips: {
-    vibe: 'Realistic thick 3D casino chip — dark teal, gold edge inserts, beveled spade center.',
-    referenceImage: require('../assets/brand/artstyle/casino-chip-3d-reference.png'),
-    exception:
-      'Approved tactile 3D exception for reward physics; it does not define character or environment rendering.',
+    vibe:
+      'Hand-inked cream clay chip — brick-red rim inserts, heavy dark ink outline, ' +
+      'red-and-ink spade medallion, aged paper grain.',
+    referenceImage: require('../assets/brand/chips/chip-3q.png'),
+    sprites: 'Full sprite set and geometry constants live in theme/chipArt.ts.',
   },
   colors: {
     projectorBlack: '#111714',

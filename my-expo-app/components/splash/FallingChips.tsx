@@ -3,14 +3,16 @@ import { Dimensions, Image, StyleSheet, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 
+import { CHIP_3Q_ASPECT, chipArt } from '../../theme/chipArt';
+
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const CHIP_IMAGE = require('../../assets/brand/poker-chip-sm.png');
 
 type ChipSpec = {
   id: number;
@@ -36,6 +38,8 @@ export type GravityFallingChipsProps = {
 function FallingChip({ chip }: { chip: ChipSpec }) {
   const progress = useSharedValue(0);
   const spin = useSharedValue(0);
+  const tumble = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     progress.value = withDelay(
@@ -52,7 +56,11 @@ function FallingChip({ chip }: { chip: ChipSpec }) {
         false
       )
     );
-  }, [chip.delay, chip.duration, chip.spinDir, progress, spin]);
+    tumble.value = withDelay(
+      chip.delay,
+      withRepeat(withTiming(1, { duration: chip.duration * 0.42 }), -1, false)
+    );
+  }, [chip.delay, chip.duration, chip.spinDir, progress, spin, tumble]);
 
   const style = useAnimatedStyle(() => {
     const travel = SCREEN_H + chip.size * 3;
@@ -61,9 +69,18 @@ function FallingChip({ chip }: { chip: ChipSpec }) {
     const y = -chip.size * 1.5 + gravityProgress * travel;
     const xDrift = interpolate(progress.value, [0, 0.5, 1], [0, chip.wobble, -chip.wobble * 0.4]);
     const opacity = interpolate(progress.value, [0, 0.03, 0.9, 1], [0, 1, 1, 0]);
+    // One edge-on moment per revolution: a flat disc turning in 3D, not a
+    // sticker rotating in the picture plane.
+    const face = Math.abs(Math.cos(tumble.value * Math.PI));
+    const scaleX = reducedMotion ? 1 : 0.34 + 0.66 * face;
 
     return {
-      transform: [{ translateY: y }, { translateX: xDrift }, { rotate: `${spin.value}deg` }],
+      transform: [
+        { translateY: y },
+        { translateX: xDrift },
+        { rotate: `${reducedMotion ? 0 : spin.value}deg` },
+        { scaleX },
+      ],
       opacity,
     };
   });
@@ -73,9 +90,10 @@ function FallingChip({ chip }: { chip: ChipSpec }) {
       pointerEvents="none"
       style={[{ position: 'absolute', left: chip.x, top: 0 }, style]}>
       <Image
-        source={CHIP_IMAGE}
-        style={{ width: chip.size, height: chip.size, backgroundColor: 'transparent' }}
+        source={chipArt.threeQuarter}
+        style={{ width: chip.size, height: chip.size * CHIP_3Q_ASPECT }}
         resizeMode="contain"
+        accessibilityElementsHidden
       />
     </Animated.View>
   );

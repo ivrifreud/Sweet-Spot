@@ -252,16 +252,16 @@ Cards, chips, dice, and table objects should be readable immediately.
 
 ### Chips
 
-The current falling chip is an approved **tactile exception**:
+The canonical chip is the hand-inked cream clay chip:
 
-- a realistic thick 3D teal-and-gold chip may be used for reward rain and physics;
-- it must have a transparent background and no baked square or ground shadow;
-- its teal/gold materials must match the canonical palette;
-- illustrated chips inside character scenes should still use ink-and-cel treatment
-  (woodcut stacks and line/hatch angle sheets in the moodboard).
+- cream/tan body, brick-red rim inserts, heavy dark ink outline, red-and-ink
+  spade medallion, aged paper grain;
+- a chip PNG must be transparent, with no baked square or ground shadow;
+- the contact shadow is a separate view so it can react to height;
+- HUD lives, table stacks, and reward rain all use the same sprite set
+  (`my-expo-app/assets/brand/chips/`, constants in `theme/chipArt.ts`).
 
-This exception keeps the reward object satisfying without changing character or
-environment art direction.
+The retired teal/gold photoreal 3D chip is no longer in use.
 
 ### The Peek and Pitch illustration
 
@@ -269,8 +269,8 @@ environment art direction.
   hole cards (see `peek-glove-corner-lift-card.png` and `peek-glove-pov-hole-cards.png`).
 - A packet slide (`peek-glove-slide-cards-sepia.png`) is the pickup / deal beat,
   not the Peek itself.
-- Chip commit uses a hose-arm glove over inked stacks
-  (`pitch-glove-reach-chip-stacks.png`), not the 3D reward chip.
+- Chip commit uses a hose-arm glove over inked 2.5D stacks
+  (`pitch-glove-reach-chip-stacks.png`).
 - Camera blocking may follow the photoreal look-down sheets; the hand must stay
   a period glove — never photoreal skin.
 - Gloves stay animation cream. Do not switch to yellow gloves or copy extras
@@ -406,8 +406,8 @@ Non-canonical:
 - previous modern 3D/Pixar-like character art;
 - cyberpunk casino backgrounds;
 - experiments labeled “old cartoon” that lack pie eyes, gloves, and ink construction;
-- photoreal chip catalogs, branded casino chips, and modern vector clip-art stacks
-  (except the approved reusable reward-chip asset and its turnaround sheet);
+- photoreal chip catalogs, branded casino chips, modern vector clip-art stacks,
+  and the retired teal/gold 3D chip;
 - photoreal poker lifestyle photos as character or world art (Peek camera sheets
   are composition-only);
 - Match Masters / candy-gloss HUD kits as final UI art (layout refs only — see
