@@ -6,10 +6,30 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { getChipPileHeight } from '../../../../../lib/chipPileLayout';
 import { artStyle } from '../../../../../theme/artStyle';
-import { Chip, CHIP_ART_ASPECT } from './Chip';
+import { CHIP_3Q_ASPECT } from '../../../../../theme/chipArt';
+import { ChipPile } from './ChipPile';
 
 export const CHIP_SIZE = 44;
+
+/** Chips the hero lifts off the stack while committing a decision. */
+export const HELD_CHIPS = 2;
+
+/**
+ * Clustered columns, tallest at the back, so the hero stack reads like the
+ * moodboard pitch reference instead of one machine-perfect tower.
+ */
+const COLUMNS: { chips: number; lean: number }[] = [
+  { chips: 8, lean: -2 },
+  { chips: 5, lean: 1.5 },
+  { chips: 3, lean: -1 },
+];
+
+/** Columns overlap slightly so the cluster stays inside the hit box. */
+const COLUMN_STEP = 0.82;
+/** Ten pixels at the default 44px chip size, scaled for smaller phones. */
+const CHIP_OVERLAP_RATIO = 10 / CHIP_SIZE;
 
 type ChipStackProps = {
   stackLabel: string;
@@ -21,11 +41,19 @@ type ChipStackProps = {
   chipSize?: number;
 };
 
-/** Two short 3/4 columns — each PNG chip is its own object, rims stacked. */
-const COLUMNS: { count: number; rotate: number; nudgeX: number }[] = [
-  { count: 5, rotate: -8, nudgeX: 0 },
-  { count: 4, rotate: 6, nudgeX: 8 },
-];
+/** Spends `pushed` chips off the front columns first; every column keeps one chip. */
+function spendChips(pushed: number) {
+  const counts = COLUMNS.map((column) => column.chips);
+  let left = Math.max(0, pushed);
+
+  for (let index = counts.length - 1; index >= 0 && left > 0; index -= 1) {
+    const take = Math.min(left, Math.max(0, counts[index] - 1));
+    counts[index] -= take;
+    left -= take;
+  }
+
+  return counts;
+}
 
 export function ChipStack({
   stackLabel,
@@ -36,68 +64,70 @@ export function ChipStack({
   dragY,
   chipSize = CHIP_SIZE,
 }: ChipStackProps) {
-  const chipHeight = chipSize * CHIP_ART_ASPECT;
-  const stackStep = Math.max(8, Math.round(chipHeight * 0.2));
   const held = useDerivedValue(() => withSpring(press.value, { damping: 18, stiffness: 300 }));
 
-  const pressStyle = useAnimatedStyle(() => ({
-    opacity: 1 - held.value * 0.22,
+  const counts = spendChips(pushed);
+  const step = chipSize * COLUMN_STEP;
+  const overlapOffset = chipSize * CHIP_OVERLAP_RATIO;
+  const chipHeight = chipSize * CHIP_3Q_ASPECT;
+  const pileHeight = (count: number) => getChipPileHeight(chipHeight, count, overlapOffset);
+  const clusterWidth = step * (COLUMNS.length - 1) + chipSize;
+  const clusterHeight = Math.max(...counts.map(pileHeight));
+
+  const baseStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: held.value * 2 }, { scaleY: 1 - held.value * 0.035 }],
+  }));
+
+  const heldStyle = useAnimatedStyle(() => ({
+    opacity: held.value,
     transform: [
       { translateX: dragX.value },
-      { translateY: dragY.value },
-      { scale: 1 - held.value * 0.07 },
+      { translateY: dragY.value - held.value * 16 },
+      { rotate: `${held.value * -6}deg` },
+      { scale: 0.94 + held.value * 0.1 },
     ],
   }));
 
   return (
-    <Animated.View style={[styles.root, pressStyle]}>
-      <View style={styles.columns}>
-        {COLUMNS.map((column, columnIndex) => {
-          const taken =
-            columnIndex === 1
-              ? Math.min(pushed, Math.max(0, column.count - 1))
-              : Math.min(Math.max(0, pushed - 2), Math.max(0, column.count - 1));
-          const remaining = Math.max(1, column.count - taken);
-          const stackHeight = chipHeight + (remaining - 1) * stackStep;
-
-          return (
+    <View style={styles.root}>
+      <View style={{ width: clusterWidth, height: clusterHeight }}>
+        <Animated.View style={[styles.cluster, baseStyle]}>
+          {counts.map((count, index) => (
             <View
-              key={columnIndex}
-              style={[
-                styles.column,
-                {
-                  width: chipSize,
-                  height: stackHeight,
-                  marginLeft: column.nudgeX,
-                  marginBottom: columnIndex === 1 ? 3 : 0,
-                  zIndex: columnIndex + 1,
-                },
-              ]}>
-              {Array.from({ length: remaining }).map((_, chipIndex) => (
-                <View
-                  key={chipIndex}
-                  style={[
-                    styles.chipSlot,
-                    {
-                      bottom: chipIndex * stackStep,
-                      zIndex: chipIndex,
-                      left: ((chipIndex % 2) - 0.5) * 1.5,
-                    },
-                  ]}>
-                  <Chip size={chipSize} rotate={column.rotate} />
-                </View>
-              ))}
+              key={index}
+              style={[styles.columnSlot, { left: index * step, zIndex: COLUMNS.length - index }]}>
+              <ChipPile
+                chipCount={count}
+                size={chipSize}
+                overlapOffset={overlapOffset}
+                rotate={COLUMNS[index].lean}
+              />
             </View>
-          );
-        })}
-      </View>
+          ))}
+        </Animated.View>
 
-      <View style={[styles.badge, disabled && styles.badgeDisabled]}>
-        <Text style={styles.badgeText} numberOfLines={1}>
-          {stackLabel}
-        </Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.heldSlot,
+            { bottom: pileHeight(counts[0]), zIndex: COLUMNS.length + 1 },
+            heldStyle,
+          ]}>
+          <ChipPile
+            chipCount={HELD_CHIPS}
+            size={chipSize}
+            overlapOffset={overlapOffset}
+            showShadow={false}
+          />
+        </Animated.View>
+
+        <View style={[styles.badge, disabled && styles.badgeDisabled]}>
+          <Text style={styles.badgeText} numberOfLines={1}>
+            {stackLabel}
+          </Text>
+        </View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -105,18 +135,22 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'flex-start',
   },
-  columns: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+  cluster: {
+    ...StyleSheet.absoluteFillObject,
   },
-  column: {
-    position: 'relative',
-  },
-  chipSlot: {
+  columnSlot: {
     position: 'absolute',
+    bottom: 0,
+  },
+  heldSlot: {
+    position: 'absolute',
+    left: 0,
   },
   badge: {
-    marginTop: 4,
+    position: 'absolute',
+    top: -26,
+    right: 0,
+    maxWidth: '58%',
     minHeight: 22,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -124,7 +158,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17,23,20,0.72)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(200,155,60,0.55)',
-    alignSelf: 'flex-start',
   },
   badgeDisabled: {
     opacity: 0.45,

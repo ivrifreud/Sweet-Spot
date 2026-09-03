@@ -33,20 +33,21 @@ Do not copy:
 - the specific layout for every screen;
 - text rendered inside generated imagery.
 
-### 2. Falling reward chip
+### 2. Canonical cream clay chip
 
-File: `my-expo-app/assets/brand/artstyle/casino-chip-3d-reference.png`
+File: `my-expo-app/assets/brand/chips/chip-3q.png`
 
-Use it only for:
+The same sprite set covers:
 
 - reward rain;
 - jackpots;
 - stage-completion celebrations;
 - streak milestones;
-- other tactile physics effects.
+- Peek and Pitch table stacks (`chip-edge.png` slices under a `chip-face.png` cap);
+- HUD Chip lives (`chip-face.png` / `chip-face-empty.png`).
 
-This is the one approved realistic 3D exception. It does **not** define character,
-environment, card, icon, or general prop rendering.
+Geometry constants live in `my-expo-app/theme/chipArt.ts`. A composited look
+target is `docs/moodboard/references-art-style/chip-redesign-target.png`.
 
 ### 3. Brand tokens
 

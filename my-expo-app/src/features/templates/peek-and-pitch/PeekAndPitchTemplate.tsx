@@ -332,7 +332,10 @@ export function PeekAndPitchTemplate({
         const spin = Math.random() > 0.5 ? 1 : -1;
         const column = index % 2;
         const from = {
-          x: stackAnchor.x + (column === 0 ? -chipSize * 0.35 : chipSize * 0.2) + (Math.random() - 0.5) * 6,
+          x:
+            stackAnchor.x +
+            (column === 0 ? -chipSize * 0.35 : chipSize * 0.2) +
+            (Math.random() - 0.5) * 6,
           y: stackAnchor.y - chipSize * 0.15 - index * (chipSize * 0.12),
         };
         const scatterX = (Math.random() - 0.5) * chipSize * 1.8;
@@ -344,9 +347,10 @@ export function PeekAndPitchTemplate({
             x: tableCenter.x + scatterX + index * 3,
             y: tableCenter.y + scatterY + index * 2,
           },
-          delayMs: 420 + index * 70,
-          durationMs: 1100 + index * 50,
+          delayMs: 90 + index * 90,
+          durationMs: 1150 + index * 60,
           arc: 88 + Math.random() * 42,
+          lift: chipSize * 0.75,
           spin,
           restRotate: spin * (6 + Math.random() * 18),
           size: chipSize,
@@ -365,7 +369,9 @@ export function PeekAndPitchTemplate({
       cancelAnimation(peek);
       peek.value = 0;
 
-      const waitMs = nextFlights.reduce((max, flight) => Math.max(max, flight.delayMs + flight.durationMs), 0) + 40;
+      const waitMs =
+        nextFlights.reduce((max, flight) => Math.max(max, flight.delayMs + flight.durationMs), 0) +
+        40;
       if (chipTimer.current) clearTimeout(chipTimer.current);
       chipTimer.current = setTimeout(() => finishChipDecisionRef.current(), waitMs);
     },
