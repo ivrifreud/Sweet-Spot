@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "EXPO_OFFLINE=1 expo run:ios",
+    "ios:device": "EXPO_OFFLINE=1 expo run:ios --device",
     "start": "expo start",
+    "start:dev": "expo start --dev-client --offline",
     "prebuild": "expo prebuild",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",

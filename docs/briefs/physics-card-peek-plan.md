@@ -31,7 +31,7 @@ Keep React state for gameplay only. Every per-frame value stays on the UI runtim
 
 - Exactly two overlapping hole cards as one packet.
 - Far/dealer edge stays planted. Near edges lift together; right pinch corner leads slightly.
-- Max extra rotate **16°**. Max corner rise **18%** of card height.
+- Max extra rotate **22°**. Max corner rise **30%** of card height.
 - Rank/suit corners become readable on the physical cards. Keep the existing
   full-card Peek HUD as a synchronized secondary view; no third card.
 - Poses: rest → corner pinch (90–120 ms) → lift (180–240 ms, hold) → settle (180–240 ms, ≤8% overshoot).
@@ -76,7 +76,7 @@ Local coords: `u` left→right across packet, `v` far/dealer→near/player. Grid
 
 Circular arc (preserve card-stock length):
 
-`θ(u) = p · 16° · lead(u)`  
+`θ(u) = p · 22° · lead(u)`
 `R = L / max(θ, ε)`  
 `y(v) = R·sin(vθ)`  
 `z(v) = R·(1-cos(vθ))`  
@@ -120,7 +120,7 @@ Reduced motion as specified above.
 
 ## Validation
 
-Invariants: far edge `z=0`; θ≤16°; rise≤18%; arc length preserved; no flipped tris/NaNs; packet stays one pair.
+Invariants: far edge `z=0`; θ≤22°; rise≤30%; arc length preserved; no flipped tris/NaNs; packet stays one pair.
 
 Interaction: no Peek on touch-down, stack, deal/resolve, or after Fold wins. Always return to rest. Screen reader alternative. Same contract on `CalibrationHarness` and `StagePlayScreen`.
 

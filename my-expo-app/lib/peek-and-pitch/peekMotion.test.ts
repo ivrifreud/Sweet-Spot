@@ -5,6 +5,7 @@ import {
   PEEK_REVEAL_THRESHOLD,
   hasRevealedPeek,
   normalizePeekDrag,
+  shouldLongPressSettle,
 } from '../../src/features/templates/peek-and-pitch/peekMotion';
 
 describe('normalizePeekDrag', () => {
@@ -27,5 +28,15 @@ describe('hasRevealedPeek', () => {
   it('fires only from the visible-corner threshold', () => {
     expect(hasRevealedPeek(PEEK_REVEAL_THRESHOLD - 0.01)).toBe(false);
     expect(hasRevealedPeek(PEEK_REVEAL_THRESHOLD)).toBe(true);
+  });
+});
+
+describe('peek gesture ownership', () => {
+  it('keeps an active pan lifted when LongPress finalizes', () => {
+    expect(shouldLongPressSettle(true)).toBe(false);
+  });
+
+  it('lets a stationary LongPress settle on release', () => {
+    expect(shouldLongPressSettle(false)).toBe(true);
   });
 });

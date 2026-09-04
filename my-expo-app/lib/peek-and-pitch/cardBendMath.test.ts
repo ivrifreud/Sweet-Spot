@@ -32,6 +32,7 @@ describe('buildCardMesh', () => {
     const flat = projectedPinchCorner(0, WIDTH, HEIGHT);
     const lifted = projectedPinchCorner(1, WIDTH, HEIGHT);
     expect(flat.y - lifted.y).toBeLessThanOrEqual(HEIGHT * MAX_PEEK_RISE_RATIO);
+    expect(flat.y - lifted.y).toBeGreaterThanOrEqual(HEIGHT * 0.27);
     expect(lifted.y).toBeLessThan(flat.y);
   });
 
@@ -58,6 +59,6 @@ describe('buildPeekIndexMesh', () => {
     const patch = buildPeekIndexMesh(WIDTH, HEIGHT, 1, 1);
     expect(patch.textures[0]).toEqual({ x: 0, y: 0 });
     expect(Math.max(...patch.textures.map((point) => point.x))).toBe(140);
-    expect(Math.max(...patch.textures.map((point) => point.y))).toBeLessThan(190 * 0.43);
+    expect(Math.max(...patch.textures.map((point) => point.y))).toBeLessThan(190 * 0.63);
   });
 });

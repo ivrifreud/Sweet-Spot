@@ -27,3 +27,9 @@ export function hasRevealedPeek(progress: number) {
   'worklet';
   return progress >= PEEK_REVEAL_THRESHOLD;
 }
+
+/** Once the pan owns Peek, only the pan may settle it. */
+export function shouldLongPressSettle(panOwnsPeek: boolean) {
+  'worklet';
+  return !panOwnsPeek;
+}

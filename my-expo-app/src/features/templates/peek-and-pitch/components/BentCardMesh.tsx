@@ -37,7 +37,7 @@ export function BentCardMesh({
 }: BentCardMeshProps) {
   const backImage = useImage(CARD_BACK_ART);
   const faceImage = useImage(cardFaceArt(card));
-  const liftPadding = height * 0.22;
+  const liftPadding = height * 0.60;
 
   const flatMesh = buildCardMesh(
     width,

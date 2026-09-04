@@ -21,6 +21,7 @@ import {
   PEEK_REVEAL_THRESHOLD,
   PEEK_SETTLE_MS,
   normalizePeekDrag,
+  shouldLongPressSettle,
 } from '../peekMotion';
 
 const MODE_UNDECIDED = 0;
@@ -225,6 +226,9 @@ export function TableGestures({
         runOnJS(firePeekHold)();
       })
       .onFinalize(() => {
+        if (!shouldLongPressSettle(gestureMode.value === MODE_PEEK)) {
+          return;
+        }
         if (muckLocked.value === 1 || ignoreFelt.value === 1) {
           return;
         }
@@ -338,6 +342,7 @@ export function TableGestures({
             muck.value = withSpring(0, PEEK_SPRING);
           }
         }
+        gestureMode.value = MODE_UNDECIDED;
       });
 
     return Gesture.Exclusive(checkTap, Gesture.Simultaneous(peekHold, feltPan));

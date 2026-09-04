@@ -1,7 +1,7 @@
 export const CARD_MESH_COLUMNS = 5;
 export const CARD_MESH_ROWS = 7;
-export const MAX_PEEK_ANGLE_DEG = 16;
-export const MAX_PEEK_RISE_RATIO = 0.18;
+export const MAX_PEEK_ANGLE_DEG = 22;
+export const MAX_PEEK_RISE_RATIO = 0.3;
 
 export type MeshPoint = { x: number; y: number };
 
@@ -107,8 +107,8 @@ export function buildPeekIndexMesh(
   const rows = 3;
   const startU = 0;
   const endU = 1;
-  const startV = 0.58;
-  const endV = 0.98;
+  const startV = 0.43;
+  const endV = 0.99;
   const vertices: MeshPoint[] = [];
   const textures: MeshPoint[] = [];
   const indices: number[] = [];
@@ -122,7 +122,7 @@ export function buildPeekIndexMesh(
       vertices.push(projectCardPoint(u, v, progress, width, height, cardIndex));
       textures.push({
         x: localU * textureWidth,
-        y: localV * textureHeight * 0.42,
+        y: localV * textureHeight * 0.62,
       });
     }
   }

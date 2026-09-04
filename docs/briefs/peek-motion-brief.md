@@ -15,7 +15,7 @@ Implementers must not invent extra motion. Use these poses only.
 | --- | --- | --- |
 | rest | held | Flat on felt. Rise 0. RotateX 0 relative to felt plane. |
 | corner pinch | 90–120 ms after hold starts | Glove contacts near-right corner. Cards still almost flat (rise ≤ 6% of card height). |
-| lift | 180–240 ms, then hold | Packet C-curve. Max corner rise 18% of card height. Max extra rotateX 16°. Volume preserved (no squash that looks like a broken plate). |
+| lift | 180–240 ms, then hold | Packet C-curve. Max corner rise 30% of card height. Max extra rotateX 22°. Volume preserved (no squash that looks like a broken plate). |
 | settle | 180–240 ms | One small overshoot (≤ 8%), then rest. |
 
 ## Timing language
