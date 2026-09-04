@@ -54,8 +54,6 @@ const CHIP_TO_CARD = 0.55;
  * Extra gap drops the hand-info block into mid-upper felt, clear of the lives pill.
  */
 const ACTION_BANNER_BELOW_HUD = 76;
-/** Compact ActionBanner height so PeekHud stays just under the pot/street block. */
-const ACTION_BANNER_HEIGHT = 68;
 
 export type PeekAndPitchTemplateProps = {
   spot?: PeekAndPitchSpot;
@@ -192,7 +190,7 @@ export function PeekAndPitchTemplate({
         x: cardsLeft,
         y: restCenter.y - cardHeight / 2,
         width: cardSpan,
-        height: cardHeight,
+        height: cardHeight * 1.45,
       },
       stackHit,
       stackAnchor: {
@@ -200,8 +198,8 @@ export function PeekAndPitchTemplate({
         y: stackHit.y + stackHit.height * 0.82,
       },
       handContact: {
-        x: restCenter.x + cardWidth * 0.55,
-        y: restCenter.y + cardHeight * 0.42,
+        x: restCenter.x + (cardWidth + cardGap) / 2 + cardWidth / 2,
+        y: restCenter.y + cardHeight / 2,
       },
       barrierContact: {
         x: cardsLeft - cardWidth * 0.06,
@@ -566,8 +564,8 @@ export function PeekAndPitchTemplate({
         cards={cards}
         peek={peek}
         muck={muck}
-        top={insets.top + ACTION_BANNER_BELOW_HUD + ACTION_BANNER_HEIGHT}
-        left={Math.max(12, insets.left + 8)}
+        restCenter={geometry.restCenter}
+        cardHeight={cardHeight}
       />
 
       {checkDenied ? (
