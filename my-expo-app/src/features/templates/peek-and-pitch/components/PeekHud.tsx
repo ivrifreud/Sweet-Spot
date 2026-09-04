@@ -9,6 +9,7 @@ import Animated, {
 import { describeHoleCards, type HoleCards as HoleCardsTuple } from '@/lib/cards';
 
 import { artStyle } from '../../../../../theme/artStyle';
+import { PEEK_REVEAL_THRESHOLD } from '../peekMotion';
 import { STRINGS } from '../strings';
 import { CardFace } from './PlayingCard';
 
@@ -30,7 +31,12 @@ export function PeekHud({ cards, peek, muck, top, left }: PeekHudProps) {
   const motion = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
     return {
-      opacity: interpolate(lift, [0.04, 0.12], [0, 1], Extrapolation.CLAMP),
+      opacity: interpolate(
+        lift,
+        [PEEK_REVEAL_THRESHOLD, PEEK_REVEAL_THRESHOLD + 0.12],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
     };
   });
 

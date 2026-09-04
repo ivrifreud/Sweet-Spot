@@ -14,6 +14,14 @@ import Animated, {
 
 import { playSfx } from '../../../../../lib/audio';
 import { GESTURES, type StackHitRect } from '../config';
+import {
+  PEEK_HOLD_MS,
+  PEEK_LIFT_MS,
+  PEEK_PINCH_MS,
+  PEEK_REVEAL_THRESHOLD,
+  PEEK_SETTLE_MS,
+  normalizePeekDrag,
+} from '../peekMotion';
 
 const MODE_UNDECIDED = 0;
 const MODE_PEEK = 1;
@@ -22,13 +30,13 @@ const STACK_EXCLUSION_PAD = 8;
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const PEEK_SPRING = {
-  duration: 420,
-  dampingRatio: 0.74,
+  duration: PEEK_LIFT_MS,
+  dampingRatio: 0.88,
   reduceMotion: ReduceMotion.System,
 } as const;
 const DROP_SPRING = {
-  duration: 540,
-  dampingRatio: 0.68,
+  duration: PEEK_SETTLE_MS,
+  dampingRatio: 0.88,
   reduceMotion: ReduceMotion.System,
 } as const;
 const MUCK_THROW_MS = 920;
@@ -38,6 +46,7 @@ type TableGesturesProps = {
   canCheck: boolean;
   height: number;
   stackHit: StackHitRect;
+  cardHit: StackHitRect;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
   onPeekHold?: () => void;
@@ -52,16 +61,16 @@ function clampWorklet(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function hitStack(x: number, y: number, rect: StackHitRect) {
+function hitRect(x: number, y: number, rect: StackHitRect, padding = 0) {
   'worklet';
   if (rect.width <= 0 || rect.height <= 0) {
     return false;
   }
   return (
-    x >= rect.x - STACK_EXCLUSION_PAD &&
-    x <= rect.x + rect.width + STACK_EXCLUSION_PAD &&
-    y >= rect.y - STACK_EXCLUSION_PAD &&
-    y <= rect.y + rect.height + STACK_EXCLUSION_PAD
+    x >= rect.x - padding &&
+    x <= rect.x + rect.width + padding &&
+    y >= rect.y - padding &&
+    y <= rect.y + rect.height + padding
   );
 }
 
@@ -74,13 +83,14 @@ function flattenPeek(peek: SharedValue<number>, instant = false) {
 
 /**
  * Felt-wide native gestures. Check stays a double-tap; Call lives on the
- * stack target. Peek is hold or swipe-down anywhere except the chip hit box.
+ * stack target. Peek arms only from a hold on the hole-card packet.
  */
 export function TableGestures({
   live,
   canCheck,
   height,
   stackHit,
+  cardHit,
   peek,
   muck,
   onPeekHold,
@@ -93,10 +103,13 @@ export function TableGestures({
   const gestureMode = useSharedValue(MODE_UNDECIDED);
   const startedLow = useSharedValue(0);
   const peekedThisTouch = useSharedValue(0);
+  const peekArmed = useSharedValue(0);
+  const startedOnCards = useSharedValue(0);
   const ignoreFelt = useSharedValue(0);
   const muckLocked = useSharedValue(0);
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
   const stackHitRect = useSharedValue<StackHitRect>(stackHit);
+  const cardHitRect = useSharedValue<StackHitRect>(cardHit);
 
   const onPeekHoldRef = useRef(onPeekHold);
   onPeekHoldRef.current = onPeekHold;
@@ -132,27 +145,34 @@ export function TableGestures({
     liveEnabled.value = live ? 1 : 0;
     canCheckEnabled.value = canCheck ? 1 : 0;
     stackHitRect.value = stackHit;
+    cardHitRect.value = cardHit;
     if (!live) {
       flattenPeek(peek, true);
       muckLocked.value = 0;
       peekedThisTouch.value = 0;
+      peekArmed.value = 0;
+      startedOnCards.value = 0;
       ignoreFelt.value = 0;
     }
   }, [
     canCheck,
     canCheckEnabled,
+    cardHit,
+    cardHitRect,
     ignoreFelt,
     live,
     liveEnabled,
     muckLocked,
     peek,
+    peekArmed,
     peekedThisTouch,
+    startedOnCards,
     stackHit,
     stackHitRect,
   ]);
 
   const muckTravel = height * GESTURES.muckTravel;
-  const peekTravelPx = height * GESTURES.peekTravel;
+  const peekTravelPx = Math.max(28, cardHit.height * 0.34);
   const muckZoneTop = height * GESTURES.muckZoneTop;
 
   const gesture = useMemo(() => {
@@ -174,28 +194,48 @@ export function TableGestures({
       });
 
     const peekHold = Gesture.LongPress()
-      .minDuration(GESTURES.peekHoldMs)
+      .minDuration(PEEK_HOLD_MS)
       .maxDistance(GESTURES.tapMaxDistance)
       .onStart((event) => {
         if (liveEnabled.value !== 1 || muckLocked.value === 1) {
           return;
         }
-        if (hitStack(event.x, event.y, stackHitRect.value)) {
+        if (
+          hitRect(event.x, event.y, stackHitRect.value, STACK_EXCLUSION_PAD) ||
+          !hitRect(event.x, event.y, cardHitRect.value, 10)
+        ) {
           return;
         }
+        peekArmed.value = 1;
         peekedThisTouch.value = 1;
         cancelAnimation(peek);
-        peek.value = withSpring(1, PEEK_SPRING);
+        peek.value = withTiming(
+          0.16,
+          {
+            duration: PEEK_PINCH_MS,
+            easing: Easing.out(Easing.quad),
+            reduceMotion: ReduceMotion.System,
+          },
+          (finished) => {
+            if (finished && peekArmed.value === 1 && gestureMode.value !== MODE_PEEK) {
+              peek.value = withSpring(1, PEEK_SPRING);
+            }
+          }
+        );
         runOnJS(firePeekHold)();
       })
       .onFinalize(() => {
         if (muckLocked.value === 1 || ignoreFelt.value === 1) {
           return;
         }
+        const revealed = peek.value >= PEEK_REVEAL_THRESHOLD;
+        peekArmed.value = 0;
         flattenPeek(peek);
+        if (peekedThisTouch.value === 1 && revealed) {
+          runOnJS(firePeeked)();
+        }
         if (peekedThisTouch.value === 1) {
           peekedThisTouch.value = 0;
-          runOnJS(firePeeked)();
         }
       });
 
@@ -206,8 +246,10 @@ export function TableGestures({
         if (liveEnabled.value !== 1) {
           return;
         }
-        const onStack = hitStack(event.x, event.y, stackHitRect.value);
+        const onStack = hitRect(event.x, event.y, stackHitRect.value, STACK_EXCLUSION_PAD);
         ignoreFelt.value = onStack ? 1 : 0;
+        startedOnCards.value =
+          !onStack && hitRect(event.x, event.y, cardHitRect.value, 10) ? 1 : 0;
         gestureMode.value = MODE_UNDECIDED;
         startedLow.value = !onStack && event.y > muckZoneTop ? 1 : 0;
       })
@@ -220,10 +262,8 @@ export function TableGestures({
           if (Math.abs(event.translationY) < GESTURES.directionLock) {
             return;
           }
-          if (event.translationY > 0) {
+          if (event.translationY > 0 && startedOnCards.value === 1 && peekArmed.value === 1) {
             gestureMode.value = MODE_PEEK;
-            peekedThisTouch.value = 1;
-            runOnJS(firePeekHold)();
           } else if (startedLow.value === 1) {
             gestureMode.value = MODE_MUCK;
           }
@@ -231,11 +271,15 @@ export function TableGestures({
 
         if (gestureMode.value === MODE_PEEK) {
           cancelAnimation(peek);
-          peek.value = clampWorklet(event.translationY / peekTravelPx, 0, 1);
+          peek.value = normalizePeekDrag(event.translationY, peekTravelPx);
           return;
         }
 
         if (gestureMode.value === MODE_MUCK) {
+          if (peekArmed.value === 1) {
+            peekArmed.value = 0;
+            flattenPeek(peek, true);
+          }
           muck.value = clampWorklet(-event.translationY / muckTravel, 0, 0.98);
         }
       })
@@ -246,11 +290,13 @@ export function TableGestures({
         }
 
         if (gestureMode.value === MODE_PEEK) {
+          const revealed = peek.value >= PEEK_REVEAL_THRESHOLD;
+          peekArmed.value = 0;
           flattenPeek(peek);
-          if (peekedThisTouch.value === 1) {
-            peekedThisTouch.value = 0;
+          if (peekedThisTouch.value === 1 && revealed) {
             runOnJS(firePeeked)();
           }
+          peekedThisTouch.value = 0;
           return;
         }
 
@@ -284,6 +330,8 @@ export function TableGestures({
       })
       .onFinalize(() => {
         ignoreFelt.value = 0;
+        startedOnCards.value = 0;
+        peekArmed.value = 0;
         if (muckLocked.value !== 1) {
           flattenPeek(peek);
           if (muck.value < 1) {
@@ -295,6 +343,7 @@ export function TableGestures({
     return Gesture.Exclusive(checkTap, Gesture.Simultaneous(peekHold, feltPan));
   }, [
     canCheckEnabled,
+    cardHitRect,
     fireCheck,
     fireIllegalCheck,
     fireMuck,
@@ -309,9 +358,11 @@ export function TableGestures({
     muckTravel,
     muckZoneTop,
     peek,
+    peekArmed,
     peekTravelPx,
     peekedThisTouch,
     stackHitRect,
+    startedOnCards,
     startedLow,
   ]);
 
@@ -321,7 +372,7 @@ export function TableGestures({
         style={[StyleSheet.absoluteFill, styles.hitLayer]}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel="Hold or swipe down to peek. Swipe up to fold. Double-tap anywhere to check. Tap your chips to call. Drag chips toward the pot to raise."
+        accessibilityLabel="Hold the hole cards to peek, then pull down to control the lift. Swipe up to fold. Double-tap anywhere to check. Tap your chips to call. Drag chips toward the pot to raise."
       />
     </GestureDetector>
   );

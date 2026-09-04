@@ -32,7 +32,8 @@ Keep React state for gameplay only. Every per-frame value stays on the UI runtim
 - Exactly two overlapping hole cards as one packet.
 - Far/dealer edge stays planted. Near edges lift together; right pinch corner leads slightly.
 - Max extra rotate **16°**. Max corner rise **18%** of card height.
-- Only rank/suit corners become readable. No third card, no HUD box, no full faces.
+- Rank/suit corners become readable on the physical cards. Keep the existing
+  full-card Peek HUD as a synchronized secondary view; no third card.
 - Poses: rest → corner pinch (90–120 ms) → lift (180–240 ms, hold) → settle (180–240 ms, ≤8% overshoot).
 - Peek does not start on touch-down. Call/Raise commit must not move hole cards.
 - Reduced motion: no 3D bend, no overshoot; 120 ms opacity on index plates; same info and outcomes.
@@ -105,7 +106,9 @@ Barrier glove: one shield pose while peeking. Do not mirror every bend delta.
 
 ## Phase 4 — Reveal, light, shadow
 
-Remove `PeekHud`. Rank/suit stay card-local.
+Keep `PeekHud` synchronized to the same reveal/settle progress for secondary
+readability. Rank/suit also stay card-local on the bent packet; the HUD must not
+replace or precede that physical reveal.
 
 `reveal = smoothstep(0.18, 0.62, p)`. Curved clip between planted plane and lifted edge, intersected with a max corner crop so full faces cannot leak. Right card first; left delayed/smaller. `10` and all suits must stay complete.
 
@@ -123,11 +126,16 @@ Interaction: no Peek on touch-down, stack, deal/resolve, or after Fold wins. Alw
 
 Perf: mid-tier Android + iPhone, 3 s hold + 10 open/close cycles. p95 UI frame &lt; 16.7 ms on 60 Hz; no JS work during hold. Fill `docs/qa/peek-map-performance-baseline.md` with real FPS.
 
-Rollout: Skia spike → math+tests behind a flag → two-card mesh + reveal with old renderer fallback → split-hand occlusion → integration tests → remove bands, plates, PeekHud, flag.
+Rollout: Skia spike → math+tests behind a flag → two-card mesh + reveal with old
+renderer fallback → split-hand occlusion → integration tests → remove bands,
+plates, and flag while retaining the synchronized PeekHud.
 
 ### Definition of done
 
-Hold on the packet, pull toward the player, one C-curve under a registered cartoon pinch, two readable corners, short settle. No HUD, no JS frame loop, no Fold/Check/Call/Raise/a11y/reduced-motion regressions.
+Hold on the packet, pull toward the player, one C-curve under a registered
+cartoon pinch, two readable corners plus the synchronized PeekHud, and a short
+settle. No JS frame loop and no Fold/Check/Call/Raise/a11y/reduced-motion
+regressions.
 
 ---
 

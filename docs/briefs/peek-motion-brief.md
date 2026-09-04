@@ -6,7 +6,9 @@ Implementers must not invent extra motion. Use these poses only.
 - Exactly two hole cards, overlapping as one packet.
 - Far/dealer edge stays on the felt.
 - Near/top corners lift together; the right-hand pinch corner leads.
-- Rank and suit become readable at the pinched corners. Do not show a third card, HUD box, or full faces.
+- Rank and suit become readable at the pinched corners. Keep the existing
+  full-card Peek HUD as a synchronized secondary readability view; do not show a
+  third card or replace the physical corner reveal with the HUD.
 
 ## Poses
 | Pose | Duration | Transform |
@@ -31,7 +33,8 @@ Implementers must not invent extra motion. Use these poses only.
 - Same information and the same gesture outcomes.
 
 ## Forbidden
-- Boxed PeekHud overlay.
+- A PeekHud that appears before the physical corner reveal, persists after the
+  cards settle, or substitutes for the card-local reveal.
 - 8 independent peel slices that read as a hard box or broken card.
 - Instant peek spring to 1 on touch begin.
 - Continuous floating while held.

@@ -1,10 +1,8 @@
-﻿import type { ImageSourcePropType } from 'react-native';
-
 import type { Card, CardCode } from '@/lib/cards';
 import { formatCard } from '@/lib/cards';
 
 /** Kenney Playing Cards Pack (CC0), via Python Arcade's bundled copy. */
-const FACES: Record<CardCode, ImageSourcePropType> = {
+const FACES: Record<CardCode, number> = {
   '2s': require('../../../../../assets/tables/playing-cards/cardSpades2.png'),
   '3s': require('../../../../../assets/tables/playing-cards/cardSpades3.png'),
   '4s': require('../../../../../assets/tables/playing-cards/cardSpades4.png'),
@@ -61,6 +59,6 @@ const FACES: Record<CardCode, ImageSourcePropType> = {
 
 export const CARD_BACK_ART = require('../../../../../assets/tables/playing-cards/cardBack_red2.png');
 
-export function cardFaceArt(card: Card): ImageSourcePropType {
+export function cardFaceArt(card: Card): number {
   return FACES[formatCard(card)];
 }

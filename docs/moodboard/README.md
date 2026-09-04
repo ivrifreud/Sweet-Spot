@@ -279,6 +279,17 @@ File: `docs/moodboard/references/peek-pov-warm-lamplight-limited.png`
 
 Use it for: low-key amber light, cream card stock, wood grain as a VIP-room clue.
 
+### 20a. Transparent physical packet silhouette
+
+File: `docs/moodboard/references-art-style/peek-real-life-gemini-transparent.png`
+
+Use it for: the broad C-curve of two cards lifted together, 15–20% overlap,
+rounded card corners, upright corner indices, and the near-edge pinch location.
+
+Do not ship or trace the photoreal hand, fixed A-spade/A-diamond values, or
+photographic card texture. Runtime cards use the dynamic card templates and the
+Sweet Spot cream cartoon glove.
+
 Do not copy from any Peek photo: real hands, watches, modern card faces, whiskey,
 or a photoreal felt texture as the app's default look.
 

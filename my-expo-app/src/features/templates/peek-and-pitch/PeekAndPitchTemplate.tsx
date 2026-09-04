@@ -74,7 +74,7 @@ export type PeekAndPitchTemplateProps = {
  * Template 1 — "The Peek and Pitch".
  *
  * First-person seat at the table: the dealer pitches two cards to the player.
- *   - hold the felt or swipe down (not on chips) -> pinch, lift, and shield the hole cards
+ *   - hold the hole cards, then pull down        -> pinch, lift, and shield the hole cards
  *   - release                                  -> the cards drop flat on the felt
  *   - swipe up from the same grip              -> throw the cards onto the table
  *   - tap your own stack once                  -> Call
@@ -188,6 +188,12 @@ export function PeekAndPitchTemplate({
         skin.coverAnchor
       ),
       restCenter,
+      cardHit: {
+        x: cardsLeft,
+        y: restCenter.y - cardHeight / 2,
+        width: cardSpan,
+        height: cardHeight,
+      },
       stackHit,
       stackAnchor: {
         x: stackHit.x + stackHit.width * 0.5,
@@ -483,7 +489,6 @@ export function PeekAndPitchTemplate({
           peek={peek}
           muck={muck}
           deal={deal}
-          commit={commit}
           cardWidth={cardWidth}
           dealOrigin={geometry.dealOrigin}
           tableCenter={geometry.tableCenter}
@@ -496,7 +501,6 @@ export function PeekAndPitchTemplate({
           stackAnchor={geometry.stackAnchor}
           tableCenter={geometry.tableCenter}
           handWidth={barrierWidth}
-          cardHeight={cardHeight}
           chipSize={chipSize}
           viewportHeight={height}
           deal={deal}
@@ -533,6 +537,7 @@ export function PeekAndPitchTemplate({
         canCheck={Boolean(activeSpot.canCheck)}
         height={height}
         stackHit={geometry.stackHit}
+        cardHit={geometry.cardHit}
         peek={peek}
         muck={muck}
         onPeeked={markPeeked}

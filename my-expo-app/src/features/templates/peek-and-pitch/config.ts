@@ -130,8 +130,6 @@ export const CHIP_CARD_GAP = 56;
 export const GESTURES = {
   /** A drag that starts below this line (fraction of screen height) can muck the hand. */
   muckZoneTop: 0.6,
-  /** Drag distance that takes the peek from fully down to fully lifted. */
-  peekTravel: 0.18,
   /** Drag distance that commits the muck. */
   muckTravel: 0.16,
   /** Movement needed before the gesture locks into peek or muck. */
@@ -149,7 +147,6 @@ export const GESTURES = {
   doubleTapMs: 320,
   tapMaxDuration: 240,
   tapMaxDistance: 28,
-  peekHoldMs: 140,
 } as const;
 
 export type StackHitRect = {

@@ -6,7 +6,6 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { PEEL_RISE, cornerPeel, peekPull } from '../feltPlane';
 import { ChipSprite } from './ChipSprite';
 import { CHIP_SIZE } from './ChipStack';
 import { fitGloveToViewport } from './gloveLayout';
@@ -24,7 +23,6 @@ type BarrierHandProps = {
   stackAnchor: Point;
   tableCenter: Point;
   handWidth: number;
-  cardHeight?: number;
   chipSize?: number;
   viewportHeight: number;
   deal: SharedValue<number>;
@@ -42,7 +40,6 @@ export function BarrierHand({
   stackAnchor,
   tableCenter,
   handWidth,
-  cardHeight = 80,
   chipSize = CHIP_SIZE,
   viewportHeight,
   deal: _deal,
@@ -67,9 +64,6 @@ export function BarrierHand({
 
   const motion = useAnimatedStyle(() => {
     const lift = peek.value * (1 - muck.value);
-    const pull = peekPull(lift);
-    const peel = cornerPeel(0.06, 0.96, pull);
-    const follow = peel.rise * cardHeight * PEEL_RISE;
     const shield = interpolate(lift, [0, 0.16], [0, 1], Extrapolation.CLAMP);
     const grab = interpolate(commit.value, [0, 0.22, 0.4, 0.52], [0, 1, 1, 0], Extrapolation.CLAMP);
     const toss = interpolate(commit.value, [0.4, 0.62, 0.88], [0, 1, 0], Extrapolation.CLAMP);
@@ -80,7 +74,7 @@ export function BarrierHand({
       Extrapolation.CLAMP
     );
     const shown = Math.min(1, shield + reaching);
-    const size = 0.9 + pull * 0.04 + reaching * 0.08;
+    const size = 0.9 + reaching * 0.08;
 
     return {
       opacity: interpolate(shown, [0, 0.18], [0, 1], Extrapolation.CLAMP),
@@ -89,10 +83,10 @@ export function BarrierHand({
           translateX: hideX * (1 - shown) + grabTo.x * grab + tossTo.x * toss,
         },
         {
-          translateY: hideY * (1 - shown) - follow * 0.45 + grabTo.y * grab + tossTo.y * toss,
+          translateY: hideY * (1 - shown) + grabTo.y * grab + tossTo.y * toss,
         },
         {
-          rotate: `${interpolate(pull, [0, 1], [-14, -22]) + grab * 28 - toss * 36}deg`,
+          rotate: `${-18 + grab * 28 - toss * 36}deg`,
         },
         { scaleX: -size },
         { scaleY: size },

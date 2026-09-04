@@ -6,7 +6,9 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { PEEL_RISE, cornerPeel, peekPull, type FeltPlaneConfig } from '../feltPlane';
+import { CARD_ASPECT } from './PlayingCard';
+import { projectCardPoint, projectedPinchCorner } from '../cardBendMath';
+import type { FeltPlaneConfig } from '../feltPlane';
 import { fitGloveToViewport } from './gloveLayout';
 
 const REST = require('../../../../../assets/tables/hero-glove-rest.png');
@@ -60,9 +62,13 @@ export function HeroHand({
   const motion = useAnimatedStyle(() => {
     const entry = interpolate(deal.value, [0.4, 1], [0, 1], Extrapolation.CLAMP);
     const lift = peek.value * (1 - muck.value);
-    const pull = peekPull(lift);
-    const peel = cornerPeel(1, 1, pull);
-    const follow = peel.rise * cardHeight * PEEL_RISE;
+    const cardWidth = cardHeight / CARD_ASPECT;
+    const corner = projectedPinchCorner(lift, cardWidth, cardHeight);
+    const tangentFrom = projectCardPoint(1, 0.9, lift, cardWidth, cardHeight, 1);
+    const followX = corner.x - cardWidth;
+    const followY = corner.y - cardHeight;
+    const tangent =
+      Math.atan2(corner.y - tangentFrom.y, corner.x - tangentFrom.x) * (180 / Math.PI) - 90;
     const pitch = interpolate(
       muck.value,
       [0, 0.38, 0.72, 1],
@@ -74,16 +80,24 @@ export function HeroHand({
     return {
       transform: [
         {
-          translateX: offFrame.x * (1 - entry) + throwTo.x * pitch + settle * fittedWidth * 0.03,
+          translateX:
+            offFrame.x * (1 - entry) +
+            followX +
+            throwTo.x * pitch +
+            settle * fittedWidth * 0.03,
         },
         {
           translateY:
-            offFrame.y * (1 - entry) - follow * 0.85 + throwTo.y * pitch + settle * cardHeight * 0.04,
+            offFrame.y * (1 - entry) +
+            followY +
+            throwTo.y * pitch +
+            settle * cardHeight * 0.04,
         },
         {
           rotate: `${
             (1 - entry) * 10 +
-            interpolate(pull, [0, 0.22, 1], [4, -2, -8]) -
+            interpolate(lift, [0, 0.22, 1], [4, -2, -5]) +
+            tangent * 0.45 -
             pitch * 14 +
             settle * 4
           }deg`,
