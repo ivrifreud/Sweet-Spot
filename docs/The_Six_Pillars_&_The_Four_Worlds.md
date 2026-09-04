@@ -1,4 +1,4 @@
-> Superseded where conflicting — see `docs/mvp.md` (Rev. 2). Pillar VI, Template 6, and World 4 are deferred.
+> Superseded where conflicting — see `docs/mvp.md` (Rev. 2). World 4 and Levels 4–5 tracks are deferred; Template 6 / Pillar VI UI ship in MVP. Gesture “why” detail: `docs/Question_Templates.md`.
 
 System & Development Overview .1
 This document outlines the six core UI mechanics (Pillars/Templates) for the "Sweet Spot"
@@ -76,7 +76,7 @@ Pitch (Fold): A fast swipe upward throws the cards into the muck, accompanied by
  (Template 4: "The Sniper Slider" (Bet Sizing Geometry
  Interface: A vertical or circular slider that wraps around the main pot in the center of the 
  .screen
- Gestures: The user drags their thumb along the slider to determine their bet size. The app  delivers haptic feedback (vibrations) as the slider crosses key geometric thresholds (e.g.,  .(33%, 50%, Overbet
+ Gestures: The user drags their thumb along the slider to determine their bet size. The app  delivers haptic feedback (vibrations) as the slider crosses key geometric thresholds (33%, 50%, 75%, Overbet).
  Feedback: Releasing the slider at the theoretically optimal point (extracting maximum value) 
  .triggers the "Jackpot" audio effect
  (Template 5: "Tag the Target" (Profiling & Exploitation
