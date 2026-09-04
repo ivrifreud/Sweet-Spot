@@ -59,6 +59,6 @@ describe('buildPeekIndexMesh', () => {
     const patch = buildPeekIndexMesh(WIDTH, HEIGHT, 1, 1);
     expect(patch.textures[0]).toEqual({ x: 0, y: 0 });
     expect(Math.max(...patch.textures.map((point) => point.x))).toBe(140);
-    expect(Math.max(...patch.textures.map((point) => point.y))).toBeLessThan(190 * 0.63);
+    expect(Math.max(...patch.textures.map((point) => point.y))).toBeLessThan(190 * 0.51);
   });
 });
