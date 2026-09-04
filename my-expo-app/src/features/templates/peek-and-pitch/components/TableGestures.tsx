@@ -15,13 +15,12 @@ import Animated, {
 import { playSfx } from '../../../../../lib/audio';
 import { GESTURES, type StackHitRect } from '../config';
 import {
+  PEEK_DRAG_DEAD_ZONE,
   PEEK_HOLD_MS,
   PEEK_LIFT_MS,
   PEEK_PINCH_MS,
   PEEK_REVEAL_THRESHOLD,
   PEEK_SETTLE_MS,
-  normalizePeekDrag,
-  shouldLongPressSettle,
 } from '../peekMotion';
 
 const MODE_UNDECIDED = 0;
@@ -75,6 +74,49 @@ function hitRect(x: number, y: number, rect: StackHitRect, padding = 0) {
   );
 }
 
+/**
+ * Gesture-handler worklets cannot call `'worklet'` helpers imported from
+ * peekMotion.ts (ReferenceError on the UI runtime, native abort). These
+ * locals must stay in this file and match peekMotion.ts.
+ */
+function clamp01Local(value: number) {
+  'worklet';
+  return Math.min(1, Math.max(0, value));
+}
+
+function normalizePeekDragLocal(translationY: number, pullRange: number) {
+  'worklet';
+  if (pullRange <= 0) {
+    return 0;
+  }
+  const normalized = clamp01Local((translationY - PEEK_DRAG_DEAD_ZONE) / pullRange);
+  return Math.pow(normalized, 1.25);
+}
+
+function mergePeekDragLocal(current: number, translationY: number, pullRange: number) {
+  'worklet';
+  return Math.max(current, normalizePeekDragLocal(translationY, pullRange));
+}
+
+function shouldLongPressSettleLocal(panOwnsPeek: boolean) {
+  'worklet';
+  return !panOwnsPeek;
+}
+
+function shouldArmPeekPanLocal(translationY: number, startedOnStack: boolean) {
+  'worklet';
+  return !startedOnStack && translationY > 0;
+}
+
+function shouldArmMuckPanLocal(
+  translationY: number,
+  startedLow: boolean,
+  startedOnStack: boolean
+) {
+  'worklet';
+  return !startedOnStack && startedLow && translationY < 0;
+}
+
 /** Settle the peek onto the felt. Instant on a muck so the throw can start clean. */
 function flattenPeek(peek: SharedValue<number>, instant = false) {
   'worklet';
@@ -84,7 +126,7 @@ function flattenPeek(peek: SharedValue<number>, instant = false) {
 
 /**
  * Felt-wide native gestures. Check stays a double-tap; Call lives on the
- * stack target. Peek arms only from a hold on the hole-card packet.
+ * stack target. Peek is a hold or a downward pull on the hole-card packet.
  */
 export function TableGestures({
   live,
@@ -105,7 +147,6 @@ export function TableGestures({
   const startedLow = useSharedValue(0);
   const peekedThisTouch = useSharedValue(0);
   const peekArmed = useSharedValue(0);
-  const startedOnCards = useSharedValue(0);
   const ignoreFelt = useSharedValue(0);
   const muckLocked = useSharedValue(0);
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
@@ -152,7 +193,6 @@ export function TableGestures({
       muckLocked.value = 0;
       peekedThisTouch.value = 0;
       peekArmed.value = 0;
-      startedOnCards.value = 0;
       ignoreFelt.value = 0;
     }
   }, [
@@ -167,7 +207,6 @@ export function TableGestures({
     peek,
     peekArmed,
     peekedThisTouch,
-    startedOnCards,
     stackHit,
     stackHitRect,
   ]);
@@ -196,7 +235,7 @@ export function TableGestures({
 
     const peekHold = Gesture.LongPress()
       .minDuration(PEEK_HOLD_MS)
-      .maxDistance(GESTURES.tapMaxDistance)
+      .maxDistance(10_000)
       .onStart((event) => {
         if (liveEnabled.value !== 1 || muckLocked.value === 1) {
           return;
@@ -226,7 +265,7 @@ export function TableGestures({
         runOnJS(firePeekHold)();
       })
       .onFinalize(() => {
-        if (!shouldLongPressSettle(gestureMode.value === MODE_PEEK)) {
+        if (!shouldLongPressSettleLocal(gestureMode.value === MODE_PEEK)) {
           return;
         }
         if (muckLocked.value === 1 || ignoreFelt.value === 1) {
@@ -252,8 +291,6 @@ export function TableGestures({
         }
         const onStack = hitRect(event.x, event.y, stackHitRect.value, STACK_EXCLUSION_PAD);
         ignoreFelt.value = onStack ? 1 : 0;
-        startedOnCards.value =
-          !onStack && hitRect(event.x, event.y, cardHitRect.value, 10) ? 1 : 0;
         gestureMode.value = MODE_UNDECIDED;
         startedLow.value = !onStack && event.y > muckZoneTop ? 1 : 0;
       })
@@ -266,16 +303,27 @@ export function TableGestures({
           if (Math.abs(event.translationY) < GESTURES.directionLock) {
             return;
           }
-          if (event.translationY > 0 && startedOnCards.value === 1 && peekArmed.value === 1) {
+          if (shouldArmPeekPanLocal(event.translationY, ignoreFelt.value === 1)) {
             gestureMode.value = MODE_PEEK;
-          } else if (startedLow.value === 1) {
+            peekArmed.value = 1;
+            if (peekedThisTouch.value !== 1) {
+              peekedThisTouch.value = 1;
+              runOnJS(firePeekHold)();
+            }
+          } else if (
+            shouldArmMuckPanLocal(
+              event.translationY,
+              startedLow.value === 1,
+              ignoreFelt.value === 1
+            )
+          ) {
             gestureMode.value = MODE_MUCK;
           }
         }
 
         if (gestureMode.value === MODE_PEEK) {
           cancelAnimation(peek);
-          peek.value = normalizePeekDrag(event.translationY, peekTravelPx);
+          peek.value = mergePeekDragLocal(peek.value, event.translationY, peekTravelPx);
           return;
         }
 
@@ -334,7 +382,6 @@ export function TableGestures({
       })
       .onFinalize(() => {
         ignoreFelt.value = 0;
-        startedOnCards.value = 0;
         peekArmed.value = 0;
         if (muckLocked.value !== 1) {
           flattenPeek(peek);
@@ -367,7 +414,6 @@ export function TableGestures({
     peekTravelPx,
     peekedThisTouch,
     stackHitRect,
-    startedOnCards,
     startedLow,
   ]);
 
@@ -377,7 +423,7 @@ export function TableGestures({
         style={[StyleSheet.absoluteFill, styles.hitLayer]}
         collapsable={false}
         accessibilityRole="button"
-        accessibilityLabel="Hold the hole cards to peek, then pull down to control the lift. Swipe up to fold. Double-tap anywhere to check. Tap your chips to call. Drag chips toward the pot to raise."
+        accessibilityLabel="Hold or swipe down on the hole cards to peek. Swipe up to fold. Double-tap anywhere to check. Tap your chips to call. Drag chips toward the pot to raise."
       />
     </GestureDetector>
   );

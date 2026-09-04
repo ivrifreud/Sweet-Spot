@@ -4,7 +4,10 @@ import {
   PEEK_DRAG_DEAD_ZONE,
   PEEK_REVEAL_THRESHOLD,
   hasRevealedPeek,
+  mergePeekDrag,
   normalizePeekDrag,
+  shouldArmMuckPan,
+  shouldArmPeekPan,
   shouldLongPressSettle,
 } from '../../src/features/templates/peek-and-pitch/peekMotion';
 
@@ -38,5 +41,23 @@ describe('peek gesture ownership', () => {
 
   it('lets a stationary LongPress settle on release', () => {
     expect(shouldLongPressSettle(false)).toBe(true);
+  });
+
+  it('lets a swipe-down on the packet lift without a prior hold', () => {
+    expect(normalizePeekDrag(40, 100)).toBeGreaterThan(0);
+    expect(shouldArmPeekPan(20, false)).toBe(true);
+    expect(shouldArmPeekPan(20, true)).toBe(false);
+    expect(shouldArmPeekPan(-20, false)).toBe(false);
+  });
+
+  it('only folds on an upward pan from the low felt', () => {
+    expect(shouldArmMuckPan(-20, true, false)).toBe(true);
+    expect(shouldArmMuckPan(20, true, false)).toBe(false);
+    expect(shouldArmMuckPan(-20, false, false)).toBe(false);
+  });
+
+  it('does not slam a held lift shut on a small downward drag', () => {
+    expect(mergePeekDrag(1, 12, 100)).toBe(1);
+    expect(mergePeekDrag(0, 80, 100)).toBeGreaterThan(0.5);
   });
 });
