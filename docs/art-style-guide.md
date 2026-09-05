@@ -221,11 +221,39 @@ The product world's purpose stays unchanged; its visual interpretation follows t
 - afternoon cream/green treatment; moonlit teal at night;
 - welcoming and homemade.
 
-### World 2 — Local Casino
+### World 2 — A Local Casino
 
-- period casino hall with Art Deco signage and incandescent marquee bulbs;
-- mechanical slots, painted cards, brass rails, cigarette-card typography;
-- “neon” in product copy means bright period signage—not cyberpunk lighting.
+The **map** is an outdoor 1930s rubber-hose Wild West desert town. The product
+name stays **A Local Casino**; the town climb ends at the Local Casino façade.
+Casino-interior lesson and table scenes are a separate future feature — do not
+paint the progression map as an indoor hall.
+
+- isometric dusty streets, adobe and timber façades, boardwalks, cacti, and
+  a decorative casino marquee at the top of the last chunk;
+- daytime only for current production; keep editable layers so a later night
+  grade can reuse the same geometry under moonlight and lantern light;
+- “neon” in product copy means bright period signage bulbs — not cyberpunk
+  lighting.
+
+Desert map palette (see `my-expo-app/theme/localCasinoMap.ts`):
+
+- Animation Cream `#E8D7A7` for sunlit plaster and path highlights;
+- Projector Black `#111714` for deep ink and voids;
+- Tobacco Brown `#765337` for wood;
+- warm near-black `#171713` for primary ink;
+- Dust Sand `#C7A56A` for terrain;
+- Sunbaked Ochre `#B36A3C` for adobe and rock;
+- Dust Rose `#925447` for secondary façades;
+- Sage Cactus `#68734F` for vegetation.
+
+Casino Teal `#0B5F5D` is limited to tiny painted casino trim and sign details —
+never a dominant landscape color. Felt Green and Oxblood Red are progression
+and lock feedback only, not scenery.
+
+Film treatment on map art only: monochrome grain 3–6% opacity, subtle vignette,
+sparse dust 1–3%, optional 1–2 px selected registration drift, flicker no
+greater than ±2% brightness. Never cover HUD text, node labels, chip counts,
+or controls.
 
 ### World 3 — VIP Room
 
