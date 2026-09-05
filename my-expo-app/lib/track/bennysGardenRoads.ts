@@ -1,11 +1,8 @@
-export type GardenRouteSurface = 'road' | 'bridge';
+import type { WorldRoutePoint, WorldRouteSurface } from './worldRoute';
 
-export type GardenRoutePoint = {
-  left: number;
-  top: number;
-  surface: GardenRouteSurface;
-  nodeSafe: boolean;
-};
+export type GardenRouteSurface = Extract<WorldRouteSurface, 'road' | 'bridge'>;
+
+export type GardenRoutePoint = WorldRoutePoint;
 
 function road(left: number, top: number, nodeSafe = true): GardenRoutePoint {
   return { left, top, surface: 'road', nodeSafe };

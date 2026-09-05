@@ -1,8 +1,9 @@
 import type { ImageSourcePropType } from 'react-native';
 
-import type { GardenRoutePoint } from '../../lib/track/bennysGardenRoads';
 import { createGardenChunkLayouts } from '../../lib/track/gardenMap';
+import { createLocalCasinoChunkLayouts } from '../../lib/track/localCasinoMap';
 import { flattenMapChunks, type MapChunk, type MapNode } from '../../lib/track/tree';
+import type { WorldRoutePoint } from '../../lib/track/worldRoute';
 
 export type WorldMapId = 'bennys-garden' | 'local-casino' | 'vip-room';
 
@@ -16,7 +17,7 @@ export type WorldMapIdentity = {
 export type WorldMapChunk = MapChunk & {
   variantId: string;
   background: ImageSourcePropType;
-  route: readonly GardenRoutePoint[];
+  route: readonly WorldRoutePoint[];
 };
 
 export type WorldMapAsset = {
@@ -103,20 +104,57 @@ export function createBennysGardenWorld(
 
 export const BENNYS_GARDEN_WORLD = createBennysGardenWorld();
 
+const LOCAL_CASINO_IDENTITY: WorldMapIdentity = {
+  id: 'local-casino',
+  name: 'A Local Casino',
+  chapter: 'Transition to Real Money',
+  artDirection:
+    'Outdoor 1930s Wild West desert town that climbs to the Local Casino façade; interiors stay off the map.',
+};
+
+const LOCAL_CASINO_MAPS = {
+  a: require('../../assets/themes/local-casino/map-chunk-a.jpg'),
+  b: require('../../assets/themes/local-casino/map-chunk-b.jpg'),
+  c: require('../../assets/themes/local-casino/map-chunk-c.jpg'),
+} as const;
+
+const LOCAL_CASINO_HAZE: WorldMapTemplate['fogAssets'] = {
+  left: {
+    source: require('../../assets/themes/local-casino/map-haze-left.png'),
+    aspectRatio: 576 / 1024,
+  },
+  right: {
+    source: require('../../assets/themes/local-casino/map-haze-right.png'),
+    aspectRatio: 576 / 1024,
+  },
+};
+
+export function createLocalCasinoChunks(totalLevels = 12): WorldMapChunk[] {
+  return createLocalCasinoChunkLayouts(totalLevels).map((layout) => ({
+    id: `local-casino-chunk-${layout.nodes[0]!.chunkIndex + 1}`,
+    index: layout.nodes[0]!.chunkIndex,
+    variantId: layout.variantId,
+    background: LOCAL_CASINO_MAPS[layout.variantId],
+    route: layout.route,
+    nodes: layout.nodes,
+  }));
+}
+
+export function createLocalCasinoWorld(totalLevels = 12): WorldMapTemplate {
+  return createWorldMapTemplate(
+    LOCAL_CASINO_IDENTITY,
+    createLocalCasinoChunks(totalLevels),
+    LOCAL_CASINO_HAZE
+  );
+}
+
+export const LOCAL_CASINO_WORLD = createLocalCasinoWorld();
+
 /**
  * Typed promotion points for later worlds. They intentionally have no fallback
  * image: non-canonical art must never silently ship in place of a world map.
  */
 export const WORLD_MAP_SCAFFOLDS = {
-  localCasino: {
-    id: 'local-casino',
-    name: 'Local Casino',
-    chapter: 'Transition to Real Money',
-    artDirection:
-      'Inked period casino hall with Art Deco signs, brass rails, and incandescent marquee bulbs.',
-    status: 'art-required',
-    expectedAsset: 'assets/themes/local-casino/light-mobile.png',
-  },
   vipRoom: {
     id: 'vip-room',
     name: 'VIP Room',
