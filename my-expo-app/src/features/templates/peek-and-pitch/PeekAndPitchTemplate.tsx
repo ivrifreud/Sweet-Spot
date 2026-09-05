@@ -620,12 +620,12 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   tableLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 0,
     elevation: 0,
   },
   playLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 20,
     elevation: 20,
     overflow: 'visible',

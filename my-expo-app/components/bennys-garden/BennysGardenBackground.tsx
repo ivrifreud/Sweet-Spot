@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playArea: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
 });

@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     backgroundColor: artStyle.colors.projectorBlack,
   },
   mapArea: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -45,7 +45,7 @@ export function StreakModal({ visible, currentStreak, bestStreak, onClose }: Pro
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(17,23,20,0.72)',
   },
   centerWrap: {
