@@ -59,19 +59,18 @@ II — Mathematical Framework	Moving from intuition to EV+ decisions and pot-odd
 III — Board Texture & Range Analysis	Reading wet vs. dry boards; thinking in opponent ranges, not just own cards.	3
 IV — Bet Sizing Geometry	Sizing precision relative to pot, replacing random intuitive bets.	2 (+3/4)
 V — Opponent Profiling & Exploitation	Identifying opponent archetypes and adjusting strategy to exploit them.	3
-VI — High-Stakes Dynamics & ICM	Push/fold strategy and tournament-bubble ICM pressure.	MVP (intro spots); full L4–5 tracks deferred
-All six pillars ship UI in MVP. Pillars I–V dominate Levels 1–3 tracks. Pillar VI (Pressure Radar) ships as intro ICM / push-fold spots inside existing tracks or the Daily Challenge; dedicated Levels 4–5 progression and World 4 remain deferred — see Section 10.
+VI — High-Stakes Dynamics & ICM	Push/fold strategy and tournament-bubble ICM pressure.	4–5 (deferred)
+Five of the six pillars are directly relevant to Levels 1–3 and ship in MVP. Pillar VI is exclusively Level 4+ content and is deferred alongside that rollout — see Section 10.
  
 
 4. Player Progression Tracks (Levels 1–3)
 Each level is a self-contained track — unlockable sections and stages built from short poker “spots” that the AI engine generates against that level's leaks. All three tracks share the same structural rules; only content parameters differ.
-Level	Elo Range	Core Leaks	Primary Pillar(s)	Primary UI Template
+Level	Elo Range	Core Leaks	Primary Pillar(s)	UI Template
 1 — Amateur	0–599	Plays 50%+ of hands; limps/cold-calls; overvalues weak holdings.	I	The Peek and Pitch
 2 — Beginner	600–1099	Ignores position; random bet sizing; “Level 1 thinking” (own cards only).	I + IV	The Sniper Slider
 3 — Intermediate	1100–1499	Can't fold strong hands on scary boards; chases bad draws; bluffs the wrong opponents.	III + II + V	The Detective Board
 Level 1: “I came to have fun, let's see a flop.” Level 2: “I have a feeling the Heart is coming on the River.” Level 3: “How do I extract maximum value from him with my strong hand?” — together, roughly 80% of the player base per the Elo bell-curve model.
-Level 3's primary template was previously an open question; the Six Pillars mapping confirms Detective Board is correct, since Pillar III (board texture / range reading) is exactly the leak Level 3 needs resolved. This open item is now closed.
-Primary template ≠ only template. The table above names the mechanic students see most for that track's headline leak. Per spot, the engine still maps pillar → template 1:1 (Section 5), so Equity Scale (II), Tag the Target (V), Pressure Radar (VI), and the other templates can appear whenever that pillar is the drill — including inside Levels 1–3. Detail and “why” for each mapping: `docs/Question_Templates.md`.
+Level 3's template was previously an open question; the Six Pillars mapping confirms Detective Board is correct, since Pillar III (board texture / range reading) is exactly the leak Level 3 needs resolved. This open item is now closed.
 Track Structure (shared across all three levels)
 Bite-sized: each stage holds attention for 3–5 minutes; the 80/20 rule keeps 80% of time on active practice, 20% on theory.
 Sandwich structure per stage: warm-up → new concept → rising-difficulty practice → a summarizing “final challenge.”
@@ -89,18 +88,42 @@ No forced interstitial ads between stages, and no persistent ad banners on the t
  
 
 5. The Six Question Templates
-Each pillar maps to exactly one tactile, mobile-first UI mechanic — replacing traditional multiple-choice answers with gestures that mimic physical poker actions. The mechanical interaction stays constant; only its visual skin changes by World (Section 6). Pedagogical “why this gesture trains this pillar” lives in `docs/Question_Templates.md`.
-Scope Decision
-Template 6 (The Pressure Radar) is promoted into MVP alongside Pillars I–V templates. Dedicated Levels 4–5 tracks and World 4 stay deferred (Section 10); Pillar VI spots use Worlds 1–3 skins until World 4 ships.
+Each pillar maps to exactly one tactile, mobile-first UI mechanic — replacing traditional multiple-choice answers with gestures that mimic physical poker actions. The mechanical interaction stays constant; only its visual skin changes by World (Section 6).
 Template	Pillar	Core Interaction	MVP
 1 — The Peek and Pitch	I	Long-press to peek at hole cards; swipe up = fold, pull down = call/raise.	Yes
 2 — The Equity Scale	II	Rotate an Outs Dial to balance price-to-call against pot size; locks green on EV+.	Yes
 3 — The Detective Board	III	Draw glowing lines linking a villain's action to the logical opponent hand range.	Yes
 4 — The Sniper Slider	IV	Drag a slider to set bet size; haptic stops at 33% / 50% / 75% / Overbet.	Yes
 5 — Tag the Target	V	Drag a Badge (e.g., Nit, Maniac, Calling Station) onto the opponent, then pick the exploit.	Yes
-6 — The Pressure Radar	VI	Tap the radar blip of the specific opponent stack to target with an all-in shove.	Yes
+6 — The Pressure Radar	VI	Tap the radar blip of the specific opponent stack to target with an all-in shove.	Deferred (Level 4/5)
 Canonical naming: “The Peek and Pitch” supersedes the earlier name “The Swipe” used in the Ranking & Elo source doc; the tagging tray items are called “Badges,” not “Profile Tags.”
 Shared feedback language across all templates: Neon Green/Gold marks an EV+ decision, bright Red marks a mistake; a correct answer plays an ascending chime, and a perfectly executed sequence triggers a “Jackpot” cascade of chip sounds.
+
+Expanded Breakdown: The Strategic Essence of the Five MVP Pillars & Their UI Templates
+To provide a deeper understanding of the curriculum architecture, below is a detailed breakdown of the strategic essence for each pillar alongside how it translates into a tactile, mobile-first user experience via its designated Question Template:
+
+Pillar I: Pre-Flop Architecture → Mapped to Template 1: "The Peek and Pitch"
+Strategic Essence: Focuses on establishing foundational pre-flop discipline and positional awareness (e.g., UTG vs. Button dynamics). It is designed to eradicate the tendency to play weak hands, limp into pots, or overvalue low pairs and suited connectors.
+The Template: The user is presented with a first-person camera angle looking down at their chip stack and two face-down cards. Pressing and holding the screen allows the user to "Peek" at their cards. A vertical swipe UP pushes the cards forward to "Pitch" (fold), while a vertical pull DOWN brings the cards in to play (call/raise).
+
+Pillar II: The Mathematical Framework → Mapped to Template 2: "The Equity Scale"
+Strategic Essence: Transitions the user from intuition-based gameplay to logic-based decision-making through EV+ calculations and basic Pot Odds math. It prevents users from unprofitably chasing draws or calling bets when the mathematical odds dictate a fold.
+The Template: Features a digital balancing scale integrated into the table, visually weighing the "Price to Call" (Cost) against the "Total Pot" (Reward). The interaction works in a two-step "Lock-In" process to ensure active learning:
+Input: The user interacts with a tactile "Outs Dial" to input the number of outs they believe they need to hit their draw. As the dial turns, the physical scale tips to reflect the "weight" of those outs versus the cost of the bet, without revealing if the input is correct.
+Lock-In & Decision: The user must analyze the balance of the scale and actively choose either "Call" or "Fold", locking in their answer.
+Feedback: Only after locking in does the system reveal the result. A mathematically correct decision (e.g., calling with a positive EV, or folding with a negative EV) lights the scale in neon green and advances the user. An incorrect decision flashes bright red, deducts a Chip (life), and immediately provides a practical, mathematical takeaway explaining the error.
+
+Pillar III: Board Texture & Range Analysis → Mapped to Template 3: "The Detective Board"
+Strategic Essence: Teaches the user to read dynamic board textures (Wet vs. Dry) and evolves their thinking from evaluating specific hole cards to thinking in comprehensive opponent "Ranges". It trains players to fold premium starting hands (e.g., Pocket Aces) when the board texture heavily favors the opponent's perceived range.
+The Template: The community cards sit in the center, surrounded by a semi-circle of 3 to 4 opponent "Hand Categories" (e.g., Top Pair, Missed Flush Draw, Pure Air). The user acts as a detective, drawing physical, glowing lines to connect the opponent's action to the logical hand range that fits that story. Illogical connections snap back and flash bright red.
+
+Pillar IV: Bet Sizing Geometry → Mapped to Template 4: "The Sniper Slider"
+Strategic Essence: Focuses on mastering basic bet sizing logic and refining inaccuracies to ensure maximum value extraction. It aims to eliminate random, intuitive bet sizes that have no mathematical relation to the current pot size.
+The Template: Utilizes a vertical or circular slider that wraps around the current pot size. The user drags their thumb along the slider, which provides physical haptic feedback (clicks) as it hits key geometric thresholds (33%, 50%, 75%, Overbet). Releasing the slider at the exact optimal sizing triggers a rewarding "Jackpot Effect" audio cascade.
+
+Pillar V: Opponent Profiling & Exploitation → Mapped to Template 5: "Tag the Target"
+Strategic Essence: Centers on identifying specific opponent archetypes and dynamically adjusting strategies to exploit those profiles. It prevents misaligned aggression, such as attempting to bluff a passive player who never folds ("Calling Station").
+The Template: The opponent's avatar is displayed alongside a brief behavioral dossier (e.g., "Plays tight pre-flop"). The user must first drag and stamp the correct profile "Badge" (e.g., Nit, Maniac, Calling Station) directly onto the opponent. Once tagged, the screen splits, requiring the user to tap the correct macro-strategy adjustment to exploit that specific archetype.
  
 
 6. Visual & Sensory Design — The Four Worlds
@@ -111,7 +134,7 @@ World	Arc	Light Treatment	Dark Treatment	MVP
 2 — A Local Casino	Transition to Real Money	Bright arcade neon; cheerful token clinks.	Same floor, dim red neon; heavier “underground” tone.	Yes
 3 — A VIP Room	Psychological Precision	Marble penthouse, natural light, lounge music.	Same room, spotlight only; ticking clock, tense.	Yes
 4 — A Final Table	High-Stakes Arena	Stadium, crowd, confetti.	Same stage, isolated radar-only view; heartbeat audio.	Deferred (Level 4/5)
-Confirmed: Worlds 1–3 ship in MVP alongside Levels 1–3 and all six templates (Pillars I–VI UI). World 4 defers alongside dedicated Level 4/5 tracks; Pressure Radar still runs under Worlds 1–3 skins in MVP.
+Confirmed: Worlds 1–3 ship in MVP alongside Levels 1–3 and Pillars I–V; World 4 defers alongside Level 4/5 and Pillar VI, consistent with the pattern above.
 Color, Audio & Cosmetics
 Dark Mode's negative feedback intentionally escalates in intensity by World — later Worlds use heavier, more physical audio cues on mistakes. This is a deliberate exception to the general “don't punish mistakes harshly” content rule, confirmed by the product owner.
 Purchased cosmetic sets (chip skins, card backs) carry across all Worlds for personal expression — ties into Section 13's monetization plan.
@@ -154,7 +177,7 @@ Local Python Equity Engine	Runs spot generation, hand evaluation, and probabilit
  
 
 10. Explicitly Out of Scope for MVP
-Levels 4–5 and World 4 (Final Table) — dedicated high-stakes tracks and the Final Table environment remain a fast-follow. Pillar VI / Template 6 (Pressure Radar) ship in MVP as intro ICM spots (Section 5); they are no longer deferred as a unit with Levels 4–5.
+Levels 4–5, Pillar VI (High-Stakes/ICM), Template 6 (Pressure Radar), and World 4 (Final Table) — a consistent, fully-specified fast-follow once core levels ship.
 Calibration Engine Stage 3 (the GTO Stress Test that validates Levels 4–5).
 Sweet Spot Arena: real-time PvP (Mirror Spots, The Duel, Sudden Death) with Elo-stakes matches and Gold Coin buy-ins — “endgame” content requiring synchronous multiplayer infrastructure.
 The GTO Lab (parking-lot feature); Premium subscription tier, weakness dashboard, targeted AI training, and cosmetic purchases.
