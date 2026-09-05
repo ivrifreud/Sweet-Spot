@@ -620,15 +620,15 @@ function NudgeIcon() {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 80,
   },
   wash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
   },
   dimmer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
   },
   dimmerCorrect: {
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17, 23, 20, 0.42)',
   },
   confettiLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 6,
     overflow: 'hidden',
   },

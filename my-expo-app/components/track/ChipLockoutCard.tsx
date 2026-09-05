@@ -114,7 +114,7 @@ export function ChipLockoutCard({ countdown }: Props) {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 12,
     alignItems: 'center',
     justifyContent: 'center',

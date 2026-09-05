@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   streakButton: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   muteCapsule: {
     flexGrow: 0,

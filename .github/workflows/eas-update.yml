@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: npm
           cache-dependency-path: my-expo-app/package-lock.json
 
@@ -36,4 +36,9 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-        run: eas update --auto --non-interactive
+        run: |
+          ENVIRONMENT=preview
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            ENVIRONMENT=production
+          fi
+          eas update --auto --non-interactive --environment "$ENVIRONMENT"

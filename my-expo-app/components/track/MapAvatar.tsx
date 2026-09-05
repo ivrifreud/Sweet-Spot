@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     height: MAP_AVATAR_SIZE,
   },
   spriteFrame: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   sprite: {
     width: MAP_AVATAR_SIZE,

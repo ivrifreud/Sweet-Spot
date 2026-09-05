@@ -139,7 +139,7 @@ export function FallingChips(props: GravityFallingChipsProps) {
 
 const styles = StyleSheet.create({
   layer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'visible',
   },
 });
