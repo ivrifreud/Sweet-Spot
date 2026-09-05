@@ -12,7 +12,8 @@
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
     "web": "expo start --web",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "assets:check:local-casino": "python scripts/validate-local-casino-assets.py"
   },
   "dependencies": {
     "@expo-google-fonts/bebas-neue": "^0.4.1",
