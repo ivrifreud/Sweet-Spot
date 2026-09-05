@@ -33,3 +33,25 @@ export function shouldLongPressSettle(panOwnsPeek: boolean) {
   'worklet';
   return !panOwnsPeek;
 }
+
+/** Downward pan peeks from anywhere except the chip stack. No prior hold. */
+export function shouldArmPeekPan(translationY: number, startedOnStack: boolean) {
+  'worklet';
+  return !startedOnStack && translationY > 0;
+}
+
+/** Fold is an upward throw from the low felt zone only. */
+export function shouldArmMuckPan(
+  translationY: number,
+  startedLow: boolean,
+  startedOnStack: boolean
+) {
+  'worklet';
+  return !startedOnStack && startedLow && translationY < 0;
+}
+
+/** Keep a held lift if a small drag would otherwise map near 0. */
+export function mergePeekDrag(current: number, translationY: number, pullRange: number) {
+  'worklet';
+  return Math.max(current, normalizePeekDrag(translationY, pullRange));
+}

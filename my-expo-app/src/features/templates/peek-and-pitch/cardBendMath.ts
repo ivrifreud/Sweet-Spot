@@ -2,6 +2,8 @@ export const CARD_MESH_COLUMNS = 5;
 export const CARD_MESH_ROWS = 7;
 export const MAX_PEEK_ANGLE_DEG = 22;
 export const MAX_PEEK_RISE_RATIO = 0.3;
+/** Fraction of the Kenney face sampled onto the lifted strip. Lower = bigger rank. */
+export const PEEK_INDEX_CROP_Y = 0.5;
 
 export type MeshPoint = { x: number; y: number };
 
@@ -122,7 +124,7 @@ export function buildPeekIndexMesh(
       vertices.push(projectCardPoint(u, v, progress, width, height, cardIndex));
       textures.push({
         x: localU * textureWidth,
-        y: localV * textureHeight * 0.62,
+        y: localV * textureHeight * PEEK_INDEX_CROP_Y,
       });
     }
   }

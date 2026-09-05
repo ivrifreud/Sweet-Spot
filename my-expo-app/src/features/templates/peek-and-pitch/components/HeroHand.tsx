@@ -15,8 +15,8 @@ const REST = require('../../../../../assets/tables/hero-glove-rest.png');
 const PINCH = require('../../../../../assets/tables/hero-glove-pinch.png');
 const LIFT = require('../../../../../assets/tables/hero-glove-lift.png');
 
-/** Pinch tip on the aligned pose canvases — maps onto the near-right card corner. */
-const CONTACT = { x: 0.08, y: 0.3684 };
+/** Pinch gap (thumb–index opening) on the aligned 900×760 pose canvases. */
+const CONTACT = { x: 0.30, y: 0.44 };
 
 type Point = { x: number; y: number };
 
@@ -125,7 +125,18 @@ export function HeroHand({
 
   return (
     <Animated.View
-      style={[styles.root, { left, top, width: fittedWidth, height: handHeight, zIndex: 36 }, motion]}
+      style={[
+        styles.root,
+        {
+          left,
+          top,
+          width: fittedWidth,
+          height: handHeight,
+          zIndex: 36,
+          transformOrigin: `${CONTACT.x * 100}% ${CONTACT.y * 100}%`,
+        },
+        motion,
+      ]}
       pointerEvents="none">
       <Animated.Image source={REST} style={[styles.layer, restPose]} resizeMode="contain" />
       <Animated.Image source={PINCH} style={[styles.layer, pinchPose]} resizeMode="contain" />
