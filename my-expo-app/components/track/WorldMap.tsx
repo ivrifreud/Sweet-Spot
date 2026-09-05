@@ -13,7 +13,9 @@ import Animated, {
 
 import type { FogPhase } from '../../lib/track/fogCycle';
 import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT } from '../../lib/track/tree';
+import { shouldApplyFilmTreatment } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
+import { WorldMapArtLayer } from './WorldMapArtLayer';
 import type { WorldMapAsset, WorldMapTemplate } from './worldMapTemplates';
 
 type Props = {
@@ -21,6 +23,7 @@ type Props = {
   height: number;
   world: WorldMapTemplate;
   activeChunkIndex: number;
+  completedCount: number;
   fogPhase: FogPhase;
   cameraDuration?: number;
   onCameraSettled?: () => void;
@@ -116,6 +119,7 @@ export function WorldMap({
   height,
   world,
   activeChunkIndex,
+  completedCount,
   fogPhase,
   cameraDuration = CAMERA_CLIMB_MS,
   onCameraSettled,
@@ -167,6 +171,9 @@ export function WorldMap({
     transform: [{ translateY: cameraY.value }],
   }));
   const contentHeight = height * world.chunks.length;
+  const film = shouldApplyFilmTreatment(world.id) && world.filmGrain
+    ? { grain: world.filmGrain }
+    : undefined;
 
   return (
     <View style={[styles.frame, { width, height }]}>
@@ -174,23 +181,20 @@ export function WorldMap({
         {world.chunks.map((chunk) => {
           const top = (world.chunks.length - 1 - chunk.index) * height;
           return (
-            <Image
-              key={`background-${chunk.id}`}
-              source={chunk.background}
-              resizeMode="cover"
-              accessible={false}
-              style={[
-                styles.chunkBackground,
-                {
-                  top,
-                  width,
-                  height,
-                },
-              ]}
+            <WorldMapArtLayer
+              key={`art-${chunk.id}`}
+              width={width}
+              height={height}
+              top={top}
+              chunk={chunk}
+              completedCount={completedCount}
+              film={film}
             />
           );
         })}
-        {children}
+        <View pointerEvents="box-none" style={styles.playLayer}>
+          {children}
+        </View>
       </Animated.View>
       <FogOfWarClouds
         width={width}
@@ -199,16 +203,18 @@ export function WorldMap({
         rightAsset={world.fogAssets.right}
         phase={fogPhase}
       />
-      <LinearGradient
-        colors={[
-          `${artStyle.colors.projectorBlack}14`,
-          `${artStyle.colors.projectorBlack}00`,
-          `${artStyle.colors.projectorBlack}47`,
-        ]}
-        locations={[0, 0.5, 1]}
-        pointerEvents="none"
-        style={styles.vignette}
-      />
+      {film ? null : (
+        <LinearGradient
+          colors={[
+            `${artStyle.colors.projectorBlack}14`,
+            `${artStyle.colors.projectorBlack}00`,
+            `${artStyle.colors.projectorBlack}47`,
+          ]}
+          locations={[0, 0.5, 1]}
+          pointerEvents="none"
+          style={styles.vignette}
+        />
+      )}
     </View>
   );
 }
@@ -225,9 +231,9 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 1,
   },
-  chunkBackground: {
-    position: 'absolute',
-    left: 0,
+  playLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 4,
   },
   fog: {
     ...StyleSheet.absoluteFill,

@@ -4,6 +4,7 @@ import { createGardenChunkLayouts } from '../../lib/track/gardenMap';
 import { createLocalCasinoChunkLayouts } from '../../lib/track/localCasinoMap';
 import { flattenMapChunks, type MapChunk, type MapNode } from '../../lib/track/tree';
 import type { WorldRoutePoint } from '../../lib/track/worldRoute';
+import { LOCAL_CASINO_LAYER_UNLOCKS } from '../../lib/track/worldProgression';
 
 export type WorldMapId = 'bennys-garden' | 'local-casino' | 'vip-room';
 
@@ -14,10 +15,16 @@ export type WorldMapIdentity = {
   artDirection: string;
 };
 
+export type WorldMapProgressionLayer = {
+  unlockAfterStage: number;
+  source: ImageSourcePropType;
+};
+
 export type WorldMapChunk = MapChunk & {
   variantId: string;
   background: ImageSourcePropType;
   route: readonly WorldRoutePoint[];
+  progressionLayers: readonly WorldMapProgressionLayer[];
 };
 
 export type WorldMapAsset = {
@@ -32,6 +39,7 @@ export type WorldMapTemplate = WorldMapIdentity & {
     left: WorldMapAsset;
     right: WorldMapAsset;
   };
+  filmGrain?: ImageSourcePropType;
 };
 
 export type WorldMapScaffold = WorldMapIdentity & {
@@ -88,6 +96,7 @@ export function createBennysGardenChunks(
     background: BENNYS_GARDEN_MAPS[layout.variantId],
     route: layout.route,
     nodes: layout.nodes,
+    progressionLayers: [],
   }));
 }
 
@@ -118,6 +127,26 @@ const LOCAL_CASINO_MAPS = {
   c: require('../../assets/themes/local-casino/map-chunk-c.jpg'),
 } as const;
 
+const LOCAL_CASINO_HAZE_PATHS = {
+  left: '../../assets/themes/local-casino/map-haze-left.png',
+  right: '../../assets/themes/local-casino/map-haze-right.png',
+} as const;
+// #region agent log
+fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e27566' },
+  body: JSON.stringify({
+    sessionId: 'e27566',
+    runId: 'pre-fix',
+    hypothesisId: 'E',
+    location: 'worldMapTemplates.ts:LOCAL_CASINO_HAZE',
+    message: 'evaluating Local Casino haze requires at module load',
+    data: LOCAL_CASINO_HAZE_PATHS,
+    timestamp: Date.now(),
+  }),
+}).catch(() => {});
+// #endregion
+
 const LOCAL_CASINO_HAZE: WorldMapTemplate['fogAssets'] = {
   left: {
     source: require('../../assets/themes/local-casino/map-haze-left.png'),
@@ -129,23 +158,57 @@ const LOCAL_CASINO_HAZE: WorldMapTemplate['fogAssets'] = {
   },
 };
 
+const LOCAL_CASINO_PROGRESS = {
+  a: [
+    require('../../assets/themes/local-casino/map-progress-a-1.png'),
+    require('../../assets/themes/local-casino/map-progress-a-2.png'),
+    require('../../assets/themes/local-casino/map-progress-a-3.png'),
+    require('../../assets/themes/local-casino/map-progress-a-4.png'),
+  ],
+  b: [
+    require('../../assets/themes/local-casino/map-progress-b-1.png'),
+    require('../../assets/themes/local-casino/map-progress-b-2.png'),
+    require('../../assets/themes/local-casino/map-progress-b-3.png'),
+    require('../../assets/themes/local-casino/map-progress-b-4.png'),
+  ],
+  c: [
+    require('../../assets/themes/local-casino/map-progress-c-1.png'),
+    require('../../assets/themes/local-casino/map-progress-c-2.png'),
+    require('../../assets/themes/local-casino/map-progress-c-3.png'),
+    require('../../assets/themes/local-casino/map-progress-c-4.png'),
+  ],
+} as const;
+
+const LOCAL_CASINO_FILM_GRAIN = require('../../assets/themes/local-casino/map-film-grain.png');
+
 export function createLocalCasinoChunks(totalLevels = 12): WorldMapChunk[] {
-  return createLocalCasinoChunkLayouts(totalLevels).map((layout) => ({
-    id: `local-casino-chunk-${layout.nodes[0]!.chunkIndex + 1}`,
-    index: layout.nodes[0]!.chunkIndex,
-    variantId: layout.variantId,
-    background: LOCAL_CASINO_MAPS[layout.variantId],
-    route: layout.route,
-    nodes: layout.nodes,
-  }));
+  return createLocalCasinoChunkLayouts(totalLevels).map((layout) => {
+    const variantId = layout.variantId;
+    const unlocks = LOCAL_CASINO_LAYER_UNLOCKS[variantId];
+    return {
+      id: `local-casino-chunk-${layout.nodes[0]!.chunkIndex + 1}`,
+      index: layout.nodes[0]!.chunkIndex,
+      variantId,
+      background: LOCAL_CASINO_MAPS[variantId],
+      route: layout.route,
+      nodes: layout.nodes,
+      progressionLayers: unlocks.map((unlockAfterStage, layerIndex) => ({
+        unlockAfterStage,
+        source: LOCAL_CASINO_PROGRESS[variantId][layerIndex]!,
+      })),
+    };
+  });
 }
 
 export function createLocalCasinoWorld(totalLevels = 12): WorldMapTemplate {
-  return createWorldMapTemplate(
-    LOCAL_CASINO_IDENTITY,
-    createLocalCasinoChunks(totalLevels),
-    LOCAL_CASINO_HAZE
-  );
+  return {
+    ...createWorldMapTemplate(
+      LOCAL_CASINO_IDENTITY,
+      createLocalCasinoChunks(totalLevels),
+      LOCAL_CASINO_HAZE
+    ),
+    filmGrain: LOCAL_CASINO_FILM_GRAIN,
+  };
 }
 
 export const LOCAL_CASINO_WORLD = createLocalCasinoWorld();

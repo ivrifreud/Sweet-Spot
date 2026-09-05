@@ -92,6 +92,7 @@ export function LevelProgressionMap({
       height={height}
       world={currentWorld}
       activeChunkIndex={activeChunkIndex}
+      completedCount={completedCount}
       fogPhase={fogPhase}
       cameraDuration={CAMERA_CLIMB_MS}
       onCameraSettled={onCameraSettled}>
