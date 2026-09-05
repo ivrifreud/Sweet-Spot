@@ -1,4 +1,4 @@
-> Superseded where conflicting — see `docs/mvp.md` (Rev. 2). World 4 and Levels 4–5 tracks are deferred; Template 6 / Pillar VI UI ship in MVP. Gesture “why” detail: `docs/Question_Templates.md`.
+> Superseded where conflicting — see `docs/mvp.md` (Rev. 2). Pillar VI, Template 6, and World 4 are deferred. Gesture “why” detail: `docs/Question_Templates.md`.
 
 System & Development Overview .1
 This document outlines the six core UI mechanics (Pillars/Templates) for the "Sweet Spot"

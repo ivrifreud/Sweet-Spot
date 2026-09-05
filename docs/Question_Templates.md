@@ -1,4 +1,5 @@
 > Detail for the six UI templates. Where scope conflicts with `docs/mvp.md`, MVP wins.
+> Template 6 / World 4 / Pillar VI are deferred — see `docs/mvp.md` Section 10.
 
 # Question Templates
 ## System & Development Overview
@@ -9,25 +10,25 @@ The AI procedural generation engine categorizes every generated poker spot into 
 
 ### Pillar → template (1:1)
 
-| Pillar | Strategic focus | Template |
-|--------|-----------------|----------|
-| I — Pre-Flop Architecture | Hand selection & positional discipline | The Peek and Pitch |
-| II — Mathematical Framework | Pot odds, outs, EV+ decisions | The Equity Scale |
-| III — Board Texture & Range Analysis | Wet/dry boards; thinking in ranges | The Detective Board |
-| IV — Bet Sizing Geometry | Sizing relative to pot | The Sniper Slider |
-| V — Opponent Profiling & Exploitation | Archetypes + exploit adjustments | Tag the Target |
-| VI — High-Stakes Dynamics & ICM | Push/fold & bubble pressure | The Pressure Radar |
+| Pillar | Strategic focus | Template | MVP |
+|--------|-----------------|----------|-----|
+| I — Pre-Flop Architecture | Hand selection & positional discipline | The Peek and Pitch | Yes |
+| II — Mathematical Framework | Pot odds, outs, EV+ decisions | The Equity Scale | Yes |
+| III — Board Texture & Range Analysis | Wet/dry boards; thinking in ranges | The Detective Board | Yes |
+| IV — Bet Sizing Geometry | Sizing relative to pot | The Sniper Slider | Yes |
+| V — Opponent Profiling & Exploitation | Archetypes + exploit adjustments | Tag the Target | Yes |
+| VI — High-Stakes Dynamics & ICM | Push/fold & bubble pressure | The Pressure Radar | Deferred (Level 4/5) |
 
-**Primary template vs per-spot template:** Each Level track names one *primary* UI template — the mechanic students see most for that track's headline leak (Level 1 → Peek and Pitch, Level 2 → Sniper Slider, Level 3 → Detective Board). That does **not** mean the track only uses that template. Per spot, the engine picks a pillar for the leak being drilled, then deploys that pillar's template. So a Level 3 stage can open on Detective Board (III), then use Equity Scale (II) for a draw-chase spot and Tag the Target (V) for an exploit spot. Pressure Radar (VI) can appear as ICM / push-fold drills inside MVP content even though dedicated Levels 4–5 tracks remain deferred.
+**Level UI template vs per-spot template:** Each Level track names one UI template for its headline leak (Level 1 → Peek and Pitch, Level 2 → Sniper Slider, Level 3 → Detective Board). Per spot, the engine still maps pillar → template 1:1, so Equity Scale (II) and Tag the Target (V) can appear whenever those pillars are the drill inside Levels 1–3. Pressure Radar (VI) does not ship in MVP.
 
-Full gesture, input, and feedback specs live in the template sections below. Product scope (what ships in MVP) lives in `docs/mvp.md` Sections 3–5 and 10.
+Canonical naming and full scope: `docs/mvp.md` Sections 3–5 and 10. Strategic essence below matches the MVP Expanded Breakdown for Pillars I–V.
 
 ## Global UX, Environments & Sensory Psychology
 
 To prevent visual fatigue while keeping development costs low, the mechanical interactions of these six templates remain constant, but their visual "skins" and environments evolve as the user progresses.
 
-- **The 4 Environments:** The visual backdrop transitions through four worlds: Benny's Garden, A Local Casino, A VIP Room, and A Final Table of Tournaments. (World 4 ships with the Level 4/5 fast-follow; templates 1–6 can still run under Worlds 1–3 skins in MVP.)
-- **Light / Dark:** Not a dark-only app. Each World has a Light and Dark day/night treatment of the same layout — see `docs/mvp.md` Section 6. Saturated feedback colors stay functional in both: Neon Green or Gold for a correct EV+ decision, bright Red for a mistake.
+- **The 4 Environments:** The visual backdrop transitions through four worlds: Benny's Garden, A Local Casino, A VIP Room, and A Final Table of Tournaments. Worlds 1–3 ship in MVP with Pillars I–V; World 4 defers with Level 4/5 and Pillar VI.
+- **Light / Dark:** Each World has a Light and Dark day/night treatment of the same layout — see `docs/mvp.md` Section 6. Saturated feedback colors stay functional in both: Neon Green or Gold for a correct EV+ decision, bright Red for a mistake.
 - **Audio Design:**
   - Positive Reinforcement: High-pitched, ascending chimes for correct actions.
   - The Jackpot Effect: Perfect sizing or completing a sequence triggers a cascade of casino chips clinking.
@@ -36,10 +37,10 @@ To prevent visual fatigue while keeping development costs low, the mechanical in
 ---
 
 ## Template 1: "The Peek and Pitch"
-**Mapped to Pillar I: Pre-Flop Architecture**
+**Mapped to Pillar I: Pre-Flop Architecture** · MVP: Yes
 
 ### Why this template / why this pillar
-Pillar I fixes the amateur leak of playing too many hands and ignoring position. Pre-flop is a binary gate — fold trash or put money in — so the UI should feel like that gate, not a quiz. Peek forces a deliberate look at the holding; Pitch (swipe up) makes folding a physical discard into the muck; Play (pull down) commits chips toward the stack. Repeating that gesture pair builds the muscle memory of *folding is a real action*, which is exactly Pre-Flop Architecture.
+Pillar I establishes foundational pre-flop discipline and positional awareness (UTG vs. Button). It eradicates playing weak hands, limping, and overvaluing low pairs or suited connectors. Pre-flop is a binary gate — fold trash or put money in — so the UI should feel like that gate, not a quiz. Peek forces a deliberate look at the holding; Pitch (swipe up) makes folding a physical discard into the muck; Play (pull down) commits chips toward the stack. That gesture pair builds muscle memory for Pre-Flop Architecture.
 
 - **AI Data Inputs:** Player Position, Hole Cards, Villain Pre-Flop Action.
 - **UI/UX Interface:** A first-person camera angle looking down at the user's chip stack and two face-down cards. The current table action is displayed in a sleek floating banner.
@@ -51,69 +52,71 @@ Pillar I fixes the amateur leak of playing too many hands and ignoring position.
 ---
 
 ## Template 2: "The Equity Scale"
-**Mapped to Pillar II: The Mathematical Framework**
+**Mapped to Pillar II: The Mathematical Framework** · MVP: Yes
 
 ### Why this template / why this pillar
-Pillar II moves players from “I feel like I’m getting there” to EV+ math. Calling a bet is a price-vs-reward problem: outs × implied equity vs the price to call. A balancing scale makes pot odds spatial — one pan is the cost, the other is the pot — and the Outs Dial turns counting outs into a tactile input. Locking green only when the dial crosses EV+ teaches that the “right” call is a threshold, not a vibe. That is the Mathematical Framework in gesture form.
+Pillar II moves players from intuition to EV+ decisions and pot-odds math. It stops unprofitable chase-calls when the odds say fold. A balancing scale makes cost vs reward spatial; the Outs Dial turns counting outs into a tactile estimate. Critically, the dial does **not** grade the answer mid-turn — the user must still choose Call or Fold. That two-step Lock-In forces an active decision, not a “wait until it turns green” cheat.
 
 - **AI Data Inputs:** Pot Size, Villain Bet Size, Board Texture, Hole Cards (Draws).
-- **UI/UX Interface:** A digital balancing scale integrated into the table. The left side displays the "Price to Call," and the right side displays the "Total Pot."
-- **User Action (Gestures):** The user interacts with a tactile "Outs Dial" (styled like a smartphone combination lock). As the user dials the correct number of outs needed to hit their draw, the physical scale on the screen tips.
-- **Feedback Mechanic:** When the dialed outs cross the threshold into EV+ (Expected Value positive), the scale locks into place, glows Neon Green, plays ascending chimes, and unlocks the "Call" button.
+- **UI/UX Interface:** A digital balancing scale integrated into the table. One side displays the "Price to Call" (Cost), the other the "Total Pot" (Reward).
+- **User Action (Gestures) — two-step Lock-In:**
+  1. **Input:** The user turns a tactile "Outs Dial" (styled like a combination lock) to enter how many outs they believe they need. As the dial turns, the scale tips to show the weight of those outs vs the bet cost — **without** revealing whether the input is correct.
+  2. **Lock-In & Decision:** The user analyzes the scale balance and actively chooses **Call** or **Fold**, locking in their answer.
+- **Feedback Mechanic:** Only after lock-in does the system reveal the result. A mathematically correct decision (e.g. call when EV+, or fold when EV−) lights the scale Neon Green, plays ascending chimes, and advances. An incorrect decision flashes bright Red, burns a Chip (life), and immediately shows a practical mathematical takeaway.
 
 ---
 
 ## Template 3: "The Detective Board"
-**Mapped to Pillar III: Board Texture & Range Analysis**
+**Mapped to Pillar III: Board Texture & Range Analysis** · MVP: Yes
 
 ### Why this template / why this pillar
-Pillar III attacks “Level 1 thinking” (only my cards) by forcing range stories on a given board texture. Detective work is the right metaphor: the villain’s line is evidence; hand categories are suspects; the board is the crime scene. Drawing a glowing line from an action to a range makes the player externalize *what hands make that story make sense*. A rubber-band snap on an illogical link trains aversion to incoherent range reads — Board Texture & Range Analysis as investigation, not multiple choice.
+Pillar III teaches wet vs dry board textures and shifts thinking from “my hole cards” to opponent ranges. It trains folding premium starters (e.g. pocket aces) when the board heavily favors the villain’s range. Detective work is the right metaphor: the villain’s line is evidence; hand categories are suspects; the board is the crime scene. Drawing a glowing line from an action to a range externalizes that story; a rubber-band snap on an illogical link trains aversion to incoherent reads.
 
 - **AI Data Inputs:** Community Cards, Villain Post-Flop Action, 3–4 logical/illogical Hand Range Categories.
 - **UI/UX Interface:** The community cards sit in the center of the screen. Arranged in a semi-circle around the board are 3 to 4 opponent "Hand Categories" (e.g., Top Pair, Missed Flush Draw, Pure Air).
-- **User Action (Gestures):** The user acts as a detective, drawing physical, glowing lines on the screen to connect the opponent's specific action (e.g., "Check-Raised the Turn") to the range of hands that logically fits that story based on the board texture.
-- **Feedback Mechanic:** If the user connects the action to an illogical range, the line instantly snaps back like a rubber band and flashes bright red.
+- **User Action (Gestures):** The user draws physical, glowing lines connecting the opponent's specific action (e.g., "Check-Raised the Turn") to the range that logically fits that story on this board texture.
+- **Feedback Mechanic:** An illogical connection snaps back like a rubber band and flashes bright red.
 
 ---
 
 ## Template 4: "The Sniper Slider"
-**Mapped to Pillar IV: Bet Sizing Geometry**
+**Mapped to Pillar IV: Bet Sizing Geometry** · MVP: Yes
 
 ### Why this template / why this pillar
-Pillar IV replaces random “feels right” bets with geometric sizing relative to the pot. A slider wrapped around the pot makes size a continuous physical choice, and haptic clicks at 33% / 50% / 75% / Overbet encode the curriculum’s key thresholds into the thumb. Releasing on the optimal size (Jackpot Effect) rewards precision, not just “any aggression.” That is Bet Sizing Geometry: the bet is a measured shot, not a mood.
+Pillar IV masters bet sizing relative to the pot and eliminates random “feels right” sizes with no geometric relation to the pot. A slider wrapped around the pot makes size a continuous physical choice; haptic clicks at 33% / 50% / 75% / Overbet encode the curriculum thresholds into the thumb. Releasing on the exact optimal size (Jackpot Effect) rewards precision, not mere aggression.
 
 - **AI Data Inputs:** Pot Size, Target Value/Fold Equity, Board Texture.
 - **UI/UX Interface:** A vertical or circular slider that wraps around the current pot size in the center of the table.
-- **User Action (Gestures):** The user drags their thumb along the slider to set their bet size. The phone provides physical haptic feedback (vibration clicks) as the slider hits key geometric thresholds (33%, 50%, 75%, Overbet).
-- **Feedback Mechanic:** The user releases their thumb to lock in the bet. Choosing the exact optimal sizing required to extract maximum value or perfectly price out a draw triggers the "Jackpot Effect" audio.
+- **User Action (Gestures):** The user drags their thumb along the slider to set bet size. The phone provides haptic feedback (vibration clicks) at 33%, 50%, 75%, and Overbet.
+- **Feedback Mechanic:** Releasing at the exact optimal sizing (max value extraction or correctly pricing out a draw) triggers the "Jackpot Effect" audio cascade.
 
 ---
 
 ## Template 5: "Tag the Target"
-**Mapped to Pillar V: Opponent Profiling & Exploitation**
+**Mapped to Pillar V: Opponent Profiling & Exploitation** · MVP: Yes
 
 ### Why this template / why this pillar
-Pillar V teaches that the same hand plays differently against a Nit vs a Maniac. Profiling is stamp-then-exploit: first classify the opponent from the dossier, then choose the macro adjustment. Dragging a Badge onto the avatar makes the label feel assigned and sticky; the split-screen exploit step prevents stopping at the stereotype without a plan. That is Opponent Profiling & Exploitation — read the person, then change the strategy.
+Pillar V identifies opponent archetypes and adjusts strategy to exploit them. It prevents misaligned aggression — e.g. bluffing a Calling Station who never folds. Profiling is stamp-then-exploit: classify from the dossier, then pick the macro adjustment. Dragging a Badge onto the avatar makes the label sticky; the split-screen exploit step requires a plan, not just a stereotype.
 
 - **AI Data Inputs:** Villain Avatar, 2–3 sentence Behavioral Dossier, Macro-Strategy Options.
-- **UI/UX Interface:** The opponent's avatar sits at the top of the screen beneath a brief dossier (e.g., "Folds to 3-bets 80% of the time. Plays tight pre-flop."). A tray of physical "Badges" sits at the bottom.
+- **UI/UX Interface:** The opponent's avatar sits at the top beneath a brief dossier (e.g., "Folds to 3-bets 80% of the time. Plays tight pre-flop."). A tray of physical "Badges" sits at the bottom.
 - **User Action (Gestures):**
-  1. Tagging: The user drags the correct profile badge (e.g., Nit, Maniac, Calling Station) and stamps it directly onto the opponent's avatar.
-  2. Exploiting: Once tagged, the screen splits, requiring the user to tap the correct macro-strategy adjustment to exploit that specific profile (e.g., "Bluff Aggressively" vs. "Value Bet Thinner").
+  1. Tagging: Drag the correct profile Badge (e.g., Nit, Maniac, Calling Station) and stamp it onto the opponent's avatar.
+  2. Exploiting: Once tagged, the screen splits; tap the correct macro-strategy (e.g., "Bluff Aggressively" vs. "Value Bet Thinner").
 
 Canonical naming: tray items are **Badges**, not “Profile Tags.”
 
 ---
 
 ## Template 6: "The Pressure Radar"
-**Mapped to Pillar VI: High-Stakes Dynamics & ICM**
+**Mapped to Pillar VI: High-Stakes Dynamics & ICM** · MVP: Deferred (Level 4/5)
 
 ### Why this template / why this pillar
-Pillar VI is about *who* you shove on under stack and bubble pressure, not only whether your cards are “good.” ICM mistakes often look like hero calls/shoves into the wrong stack. The radar minimizes hole cards and orbits opponent stacks as blips so attention stays on relative stack sizes and bubble status. Tapping a specific blip to target the shove forces an explicit ICM choice; green pulse vs severe warning teaches that the optimal shove target is a stack decision. That is High-Stakes Dynamics & ICM in one gesture.
+Pillar VI is about *who* you shove on under stack and bubble pressure, not only whether your cards are “good.” ICM mistakes often look like shoves into the wrong stack. The radar minimizes hole cards and orbits opponent stacks as blips so attention stays on relative stack sizes and bubble status. Tapping a specific blip forces an explicit target choice.
 
-MVP note: Pressure Radar ships in MVP for Pillar VI spots (e.g. push/fold and bubble drills inside existing tracks or Daily Challenge). Dedicated Levels 4–5 tracks and World 4 (Final Table) remain deferred — see `docs/mvp.md` Section 10.
+**Scope:** Deferred with Levels 4–5, Pillar VI, and World 4 — see `docs/mvp.md` Section 10. Spec below is kept for the fast-follow; do not build in MVP.
 
 - **AI Data Inputs:** User Stack Size (in BBs), Opponent Stack Sizes, Tournament Bubble Status.
-- **UI/UX Interface:** Hole cards are minimized to focus entirely on stack sizes. The user's stack is in the center, surrounded by opponent stacks orbiting as radar blips. Suspenseful audio elements simulate high pressure.
-- **User Action (Gestures):** A situational Push/Fold mechanic. Instead of simply pressing "All-In", the user must tap the specific opponent stack (the radar blip) they intend to target with their shove.
-- **Feedback Mechanic:** Correctly targeting the optimal stack (e.g., a mid-stack trying to survive the bubble) pulses the radar green. Targeting the wrong stack (e.g., shoving into the massive chip leader) triggers a severe visual and auditory warning.
+- **UI/UX Interface:** Hole cards are minimized to focus on stack sizes. The user's stack is in the center; opponent stacks orbit as radar blips. Suspenseful audio simulates high pressure.
+- **User Action (Gestures):** Push/Fold by tapping the specific opponent stack (radar blip) to target with the shove — not a generic "All-In" button.
+- **Feedback Mechanic:** Correct optimal-stack target pulses the radar green. Wrong target (e.g. shoving into the chip leader on the bubble) triggers a severe visual and auditory warning.
