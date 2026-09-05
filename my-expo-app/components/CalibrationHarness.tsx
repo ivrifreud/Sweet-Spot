@@ -15,6 +15,7 @@ import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
+import { LOCAL_CASINO_WORLD } from './track/worldMapTemplates';
 import { signOut } from '../lib/auth';
 import {
   applyLocalRegen,
@@ -23,6 +24,11 @@ import {
   type ChipStackState,
 } from '../lib/chip-stack';
 import { getOrCreateStageProgress, loadStageProgress } from '../lib/track/stageProgress';
+import {
+  currentWorldIdForPlacement,
+  openStageProgressArgs,
+  worldForPlacement,
+} from '../lib/track/worldForPlacement';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
@@ -190,7 +196,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           });
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, 1);
+          const progress = await loadStageProgress(userId, session.placement);
           const streakState = await readStreakState();
           if (!cancelled) {
             setContinued(seen);
@@ -208,7 +214,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           const placed = await finalizeSession(session.sessionId);
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, 1);
+          const progress = await loadStageProgress(userId, placed.placement);
           const streakState = await readStreakState();
           if (!cancelled) {
             setResult(placed);
@@ -267,6 +273,9 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       return;
     }
 
+    const placement = result?.placement;
+    if (!placement) return;
+
     try {
       const stack = await getChipStack();
       setChipStack(stack);
@@ -277,11 +286,9 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         setError(copy);
         return;
       }
-      const row = await getOrCreateStageProgress({
-        userId,
-        level: 1,
-        stageNumber: 1,
-      });
+      const row = await getOrCreateStageProgress(
+        openStageProgressArgs(userId, placement, stageNumber)
+      );
       setStageProgressId(row.id);
       setStageSpotsCompleted(row.spotsCompleted);
       setPlayingStage(1);
@@ -431,10 +438,36 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       );
     }
 
+    const selectedWorld = worldForPlacement(reveal.placement);
+    if (selectedWorld.status === 'unavailable') {
+      return (
+        <SafeAreaView style={styles.statusScreen}>
+          <Text style={styles.kicker}>{reveal.worldName}</Text>
+          <Text style={styles.bodyText}>This world is not open yet.</Text>
+          <Text style={styles.muted}>
+            Level {reveal.placement} stays on its own track. Benny’s Garden is not a stand-in.
+          </Text>
+          <Pressable
+            onPress={() => void handleSignOut()}
+            style={styles.signOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out">
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
+        </SafeAreaView>
+      );
+    }
+
+    const currentWorld =
+      currentWorldIdForPlacement(reveal.placement) === 'local-casino'
+        ? LOCAL_CASINO_WORLD
+        : undefined;
+
     return (
       <View style={styles.treeStack}>
         <TrackMapScreen
           reveal={reveal}
+          currentWorld={currentWorld}
           remainingChips={chipStack.chips}
           lockMessage={
             chipStack.lockedOut && chipStack.regenAt
