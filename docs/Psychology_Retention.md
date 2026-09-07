@@ -13,7 +13,7 @@ Investment: The user invests time in building their hidden Elo profile, progress
  Session Length: 3-5 minutes per session. •
 Psychological Goal: Create a lightweight daily habit. The app must feel like a fun  •  break rather than a heavy educational platform that causes burnout.
 3.	Retention & User Psychology
-Dynamic Visual Environments (Gamified Learning): To prevent visual fatigue and  • keep the gameplay exciting, progression uses the four canonical Worlds from mvp.md (Benny's Garden, Local Casino, VIP Room, Final Table — World 4 deferred). Light/Dark is a day/night treatment of the same location, not separate fantasy skins (no wild west / cyberpunk variants).
+Dynamic Visual Environments (Gamified Learning): To prevent visual fatigue and  • keep the gameplay exciting, progression uses the four canonical Worlds from mvp.md (Benny's Garden, A Local Casino, VIP Room, Final Table — World 4 deferred). World 2’s map is the approved outdoor Wild West desert town ending at the Local Casino façade. Light/Dark is a day/night treatment of the same location, not unrelated fantasy skins or cyberpunk variants.
 Illusion of Control: Within MVP, progression is sequential stage unlock (see mvp.md)  • rather than a fully open branching map. Later UX may add limited choice between topics; do not build an open multi-branch map in early sprints.
 Loss Aversion (The Streak Effect): Tracking consecutive daily logins (e.g., a "14-Day  •
 Fire" badge). The human brain hates losing what it already has. Users will log in  just to avoid resetting their hard-earned streak.

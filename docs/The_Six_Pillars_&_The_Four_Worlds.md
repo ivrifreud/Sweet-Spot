@@ -24,13 +24,10 @@ This document outlines the six core UI mechanics (Pillars/Templates) for the "Sw
  Sound Design: Uncomfortable silence, a distant dog barking, a faulty electrical buzz. UI 
  .interactions sound sharp and metallic
  (World 2: A Local Casino (Transition to Real Money
-Light Mode (Arcade Vibe): A colorful, bright arcade lit with soft pastel neon lights. A colorful .pool table in the background
-Sound Design: Light synthesizer music, the constant and happy clinking of slot machine 
- ".tokens. A classic, cheerful "Jackpot Effect
- Dark Mode (Underground Vibe): A smoky, cramped back room. Old carpeting, dim red neon 
- .lighting
- Sound Design: The heavy hum of industrial ventilation, the rough sound of chip shuffling. 
- .The "Jackpot Effect" sounds like a heavy, physical bag of coins slamming onto the table
+ Light Mode (Daytime desert town): Outdoor Wild West street climb to the Local Casino façade. Dusty path, adobe and timber buildings, restrained period bulbs on the landmark.
+Sound Design: Open-air town bed plus cheerful token clinks near the casino landmark. A classic, cheerful "Jackpot Effect
+ Dark Mode (Later treatment): The same town geometry under moonlight and lantern light — not a second location. Future lesson/table scenes may use the casino’s period interior; that interior is not the World 2 map.
+ Sound Design: Night insects and lantern hush; chip shuffling stays physical. The "Jackpot Effect" sounds like a heavy, physical bag of coins slamming onto the table
  (World 3: A VIP Room (Psychological Precision Stage
  Light Mode (Luxury Vibe): A penthouse flooded with natural light from massive windows. 
  .Light marble textures and clean, minimalist design

@@ -1,37 +1,36 @@
 import { StyleSheet, View } from 'react-native';
 
+import { layoutCommunityBoard } from '../../../../../lib/peek-and-pitch/communityBoardLayout';
 import { parseCard, type CardCode } from '@/lib/cards';
 
-import { poseOnFelt, type FeltPlaneConfig } from '../feltPlane';
-import { CARD_ASPECT, CardFace } from './PlayingCard';
-
-type Point = { x: number; y: number };
+import { CardFace } from './PlayingCard';
 
 type CommunityCardsProps = {
   cards: CardCode[];
-  center: Point;
+  viewportWidth: number;
   maxWidth: number;
-  plane: FeltPlaneConfig;
-  depth?: number;
+  farY: number;
+  nearY: number;
 };
-
-const GAP = 8;
 
 export function CommunityCards({
   cards,
-  center,
+  viewportWidth,
   maxWidth,
-  plane,
-  depth = 0.52,
+  farY,
+  nearY,
 }: CommunityCardsProps) {
   if (cards.length === 0) {
     return null;
   }
 
-  const cardWidth = Math.min(64, (maxWidth - GAP * (cards.length - 1)) / cards.length);
-  const rowWidth = cards.length * cardWidth + (cards.length - 1) * GAP;
-  const cardHeight = cardWidth * CARD_ASPECT;
-  const pose = poseOnFelt(depth, plane);
+  const board = layoutCommunityBoard({
+    cardCount: cards.length,
+    viewportWidth,
+    maxWidth,
+    farY,
+    nearY,
+  });
 
   return (
     <View
@@ -39,19 +38,20 @@ export function CommunityCards({
       style={[
         styles.row,
         {
-          left: center.x - rowWidth / 2,
-          top: center.y - cardHeight / 2,
-          width: rowWidth,
-          columnGap: GAP,
-          transform: [
-            { perspective: plane.perspective },
-            { rotateX: `${pose.rotateX}deg` },
-            { scale: pose.scale },
-          ],
+          left: board.left,
+          top: board.top,
+          width: board.width,
+          height: board.height,
+          columnGap: board.gap,
         },
       ]}>
       {cards.map((code) => (
-        <CardFace key={code} card={parseCard(code)} width={cardWidth} />
+        <CardFace
+          key={code}
+          card={parseCard(code)}
+          width={board.cardWidth}
+          rotate={board.rotateZ}
+        />
       ))}
     </View>
   );
@@ -60,7 +60,9 @@ export function CommunityCards({
 const styles = StyleSheet.create({
   row: {
     position: 'absolute',
+    zIndex: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    overflow: 'visible',
   },
 });

@@ -2,7 +2,7 @@ import type { ImageSourcePropType } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { svgRouteSegment, walkGardenTrail } from '../../lib/track/gardenMap';
+import { svgRouteSegment, walkWorldTrail } from '../../lib/track/worldMapGeometry';
 import type { FogPhase } from '../../lib/track/fogCycle';
 import { durationForLength, pathLength, type Point } from '../../lib/track/mapPath';
 import {
@@ -51,7 +51,7 @@ export function trailForWalk(
   map: { width: number; height: number },
   world: Pick<WorldMapTemplate, 'nodes' | 'chunks'>
 ): Point[] {
-  return walkGardenTrail(fromStage, toStage, map, world.nodes, world.chunks).map(avatarAnchor);
+  return walkWorldTrail(fromStage, toStage, map, world.nodes, world.chunks).map(avatarAnchor);
 }
 
 export function walkDurationMs(trail: Point[]): number {
@@ -92,6 +92,7 @@ export function LevelProgressionMap({
       height={height}
       world={currentWorld}
       activeChunkIndex={activeChunkIndex}
+      completedCount={completedCount}
       fogPhase={fogPhase}
       cameraDuration={CAMERA_CLIMB_MS}
       onCameraSettled={onCameraSettled}>

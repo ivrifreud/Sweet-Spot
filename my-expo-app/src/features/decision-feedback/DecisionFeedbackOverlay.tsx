@@ -621,7 +621,8 @@ function NudgeIcon() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    zIndex: 80,
+    zIndex: 400,
+    elevation: 400,
   },
   wash: {
     ...StyleSheet.absoluteFill,

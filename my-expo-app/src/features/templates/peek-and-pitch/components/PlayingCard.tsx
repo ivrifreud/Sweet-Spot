@@ -15,10 +15,12 @@ type CardFaceProps = {
    * backface so rank and suit read left-to-right toward the camera.
    */
   underside?: boolean;
+  /** Degrees in the plane. Community cards face the hero rail at 180. */
+  rotate?: number;
 };
 
 /** Full face from the Kenney CC0 deck — rank, suit, and pips stay readable. */
-export function CardFace({ card, width, underside = false }: CardFaceProps) {
+export function CardFace({ card, width, underside = false, rotate = 0 }: CardFaceProps) {
   const height = width * CARD_ASPECT;
 
   return (
@@ -26,7 +28,12 @@ export function CardFace({ card, width, underside = false }: CardFaceProps) {
       accessibilityLabel={`${card.rank === 'T' ? '10' : card.rank} of ${SUIT_NAME[card.suit]}`}
       source={cardFaceArt(card)}
       resizeMode="contain"
-      style={[styles.art, { width, height }, underside ? styles.underside : null]}
+      style={[
+        styles.art,
+        { width, height },
+        underside ? styles.underside : null,
+        rotate ? { transform: [{ rotate: `${rotate}deg` }] } : null,
+      ]}
     />
   );
 }

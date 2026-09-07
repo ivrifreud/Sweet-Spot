@@ -168,6 +168,40 @@ export function fitMap(areaWidth: number, areaHeight: number): { width: number; 
   return { width: areaWidth, height: areaWidth / MAP_ASPECT };
 }
 
+/**
+ * One camera tile. Clip overflow so a 576×1024 bitmap cannot paint into the
+ * next chunk (React Native Web otherwise uses the JPEG's intrinsic height).
+ */
+export function worldMapChunkFrame(
+  width: number,
+  height: number,
+  top: number
+): {
+  position: 'absolute';
+  left: 0;
+  top: number;
+  width: number;
+  height: number;
+  overflow: 'hidden';
+} {
+  return {
+    position: 'absolute',
+    left: 0,
+    top,
+    width,
+    height,
+    overflow: 'hidden',
+  };
+}
+
+/** Explicit box so web `<img>` elements do not grow to 1024px inside a shorter tile. */
+export function worldMapChunkImageSize(
+  width: number,
+  height: number
+): { width: number; height: number } {
+  return { width, height };
+}
+
 export function mapPercentToUnit(value: MapPercent): number {
   const parsed = Number.parseFloat(value);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {

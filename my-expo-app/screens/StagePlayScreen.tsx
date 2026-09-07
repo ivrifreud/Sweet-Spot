@@ -242,9 +242,10 @@ export function StagePlayScreen({
         showNextHandControl={false}
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
+        suppressTableActors={Boolean(feedback)}
       />
 
-      <View pointerEvents="box-none" style={[styles.hud, { paddingTop: insets.top + 4 }]}>
+      <View pointerEvents="box-none" style={[styles.hud, { paddingTop: insets.top + 10 }]}>
         <TrackHud
           remainingChips={hudChips}
           goldBars={goldBars}
@@ -303,7 +304,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 8,
     right: 8,
-    zIndex: 40,
+    zIndex: 90,
+    elevation: 90,
   },
   errorBanner: {
     position: 'absolute',

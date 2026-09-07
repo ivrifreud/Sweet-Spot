@@ -12,35 +12,35 @@ import { artStyle } from '../../theme/artStyle';
  */
 type Props = {
   onPress: () => void;
-  /** Distance from the bottom safe edge (above Sign out). */
-  bottom?: number;
-  left?: number;
+  label?: string;
+  accessibilityLabel?: string;
 };
 
-export function FogClimbPreviewButton({ onPress, bottom = 56, left = 12 }: Props) {
+export function FogClimbPreviewButton({
+  onPress,
+  label = 'FOG UP',
+  accessibilityLabel = 'Preview fog parting and camera climb. Development only.',
+}: Props) {
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
-      style={({ pressed }) => [
-        styles.button,
-        { bottom, left },
-        pressed && styles.pressed,
-      ]}
+      hitSlop={12}
+      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel="Preview fog parting and camera climb. Development only.">
-      <Text style={styles.label}>FOG UP</Text>
+      accessibilityLabel={accessibilityLabel}>
+      <Text style={styles.label}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    position: 'absolute',
-    zIndex: 30,
+    alignSelf: 'flex-start',
+    zIndex: 50,
+    elevation: 16,
     minWidth: 44,
     minHeight: 44,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,

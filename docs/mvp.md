@@ -128,13 +128,14 @@ The Template: The opponent's avatar is displayed alongside a brief behavioral do
 
 6. Visual & Sensory Design — The Four Worlds
 Scope Decision
-Light and Dark Mode are a day/night treatment of one shared environment per World — same layout, table, and props — differing only in lighting, color grade, and ambient audio. This was chosen specifically to avoid doubling the art budget that two fully distinct locations per World would require.
+Light and Dark Mode are a day/night treatment of one shared environment per World — same layout and props — differing only in lighting, color grade, and ambient audio. This was chosen specifically to avoid doubling the art budget that two fully distinct locations per World would require.
 World	Arc	Light Treatment	Dark Treatment	MVP
 1 — Benny's Garden	The Learning Stage	Afternoon backyard; birds, acoustic guitar.	Same yard at night; quiet, tense, distant sounds.	Yes
-2 — A Local Casino	Transition to Real Money	Bright arcade neon; cheerful token clinks.	Same floor, dim red neon; heavier “underground” tone.	Yes
+2 — A Local Casino	Transition to Real Money	Daytime outdoor Wild West desert town; dusty street climb to the Local Casino façade; cheerful token clinks.	Same town geometry under moonlight and lantern light (later dark treatment).	Yes
 3 — A VIP Room	Psychological Precision	Marble penthouse, natural light, lounge music.	Same room, spotlight only; ticking clock, tense.	Yes
 4 — A Final Table	High-Stakes Arena	Stadium, crowd, confetti.	Same stage, isolated radar-only view; heartbeat audio.	Deferred (Level 4/5)
 Confirmed: Worlds 1–3 ship in MVP alongside Levels 1–3 and Pillars I–V; World 4 defers alongside Level 4/5 and Pillar VI, consistent with the pattern above.
+World 2 product name remains **A Local Casino**. Its progression map is an outdoor 1930s rubber-hose Wild West desert town whose final landmark is the Local Casino façade. Daytime is the current production treatment. The later dark treatment reuses that exact geometry under moonlight and lantern light — it is not a second town. Future lesson and table scenes may use the casino’s period interior; those interiors are not the World 2 map.
 Color, Audio & Cosmetics
 Dark Mode's negative feedback intentionally escalates in intensity by World — later Worlds use heavier, more physical audio cues on mistakes. This is a deliberate exception to the general “don't punish mistakes harshly” content rule, confirmed by the product owner.
 Purchased cosmetic sets (chip skins, card backs) carry across all Worlds for personal expression — ties into Section 13's monetization plan.

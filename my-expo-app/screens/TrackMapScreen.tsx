@@ -48,6 +48,9 @@ type Props = {
   /** False while a level covers the map so Benny's shoes stay put until focus. */
   isActive?: boolean;
   lockMessage?: string | null;
+  /** guy/000 bypass — shows the map switcher. */
+  devMode?: boolean;
+  onDevCycleWorld?: () => void;
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
@@ -70,6 +73,8 @@ export function TrackMapScreen({
   avatarSource,
   isActive = true,
   lockMessage = null,
+  devMode = false,
+  onDevCycleWorld,
   onPlayStage,
   onSignOut,
 }: Props) {
@@ -408,7 +413,7 @@ export function TrackMapScreen({
         ) : null}
       </View>
 
-      <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 4 }]}>
+      <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 10 }]}>
         <LinearGradient
           pointerEvents="none"
           colors={['rgba(17,23,20,0.72)', 'rgba(17,23,20,0.28)', 'rgba(17,23,20,0)']}
@@ -433,16 +438,23 @@ export function TrackMapScreen({
             <Text style={styles.noticeText}>{notice}</Text>
           </View>
         ) : null}
+        <View style={styles.devRow}>
+          <FogClimbPreviewButton onPress={previewFogAndClimb} />
+          {devMode && onDevCycleWorld ? (
+            <FogClimbPreviewButton
+              label={world.id === 'local-casino' ? 'GARDEN' : 'CASINO'}
+              accessibilityLabel={
+                world.id === 'local-casino'
+                  ? "Switch preview to Benny's Garden"
+                  : 'Switch preview to A Local Casino'
+              }
+              onPress={onDevCycleWorld}
+            />
+          ) : null}
+        </View>
       </View>
 
       {lockMessage ? <ChipLockoutCard countdown={lockMessage} /> : null}
-
-      {/* TEMPORARY DEV PREVIEW — delete this JSX with FogClimbPreviewButton.tsx */}
-      <FogClimbPreviewButton
-        onPress={previewFogAndClimb}
-        bottom={insets.bottom + 48}
-        left={12}
-      />
 
       <Pressable
         onPress={onSignOut}
@@ -505,6 +517,12 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontSize: 14,
     textAlign: 'center',
+  },
+  devRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
   },
   signOut: {
     position: 'absolute',

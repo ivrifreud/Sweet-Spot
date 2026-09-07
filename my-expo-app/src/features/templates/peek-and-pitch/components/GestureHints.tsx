@@ -18,10 +18,12 @@ type GestureHintsProps = {
   peeked: boolean;
   visible: boolean;
   canCheck: boolean;
+  /** Screen Y of the top of the hint stack — always below the community cards. */
+  top: number;
 };
 
 /** Teaching layer: the three gestures, shown until the player uses them. */
-export function GestureHints({ peek, peeked, visible }: GestureHintsProps) {
+export function GestureHints({ peek, peeked, visible, top }: GestureHintsProps) {
   const peekStyle = useAnimatedStyle(() => ({
     opacity: interpolate(peek.value, [0, 0.25], [1, 0]),
   }));
@@ -31,7 +33,7 @@ export function GestureHints({ peek, peeked, visible }: GestureHintsProps) {
   }
 
   return (
-    <View style={styles.root} pointerEvents="none">
+    <View style={[styles.root, { top }]} pointerEvents="none">
           {peeked ? (
         <View style={styles.postPeek}>
           <Hint label={STRINGS.muckHint} glyph={'\u2191'} direction={-1} />
@@ -77,8 +79,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: '46%',
     alignItems: 'center',
+    zIndex: 14,
   },
   postPeek: {
     alignItems: 'center',

@@ -36,6 +36,7 @@ import { HeroHand } from './components/HeroHand';
 import { CARD_GAP_RATIO, HoleCards } from './components/HoleCards';
 import { PeekHud } from './components/PeekHud';
 import { CARD_ASPECT } from './components/PlayingCard';
+import { layoutCommunityBoard } from '../../../../lib/peek-and-pitch/communityBoardLayout';
 import { TableGestures } from './components/TableGestures';
 import { TableScene } from './components/TableScene';
 import { DEFAULT_SPOT, SKINS, STACK_HIT, CHIP_CARD_GAP, mapBackdropPoint } from './config';
@@ -66,6 +67,8 @@ export type PeekAndPitchTemplateProps = {
   showNextHandControl?: boolean;
   disabled?: boolean;
   resetKey?: number;
+  /** Hide gloves, chips, and banners so a feedback overlay can sit on top. */
+  suppressTableActors?: boolean;
 };
 
 /**
@@ -86,6 +89,7 @@ export function PeekAndPitchTemplate({
   showNextHandControl = true,
   disabled = false,
   resetKey = 0,
+  suppressTableActors = false,
 }: PeekAndPitchTemplateProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -170,14 +174,23 @@ export function PeekAndPitchTemplate({
       restCenter.x = cardsLeft + cardSpan / 2;
     }
 
+    const dealOrigin = mapBackdropPoint(
+      skin.dealOrigin,
+      skin.backgroundSize,
+      screen,
+      skin.fit,
+      skin.coverAnchor
+    );
+    const board = layoutCommunityBoard({
+      cardCount: Math.max(activeSpot.board.length, 1),
+      viewportWidth: width,
+      maxWidth: stage * 0.76,
+      farY: dealOrigin.y,
+      nearY: restCenter.y,
+    });
+
     return {
-      dealOrigin: mapBackdropPoint(
-        skin.dealOrigin,
-        skin.backgroundSize,
-        screen,
-        skin.fit,
-        skin.coverAnchor
-      ),
+      dealOrigin,
       tableCenter: mapBackdropPoint(
         skin.tableCenter,
         skin.backgroundSize,
@@ -185,6 +198,7 @@ export function PeekAndPitchTemplate({
         skin.fit,
         skin.coverAnchor
       ),
+      board,
       restCenter,
       cardHit: {
         x: cardsLeft,
@@ -219,7 +233,9 @@ export function PeekAndPitchTemplate({
     skin.tableCenter,
     stackHitSize.height,
     stackHitSize.width,
+    stage,
     width,
+    activeSpot.board.length,
   ]);
 
   const dealHand = useCallback(
@@ -425,61 +441,66 @@ export function PeekAndPitchTemplate({
 
       <CommunityCards
         cards={activeSpot.board}
-        center={geometry.tableCenter}
+        viewportWidth={width}
         maxWidth={stage * 0.76}
-        plane={skin.feltPlane}
+        farY={geometry.dealOrigin.y}
+        nearY={geometry.restCenter.y}
       />
 
-      <View
-        style={[
-          styles.stackHolder,
-          {
-            left: geometry.stackHit.x,
-            top: geometry.stackHit.y,
-            width: geometry.stackHit.width,
-            height: geometry.stackHit.height,
-          },
-        ]}
-        pointerEvents="none">
-        <ChipStack
-          stackLabel={activeSpot.heroStackLabel}
-          disabled={phase !== 'live'}
-          pushed={pushedChips}
-          press={stackPress}
-          dragX={stackDragX}
-          dragY={stackDragY}
-          chipSize={chipSize}
-        />
-      </View>
+      {suppressTableActors ? null : (
+        <View
+          style={[
+            styles.stackHolder,
+            {
+              left: geometry.stackHit.x,
+              top: geometry.stackHit.y,
+              width: geometry.stackHit.width,
+              height: geometry.stackHit.height,
+            },
+          ]}
+          pointerEvents="none">
+          <ChipStack
+            stackLabel={activeSpot.heroStackLabel}
+            disabled={phase !== 'live'}
+            pushed={pushedChips}
+            press={stackPress}
+            dragX={stackDragX}
+            dragY={stackDragY}
+            chipSize={chipSize}
+          />
+        </View>
+      )}
 
-      <View
-        style={[
-          styles.stackHitLayer,
-          {
-            left: geometry.stackHit.x,
-            top: geometry.stackHit.y,
-            width: geometry.stackHit.width,
-            height: geometry.stackHit.height,
-          },
-        ]}>
-        <ChipStackTarget
-          live={phase === 'live' && !disabled && !pitching}
-          canCheck={Boolean(activeSpot.canCheck)}
-          stackLabel={activeSpot.heroStackLabel}
-          potCenter={geometry.tableCenter}
-          stackCenter={{
-            x: geometry.stackHit.x + geometry.stackHit.width / 2,
-            y: geometry.stackHit.y + geometry.stackHit.height / 2,
-          }}
-          stackPress={stackPress}
-          stackDragX={stackDragX}
-          stackDragY={stackDragY}
-          onCall={() => handleChipDecision('call')}
-          onRaise={() => handleChipDecision('raise')}
-          onCheck={handleCheck}
-          onIllegalCheck={denyCheck}
-        />
-      </View>
+      {suppressTableActors ? null : (
+        <View
+          style={[
+            styles.stackHitLayer,
+            {
+              left: geometry.stackHit.x,
+              top: geometry.stackHit.y,
+              width: geometry.stackHit.width,
+              height: geometry.stackHit.height,
+            },
+          ]}>
+          <ChipStackTarget
+            live={phase === 'live' && !disabled && !pitching}
+            canCheck={Boolean(activeSpot.canCheck)}
+            stackLabel={activeSpot.heroStackLabel}
+            potCenter={geometry.tableCenter}
+            stackCenter={{
+              x: geometry.stackHit.x + geometry.stackHit.width / 2,
+              y: geometry.stackHit.y + geometry.stackHit.height / 2,
+            }}
+            stackPress={stackPress}
+            stackDragX={stackDragX}
+            stackDragY={stackDragY}
+            onCall={() => handleChipDecision('call')}
+            onRaise={() => handleChipDecision('raise')}
+            onCheck={handleCheck}
+            onIllegalCheck={denyCheck}
+          />
+        </View>
+      )}
 
       <View style={styles.playLayer} pointerEvents="box-none">
         <HoleCards
@@ -494,40 +515,45 @@ export function PeekAndPitchTemplate({
           plane={skin.feltPlane}
         />
 
-        <BarrierHand
-          contact={geometry.barrierContact}
-          stackAnchor={geometry.stackAnchor}
-          tableCenter={geometry.tableCenter}
-          handWidth={barrierWidth}
-          chipSize={chipSize}
-          viewportHeight={height}
-          deal={deal}
-          peek={peek}
-          muck={muck}
-          commit={commit}
-        />
+        {suppressTableActors ? null : (
+          <>
+            <BarrierHand
+              contact={geometry.barrierContact}
+              stackAnchor={geometry.stackAnchor}
+              tableCenter={geometry.tableCenter}
+              handWidth={barrierWidth}
+              chipSize={chipSize}
+              viewportHeight={height}
+              deal={deal}
+              peek={peek}
+              muck={muck}
+              commit={commit}
+            />
 
-        <HeroHand
-          contact={geometry.handContact}
-          tableCenter={geometry.tableCenter}
-          handWidth={handWidth}
-          cardHeight={cardHeight}
-          viewportHeight={height}
-          plane={skin.feltPlane}
-          deal={deal}
-          peek={peek}
-          muck={muck}
-          commit={commit}
-        />
+            <HeroHand
+              contact={geometry.handContact}
+              tableCenter={geometry.tableCenter}
+              handWidth={handWidth}
+              cardHeight={cardHeight}
+              viewportHeight={height}
+              plane={skin.feltPlane}
+              deal={deal}
+              peek={peek}
+              muck={muck}
+              commit={commit}
+            />
+          </>
+        )}
       </View>
 
-      <ChipToss flights={flights} onComplete={onTossComplete} />
+      {suppressTableActors ? null : <ChipToss flights={flights} onComplete={onTossComplete} />}
 
       <GestureHints
         peek={peek}
         peeked={peeked}
         visible={phase === 'live' && !disabled}
         canCheck={Boolean(activeSpot.canCheck)}
+        top={geometry.board.hintTop}
       />
 
       <TableGestures
@@ -544,29 +570,33 @@ export function PeekAndPitchTemplate({
         onIllegalCheck={denyCheck}
       />
 
-      <View
-        style={[styles.bannerHolder, { top: insets.top + ACTION_BANNER_BELOW_HUD }]}
-        pointerEvents="box-none">
-        <ActionBanner
-          position={activeSpot.position}
-          actionLine={activeSpot.actionLine}
-          potLabel={activeSpot.potLabel}
-          streetLabel={streetLabelForBoard(activeSpot.board.length)}
-          progressLabel={activeSpot.progressLabel}
-          accent={skin.accent}
-          decision={decision}
-          handLabel={decision ? handLabel : null}
-          onOpenPicker={showAuthoringControls ? () => setPickerOpen(true) : undefined}
-        />
-      </View>
+      {suppressTableActors ? null : (
+        <View
+          style={[styles.bannerHolder, { top: insets.top + ACTION_BANNER_BELOW_HUD }]}
+          pointerEvents="box-none">
+          <ActionBanner
+            position={activeSpot.position}
+            actionLine={activeSpot.actionLine}
+            potLabel={activeSpot.potLabel}
+            streetLabel={streetLabelForBoard(activeSpot.board.length)}
+            progressLabel={activeSpot.progressLabel}
+            accent={skin.accent}
+            decision={decision}
+            handLabel={decision ? handLabel : null}
+            onOpenPicker={showAuthoringControls ? () => setPickerOpen(true) : undefined}
+          />
+        </View>
+      )}
 
-      <PeekHud
-        cards={cards}
-        peek={peek}
-        muck={muck}
-        restCenter={geometry.restCenter}
-        cardHeight={cardHeight}
-      />
+      {suppressTableActors ? null : (
+        <PeekHud
+          cards={cards}
+          peek={peek}
+          muck={muck}
+          restCenter={geometry.restCenter}
+          cardHeight={cardHeight}
+        />
+      )}
 
       {checkDenied ? (
         <View

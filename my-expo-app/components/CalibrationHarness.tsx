@@ -15,6 +15,7 @@ import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
+import { LOCAL_CASINO_WORLD, BENNYS_GARDEN_WORLD } from './track/worldMapTemplates';
 import { signOut } from '../lib/auth';
 import {
   applyLocalRegen,
@@ -23,6 +24,13 @@ import {
   type ChipStackState,
 } from '../lib/chip-stack';
 import { getOrCreateStageProgress, loadStageProgress } from '../lib/track/stageProgress';
+import {
+  currentWorldIdForPlacement,
+  nextDevPreviewWorld,
+  openStageProgressArgs,
+  worldForPlacement,
+  type ReadyWorldId,
+} from '../lib/track/worldForPlacement';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
@@ -114,6 +122,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [stageSpotsCompleted, setStageSpotsCompleted] = useState(0);
   const [streak, setStreak] = useState<StreakState>(EMPTY_STREAK);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
+  const [devWorldId, setDevWorldId] = useState<ReadyWorldId | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmingRegen = useRef(false);
 
@@ -190,7 +199,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           });
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, 1);
+          const progress = await loadStageProgress(userId, session.placement);
           const streakState = await readStreakState();
           if (!cancelled) {
             setContinued(seen);
@@ -208,7 +217,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           const placed = await finalizeSession(session.sessionId);
           const seen = await hasSeenPlacement(userId);
           const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, 1);
+          const progress = await loadStageProgress(userId, placed.placement);
           const streakState = await readStreakState();
           if (!cancelled) {
             setResult(placed);
@@ -267,6 +276,9 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       return;
     }
 
+    const placement = result?.placement;
+    if (!placement) return;
+
     try {
       const stack = await getChipStack();
       setChipStack(stack);
@@ -277,11 +289,9 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         setError(copy);
         return;
       }
-      const row = await getOrCreateStageProgress({
-        userId,
-        level: 1,
-        stageNumber: 1,
-      });
+      const row = await getOrCreateStageProgress(
+        openStageProgressArgs(userId, placement, stageNumber)
+      );
       setStageProgressId(row.id);
       setStageSpotsCompleted(row.spotsCompleted);
       setPlayingStage(1);
@@ -431,10 +441,41 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       );
     }
 
+    const selectedWorld = worldForPlacement(reveal.placement);
+    if (selectedWorld.status === 'unavailable') {
+      return (
+        <SafeAreaView style={styles.statusScreen}>
+          <Text style={styles.kicker}>{reveal.worldName}</Text>
+          <Text style={styles.bodyText}>This world is not open yet.</Text>
+          <Text style={styles.muted}>
+            Level {reveal.placement} stays on its own track. Benny’s Garden is not a stand-in.
+          </Text>
+          <Pressable
+            onPress={() => void handleSignOut()}
+            style={styles.signOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out">
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
+        </SafeAreaView>
+      );
+    }
+
+    const placedWorldId = currentWorldIdForPlacement(reveal.placement);
+    const previewWorldId = devMode && devWorldId ? devWorldId : placedWorldId;
+    const currentWorld =
+      previewWorldId === 'local-casino'
+        ? LOCAL_CASINO_WORLD
+        : previewWorldId === 'bennys-garden'
+          ? BENNYS_GARDEN_WORLD
+          : undefined;
+
     return (
       <View style={styles.treeStack}>
         <TrackMapScreen
+          key={previewWorldId ?? 'map'}
           reveal={reveal}
+          currentWorld={currentWorld}
           remainingChips={chipStack.chips}
           lockMessage={
             chipStack.lockedOut && chipStack.regenAt
@@ -449,6 +490,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           completedCount={completedCount}
           spotsByStage={spotsByStage}
           isActive={playingStage == null}
+          devMode={devMode}
+          onDevCycleWorld={
+            devMode && placedWorldId
+              ? () => setDevWorldId((current) => nextDevPreviewWorld(current ?? placedWorldId))
+              : undefined
+          }
           onPlayStage={(stageNumber) => void openStage(stageNumber)}
           onSignOut={() => void handleSignOut()}
         />
@@ -533,25 +580,28 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         showNextHandControl={false}
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
+        suppressTableActors={Boolean(feedback)}
       />
 
-      <View style={styles.tableControls} pointerEvents="box-none">
-        <View style={styles.calibrationPill}>
-          <Text style={styles.calibrationPillText}>Calibration</Text>
-        </View>
-        {devMode ? (
-          <Pressable
-            onPress={() => skipToTree(1)}
-            style={styles.tableSignOut}
-            accessibilityRole="button"
-            accessibilityLabel="Skip to the level tree">
-            <Text style={styles.tableSignOutText}>Skip to tree</Text>
+      {feedback ? null : (
+        <View style={styles.tableControls} pointerEvents="box-none">
+          <View style={styles.calibrationPill}>
+            <Text style={styles.calibrationPillText}>Calibration</Text>
+          </View>
+          {devMode ? (
+            <Pressable
+              onPress={() => skipToTree(1)}
+              style={styles.tableSignOut}
+              accessibilityRole="button"
+              accessibilityLabel="Skip to the level tree">
+              <Text style={styles.tableSignOutText}>Skip to tree</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => void handleSignOut()} style={styles.tableSignOut}>
+            <Text style={styles.tableSignOutText}>Sign out</Text>
           </Pressable>
-        ) : null}
-        <Pressable onPress={() => void handleSignOut()} style={styles.tableSignOut}>
-          <Text style={styles.tableSignOutText}>Sign out</Text>
-        </Pressable>
-      </View>
+        </View>
+      )}
 
       {busy && !feedback ? (
         <View style={styles.savingPill} pointerEvents="none">
@@ -655,8 +705,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 60,
-    elevation: 60,
+    zIndex: 50,
+    elevation: 50,
   },
   calibrationPill: {
     borderRadius: 999,

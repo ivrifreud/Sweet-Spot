@@ -545,12 +545,36 @@ Do not copy: diamond gem currency (we use Gold Coins), glossy candy CTAs, or
 shipping this kit’s art unchanged. Remap hearts → chips, gems → gold bars/coins,
 and recolor to teal / antique gold / cream / tobacco.
 
+## Local Casino world-map references (layout only)
+
+The nine files under
+`my-expo-app/assets/themes/local-casino/references-world-map/` are
+**layout and environment inspiration only**. They are not style masters and
+must not be traced, pixel-copied, or treated as approved map art.
+
+| File | Use it for |
+| ---- | ---------- |
+| `environment/env-canyon-gateway-portrait.png` | Portrait desert gateway framing and horizon placement |
+| `environment/env-dunes-sunrise.png` | Warm dune bands and sun direction |
+| `environment/env-monument-valley-sunset.png` | Mesa scale and atmospheric depth (composition only) |
+| `environment/env-pixel-desert-moon.png` | Night-grade lighting notes for a **later** treatment — not this sprint’s daytime map, and never a pixel-art target |
+| `environment/env-sunset-cactus-silhouettes.png` | Cactus/rock silhouette rhythm kept **outside** node-safe zones |
+| `houses/houses-wild-west-main-street.png` | Street cadence: saloon, civic buildings, timber porches as scenery types |
+| `map-layout/map-canyon-wooden-bridges.png` | Boardwalk/bridge connectors over a continuous bottom-to-top path |
+| `map-layout/map-desert-path-hat-and-skull.png` | Winding dusty road grammar only |
+| `map-layout/map-mesa-islands-landmarks.png` | Landmark spacing along a climb — not floating islands |
+
+Explicitly prohibit: tracing any of these images; pixel rendering; floating
+candy or mesa islands; modern vector polish; skull pits; branded or
+copyrighted imagery; and copied Monument Valley compositions or landmark
+silhouettes.
+
 ## Canonical World Translation
 
 | Product world  | Moodboard interpretation                                         |
 | -------------- | ---------------------------------------------------------------- |
 | Benny's Garden | Painted 1930s backyard club, afternoon cream/green, string bulbs |
-| Local Casino   | Art Deco hall, marquee bulbs, brass rails, mechanical slots      |
+| Local Casino   | Outdoor Wild West desert town; Local Casino façade as the last landmark; period bulbs, not an indoor hall |
 | VIP Room       | Inky club interior, velvet, marble patterns, spotlight           |
 | Final Table    | Newsreel stadium, radial beams, crowd silhouettes                |
 
@@ -605,7 +629,8 @@ Send these next if you have them — they close real gaps the current pack does 
 2. **Illustrated playing cards** (cream stock, heavy suits, period faces) as a
    full deck sheet, not one King.
 3. **Benny's Garden / Local Casino gouache backgrounds** with empty UI space
-   (map-ready: path + empty node slots).
+   (map-ready: path + empty node slots). Local Casino map art is the outdoor
+   desert town, not an indoor hall.
 4. **Title-card lettering samples** that match the hero poster.
 5. **Squash-stretch timing keys** for celebration and miss.
 6. **Glove swipe-up fold / pull-down call** keys — we have Peek and chip-reach,
