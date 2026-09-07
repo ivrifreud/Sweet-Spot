@@ -22,6 +22,11 @@ export function currentWorldIdForPlacement(placement: Placement): ReadyWorldId |
   return selected.status === 'ready' ? selected.worldId : null;
 }
 
+/** Dev-bypass map preview only — never used for real placement routing. */
+export function nextDevPreviewWorld(worldId: ReadyWorldId): ReadyWorldId {
+  return worldId === 'bennys-garden' ? 'local-casino' : 'bennys-garden';
+}
+
 export function openStageProgressArgs(
   userId: string,
   placement: Placement,

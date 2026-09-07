@@ -1,89 +1,112 @@
 > Current sprint plan. Build only what this file scopes; for product conflicts defer to `docs/mvp.md` (Rev. 2).
 
 SWEET SPOT
-Current sprint — World 2 outdoor Local Casino map
-Phone-first Expo track map · Daytime desert town · Art + placement wiring
-Prepared for the Local Casino map implementation
+Sprint 2 Proposal — Map Engine, World 2, and Architecture Expansion
+Expo 57 Upgrade · Template 2 (Equity Scale) · World 2 (Light Mode) · Dynamic Spot Engine
+Two-person team · Prepared for sprint kickoff
+September 2026
+
+## Why a hybrid infrastructure approach?
+
+Sprint 1 validated the architecture using hand-authored spots. To scale the MVP, we need the dynamic Spot Engine to generate procedural hands based on user Elo. However, the curriculum structure itself remains static (the "7-spot sandwich"). This sprint divides the labor to reflect this: Ivri builds the dynamic Python engine, while Guy constructs the static Supabase architecture that feeds into it.
+
+## Contents
+
+1. Sprint Goal
+2. Capacity & Role Split
+3. In Scope vs. Explicitly Out of Scope
+4. Day-by-Day Plan — Week 1
+5. Day-by-Day Plan — Week 2
+6. Definition of Done
+7. If You Fall Behind — Cut List
+8. Risks & Dependencies
+9. Sprint 3 Preview
+10. Sprint 1 Wrap-Up Context
 
 ## 1. Sprint Goal
 
-Ship World 2’s progression map as a daytime outdoor 1930s rubber-hose Wild West desert town. The product name remains **A Local Casino**; the town climb ends at the Local Casino façade. Reuse Benny’s Garden map grammar (576×1024 portrait chunks, four nodes per chunk, bottom-to-top routes, avatar walk, camera climb, haze transition, progression-aware nodes) and add transparent milestone overlays.
+By the end of the sprint, the application will have migrated to Expo 57, and the static, hand-authored spots from Sprint 1 will be replaced by the first working version of the dynamic Spot Engine. A user entering a stage will face procedurally generated hands based on their hidden Elo, bounded by static constraint rules stored in Supabase. Furthermore, they will interact with Template 2 ("The Equity Scale") within the newly styled environment of World 2 ("A Local Casino" Light Mode).
 
-Casino-interior lesson and table scenes, night mode, and Level 2 question-template content are not this sprint.
+## 2. Capacity & Role Split
 
-## 2. Authority
+| | Availability | 10-Day Total | Primary Focus |
+| --- | --- | --- | --- |
+| Ivri | ~2 hours/day | ~20 hours | Expo 54 to 57 upgrade, Python-based dynamic Spot Engine generation (core algorithms/API), and building Template 2 ("The Equity Scale"). |
+| Guy | ~3.5 hours/day | ~35 hours | Spot Engine static data modeling in Supabase, frontend API integration, and complete ownership of World 2 ("A Local Casino" Light Mode) styling, assets, and audio. |
 
-1. `docs/mvp.md` Section 6 — world name, day-first treatment, interior vs map.
-2. This file — what to build now.
-3. `docs/art-style-guide.md`, `docs/moodboard/README.md`, `my-expo-app/theme/localCasinoMap.ts`, and `my-expo-app/assets/themes/local-casino/ASSET-SPEC.md` — look and asset contract.
+We are maintaining the established time budgets. To balance the workload, Guy will take ownership of the Supabase data modeling for the static curriculum architecture, while Ivri focuses on the mathematical generation engine and building the complex logic for the new Equity Scale UI.
 
-Runtime is Expo / React Native on a portrait phone. Preserve safe areas, 44×44 pt controls, reduced-motion behavior, and non-color state cues.
+## 3. In Scope vs. Explicitly Out of Scope
 
-## 3. In Scope
+### In Scope
 
-- Canonical docs aligned on outdoor World 2 (this sprint’s first commit).
-- Palette module, asset spec, and Pillow validator for Local Casino map files.
-- Three daytime base chunks: Town Gate / Saloon Row, Civic Main Street, Casino Rise.
-- Twelve additive transparent progression overlays (four per chunk).
-- Desert haze pair and one film-grain texture.
-- Authored route geometry and a world-agnostic route engine shared with Benny’s Garden.
-- World selection by calibration placement (1 → Benny’s Garden, 2 → Local Casino, 3 → unavailable VIP scaffold — no silent Benny fallback).
-- Level-specific stage-progress loading for placement 2 (never Level 1 rows).
-- Art-only film treatment (grain, dust, vignette, ≤2% flicker) below HUD and node UI.
-- Unit tests for geometry, progression visibility, and world selection.
-- Android visual/performance QA and Benny’s Garden regression.
+- Upgrade the repository from Expo 54 to Expo 57.
+- Spot Engine Backend: Procedural hand generation (Python/treys/7eval) based on user Elo and static constraint boundaries (e.g., "Villain stack size > 40bb").
+- Spot Engine Frontend: Supabase schema and seeding for the static curriculum skeleton (Pillars, Lessons, and the "7 Spots" static parameters).
+- Template 2 ("The Equity Scale"): Development of the Outs Dial and rotational gesture mechanics, locking green on EV+.
+- World 2 ("A Local Casino"): Visual styling and sensory design for Light Mode (bright arcade neon, cheerful token clinks).
+- Replay Logic: Generating a brand-new hand within the same parameters on the next attempt after a burned chip.
 
-## 4. Explicitly Out of Scope
+### Explicitly Out of Scope This Sprint
 
-- Night mode / dark grade (keep source layers editable for later).
-- New question templates or Level 2 lesson / table content.
-- Casino-interior screens (future; not the map).
-- Procedural poker generation, `treys`, `7eval`, or equity work.
-- Currency, Chip, Elo, Gold Coin, Daily Challenge, or Bankroll changes.
-- World 3 production art.
-- Desktop/web-only layouts.
+- World 2 Dark & Light Mode.
+- Templates 3, 5, and 6.
+- Worlds 3 and 4.
+- The Daily Challenge and Bankroll Management screens.
+- Deployment of the Python backend to a production environment (Railway) is preferred but can be pushed to Sprint 3 if integration testing runs long.
 
-## 5. World 2 map contract
+## 4. Day-by-Day Plan — Week 1
 
-- Chunks A → B → C, fixed order (no random rotation).
-- Chunk A: town gate, dusty street, saloon as side scenery, hitching rail, water-tower foundation.
-- Chunk B: General Store and Sheriff’s Office, boardwalk/bridge, trough and wagon staging.
-- Chunk C: depot/stable, climb to the upper district, Local Casino façade with restrained teal trim.
-- Four quiet ~80×80 px node-safe zones per chunk; route enters near bottom center (`top > 85%`) and exits near top center (`top < 20%`).
-- Progression overlays add route brands, lived-in props, district lights, then landmark completion. They never replace node lock/current/complete UI.
-- Casino Teal is trim only (under 3% of image area). Felt Green / Oxblood are runtime feedback, not scenery.
+| Day | Ivri (~2h) | Guy (~3.5h) |
+| --- | --- | --- |
+| 1 | Expo Upgrade: Execute the update from Expo 54 to Expo 57, resolve dependency breakages, and stabilize the dev environment. | Supabase Data Modeling: Design and implement the Supabase schema for the static curriculum (Pillars, Lessons, 7-spot structures, and constraint rules). |
+| 2 | Spot Engine (Backend): Scaffold the procedural engine structure (Python/treys/7eval) for dynamic generation. | Supabase Seeding & Queries: Write seed scripts to populate Supabase with the first static lessons. Write frontend fetch queries. |
+| 3 | Template 2 (UI): Build the frontend layout for "The Equity Scale." Scaffold the Outs Dial and basic rotation gesture mechanics in Expo. | Frontend API Wiring: Build the client-side services required to request and parse the new Spot Engine data, relieving Ivri of client-side data fetching. |
+| 4 | Spot Engine (Math): Program the engine to ingest hidden Elo and output generated poker scenarios that respect constraint boundaries. | World 2 Art Direction: Begin visual styling for World 2 ("A Local Casino" Light Mode). Translate the bright arcade neon aesthetic into NativeWind classes. |
+| 5 | Template 2 (Logic): Program the internal logic for the Equity Scale so the dial balances price-to-call against pot size and locks green on EV+. | World 2 Integration: Apply the new NativeWind skin to the app shell and Template 1 screens, ensuring the layout adapts correctly. |
 
-## 6. Acceptance
+## 5. Day-by-Day Plan — Week 2
 
-### Assets (runtime bundle)
+| Day | Ivri (~2h) | Guy (~3.5h) |
+| --- | --- | --- |
+| 6 | Spot Engine (Logic): Expose the engine via API and implement the replay logic (generating a brand-new hand within the same parameters after a burned chip). | World 2 Audio & Polish: Integrate the specific sensory design for World 2, such as cheerful token clinks and visual feedback cues. |
+| 7 | Engine Integration: Feed the live Spot Engine API outputs directly into the Equity Scale and validate the math rendering on the UI. | Logic Wiring: Connect the frontend Spot Engine queries to the progression UI (updating the Chip Stack and Elo penalty/reward loops). |
+| 8 | Progression Logic: Build backend routing for the "sandwich structure" (warm-up to final challenge) and the "remedial detour" branching. | End-to-End QA: Run through the full Supabase curriculum fetch → Spot Engine API request → Template 1 & 2 UI data flow. |
+| 9 | Debugging: Fix math/Elo generation bugs in the Spot Engine and gesture/locking bugs in the Equity Scale. | Visual/UX QA Pass: Test World 2 across devices. Fix layout bugs, styling inconsistencies, and check audio triggers. |
+| 10 | Final Review: Deploy backend updates, finalize the Expo build, and prep demo. | Final Polish: Capture demo assets and draft retro notes. |
 
-All files live under `my-expo-app/assets/themes/local-casino/` at **576×1024**:
+## 6. Definition of Done
 
-| Count | Filenames |
-| ----- | --------- |
-| 3 RGB JPEG bases | `map-chunk-a.jpg`, `map-chunk-b.jpg`, `map-chunk-c.jpg` |
-| 12 RGBA overlays | `map-progress-{a\|b\|c}-{1\|2\|3\|4}.png` |
-| 2 RGBA haze | `map-haze-left.png`, `map-haze-right.png` |
-| 1 grain | `map-film-grain.png` |
+- The project successfully runs on Expo 57 without critical dependency errors.
+- The Spot Engine generates unique hands procedurally via Python based on static constraints and user Elo, replacing Sprint 1's static data.
+- Template 2 ("The Equity Scale") is fully functional, complete with a working Outs Dial that accurately evaluates EV+.
+- The app features the visual styling and audio design of World 2 ("A Local Casino" - Light Mode).
+- Supabase hosts the static architecture for the 7-spot curriculum.
 
-Source masters are 1152×2048 or larger, Lanczos-downsampled, and stay **out of the Metro bundle** if their format is unsupported. JPEG quality starts at 86 and is visually confirmed at phone size.
+## 7. If You Fall Behind — Cut List
 
-### Commands
+If the team falls behind, specifically due to complexities in the Expo upgrade or Spot Engine math, drop these items in order:
 
-- `python my-expo-app/scripts/validate-local-casino-assets.py` (or `npm run assets:check:local-casino` from `my-expo-app`) — PASS once production assets exist; must fail with filename-specific errors when files are missing.
-- `npx vitest run lib/track/worldMapGeometry.test.ts lib/track/gardenMap.test.ts lib/track/localCasinoMap.test.ts lib/track/worldProgression.test.ts lib/track/tree.test.ts lib/track/mapPath.test.ts lib/track/fogCycle.test.ts` — PASS after those modules exist.
-- `npm test` and `npm run lint` from `my-expo-app` — PASS before calling the sprint done.
+1. World 2 Audio Design: Basic visual styling is required, but specific token clinks and advanced feedback cues can be deferred.
+2. "Remedial Detour" Routing: The branching logic for repeated failures can be cut; focus only on the main "sandwich structure" progression.
+3. Cross-device World 2 QA: Validate the new styling on one primary device/simulator only.
 
-Do not treat a full e2e suite as a gate for the docs/palette commits.
+Do not cut: The Expo 57 upgrade, the procedural generation capability of the Spot Engine, or the core EV+ math locking in the Equity Scale.
 
-### Phone QA (after art + runtime)
+## 8. Risks & Dependencies
 
-- Placement 1 still shows Benny’s Garden; placement 2 shows Local Casino with Level 2 progress.
-- Portrait widths 320 / 360 / 390 / 430 pt: path, landmarks, labels, and 44×44 pt targets remain readable.
-- Completed counts `0, 1, 4, 5, 8, 9, 12` reveal exactly the expected overlays.
-- Grain, dust, vignette, and flicker never cover labels, chip counts, or controls; reduced motion disables flicker.
-- World 3 stays an explicit unavailable state.
+- Expo Upgrade Instability: Upgrading from Expo 54 to 57 may introduce unexpected breaking changes in dependencies, particularly regarding navigation or gesture handlers used in Template 1.
+- Spot Engine Math Complexity: Developing the Python/treys/7eval engine to accurately balance user Elo against constraint rules is a heavy mathematical lift for Ivri's limited 2-hour daily window.
+- Frontend API Handoff: Guy is taking on more client-side API construction. Clear communication regarding the required JSON payloads between the Spot Engine (Ivri) and the frontend (Guy) is crucial.
 
-## 7. Definition of Done
+## 9. Sprint 3 Preview
 
-Canon and sprint docs agree: outdoor desert town, name **A Local Casino**, daytime first, interiors future-only. Approved daytime chunks and overlays pass the Asset Production Checklist and the Pillow validator. Placement 2 players walk the desert town with their own progress. Benny’s Garden is unchanged. Night mode and Level 2 lessons remain unbuilt.
+Following a successful Sprint 2, the architecture will be fully prepared to handle the remaining volume of content:
+
+- Development of Templates 3 and 5 (The Detective Board and Tag the Target) to support Level 3 curriculum.
+- World 3 ("A VIP Room" Light Mode) and the Dark Mode treatments for Worlds 1 and 2.
+- Deployment of the Python backend to a production environment (if not completed in Sprint 2).
+
+## 10. Sprint 1 Wrap-Up Context
+
+Sprint 1 successfully established the core foundation. The calibration engine routes users correctly, Template 1 functions, the hidden Elo updates, and the data flows through Supabase. We also implemented a functioning daily streak mechanic ahead of schedule. We did not finalize the EAS Build Deployment. Sprint 2 focuses on scaling this foundation dynamically.

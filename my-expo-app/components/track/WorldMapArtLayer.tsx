@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { worldMapChunkFrame, worldMapChunkImageSize } from '../../lib/track/tree';
 import { visibleProgressionLayers } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
 import { localCasinoMapTheme } from '../../theme/localCasinoMap';
@@ -81,12 +82,12 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.stack, { top, width, height }]}>
+      style={[styles.stack, worldMapChunkFrame(width, height, top)]}>
       <Image
         source={chunk.background}
         resizeMode="cover"
         accessible={false}
-        style={styles.fill}
+        style={[styles.fill, worldMapChunkImageSize(width, height)]}
       />
       {overlays.map((layer) => (
         <Image
@@ -94,7 +95,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
           source={layer.source}
           resizeMode="cover"
           accessible={false}
-          style={styles.fill}
+          style={[styles.fill, worldMapChunkImageSize(width, height)]}
         />
       ))}
       {film ? (
@@ -103,7 +104,11 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
             source={film.grain}
             resizeMode="cover"
             accessible={false}
-            style={[styles.fill, { opacity: localCasinoMapTheme.film.grainOpacity }]}
+            style={[
+              styles.fill,
+              worldMapChunkImageSize(width, height),
+              { opacity: localCasinoMapTheme.film.grainOpacity },
+            ]}
           />
           <View
             pointerEvents="none"
@@ -134,6 +139,7 @@ const styles = StyleSheet.create({
   stack: {
     position: 'absolute',
     left: 0,
+    overflow: 'hidden',
     zIndex: 0,
   },
   fill: {

@@ -275,6 +275,8 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: artStyle.colors.goldBright,
     borderColor: artStyle.colors.gold,
+    zIndex: 4,
+    elevation: 8,
   },
   backCapsuleCompact: {
     paddingHorizontal: 8,

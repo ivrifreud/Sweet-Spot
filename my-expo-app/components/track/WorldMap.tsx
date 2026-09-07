@@ -12,6 +12,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { FogPhase } from '../../lib/track/fogCycle';
+import {
+  fogCloudBox,
+  fogCloudLayout,
+  fogPartDrift,
+  fogPartTremble,
+} from '../../lib/track/fogCycle';
 import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT } from '../../lib/track/tree';
 import { shouldApplyFilmTreatment } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
@@ -33,18 +39,20 @@ type Props = {
 type FogProps = {
   width: number;
   height: number;
+  worldId: string;
   leftAsset: WorldMapAsset;
   rightAsset: WorldMapAsset;
   phase: FogPhase;
 };
 
-function FogOfWarClouds({ width, height, leftAsset, rightAsset, phase }: FogProps) {
+function FogOfWarClouds({ width, height, worldId, leftAsset, rightAsset, phase }: FogProps) {
   const reducedMotion = useReducedMotion();
   const reveal = useSharedValue(phase === 'closed' ? 0 : 1);
   const mounted = useRef(false);
-  const cloudWidth = width * 0.53;
-  const leftHeight = cloudWidth / leftAsset.aspectRatio;
-  const rightHeight = cloudWidth / rightAsset.aspectRatio;
+  const layout = fogCloudLayout(worldId);
+  const map = { width, height };
+  const leftBox = fogCloudBox('left', map, leftAsset.aspectRatio, layout);
+  const rightBox = fogCloudBox('right', map, rightAsset.aspectRatio, layout);
 
   useEffect(() => {
     cancelAnimation(reveal);
@@ -56,18 +64,34 @@ function FogOfWarClouds({ width, height, leftAsset, rightAsset, phase }: FogProp
     }
     reveal.value = withTiming(target, {
       duration: FOG_PART_MS,
-      easing: Easing.inOut(Easing.cubic),
+      easing: Easing.bezier(0.22, 0.68, 0.28, 1),
     });
   }, [phase, reducedMotion, reveal]);
 
-  const leftStyle = useAnimatedStyle(() => ({
-    opacity: 1 - reveal.value * 0.12,
-    transform: [{ translateX: -reveal.value * width * 0.92 }, { scale: 1 + reveal.value * 0.04 }],
-  }));
-  const rightStyle = useAnimatedStyle(() => ({
-    opacity: 1 - reveal.value * 0.12,
-    transform: [{ translateX: reveal.value * width * 0.92 }, { scale: 1 + reveal.value * 0.04 }],
-  }));
+  const leftStyle = useAnimatedStyle(() => {
+    const tremble = fogPartTremble(reveal.value, 'left');
+    const drift = fogPartDrift(reveal.value);
+    return {
+      opacity: 1 - drift * 0.2,
+      transform: [
+        { translateX: drift * width * layout.partLeftFraction + tremble.x * width },
+        { translateY: tremble.y * 18 },
+        { rotate: `${tremble.rotate}deg` },
+      ],
+    };
+  });
+  const rightStyle = useAnimatedStyle(() => {
+    const tremble = fogPartTremble(reveal.value, 'right');
+    const drift = fogPartDrift(reveal.value);
+    return {
+      opacity: 1 - drift * 0.2,
+      transform: [
+        { translateX: drift * width * layout.partRightFraction + tremble.x * width },
+        { translateY: tremble.y * 18 },
+        { rotate: `${tremble.rotate}deg` },
+      ],
+    };
+  });
 
   return (
     <View
@@ -83,10 +107,10 @@ function FogOfWarClouds({ width, height, leftAsset, rightAsset, phase }: FogProp
           style={[
             styles.cloud,
             {
-              left: -width * 0.03,
-              top: -height * 0.12,
-              width: cloudWidth,
-              height: leftHeight,
+              left: leftBox.left,
+              top: leftBox.top,
+              width: leftBox.width,
+              height: leftBox.height,
               aspectRatio: leftAsset.aspectRatio,
             },
           ]}
@@ -100,10 +124,10 @@ function FogOfWarClouds({ width, height, leftAsset, rightAsset, phase }: FogProp
           style={[
             styles.cloud,
             {
-              right: -width * 0.03,
-              top: -height * 0.11,
-              width: cloudWidth,
-              height: rightHeight,
+              right: rightBox.right,
+              top: rightBox.top,
+              width: rightBox.width,
+              height: rightBox.height,
               aspectRatio: rightAsset.aspectRatio,
             },
           ]}
@@ -199,6 +223,7 @@ export function WorldMap({
       <FogOfWarClouds
         width={width}
         height={height}
+        worldId={world.id}
         leftAsset={world.fogAssets.left}
         rightAsset={world.fogAssets.right}
         phase={fogPhase}
@@ -236,7 +261,8 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   fog: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
     zIndex: 20,
   },
   cloudLayer: {

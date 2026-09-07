@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   currentWorldIdForPlacement,
+  nextDevPreviewWorld,
   openStageProgressArgs,
   worldForPlacement,
 } from './worldForPlacement';
@@ -52,5 +53,12 @@ describe('openStageProgressArgs', () => {
       level: 3,
       stageNumber: 2,
     });
+  });
+});
+
+describe('nextDevPreviewWorld', () => {
+  it('toggles the devops map preview between Benny’s Garden and A Local Casino', () => {
+    expect(nextDevPreviewWorld('bennys-garden')).toBe('local-casino');
+    expect(nextDevPreviewWorld('local-casino')).toBe('bennys-garden');
   });
 });

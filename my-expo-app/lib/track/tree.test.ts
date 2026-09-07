@@ -8,6 +8,8 @@ import {
   currentStageNumber,
   shouldAutoWalkOnFocus,
   fitMap,
+  worldMapChunkFrame,
+  worldMapChunkImageSize,
   flattenMapChunks,
   levelMarkers,
   lockReason,
@@ -148,5 +150,19 @@ describe('shouldAutoWalkOnFocus', () => {
     expect(shouldAutoWalkOnFocus(1, 0, 12)).toBeNull();
     expect(shouldAutoWalkOnFocus(12, 12, 12)).toBeNull();
     expect(shouldAutoWalkOnFocus(2, 1, 12)).toBeNull();
+  });
+});
+
+describe('worldMapChunkFrame', () => {
+  it('clips each 9:16 tile so a 1024px bitmap cannot paint into the next chunk', () => {
+    const chunkHeight = 679;
+    const frame = worldMapChunkFrame(382, chunkHeight, chunkHeight * 2);
+    expect(frame.height).toBe(chunkHeight);
+    expect(frame.overflow).toBe('hidden');
+    expect(frame.top + frame.height).toBe(chunkHeight * 3);
+  });
+
+  it('sizes the bitmap to the tile instead of the JPEG intrinsic height', () => {
+    expect(worldMapChunkImageSize(382, 679)).toEqual({ width: 382, height: 679 });
   });
 });
