@@ -1,0 +1,173 @@
+import type { CalibrationSpot } from '../calibration/types';
+import type { EquityScaleSpot } from '../../src/features/templates/equity-scale';
+import { validateEquitySpot } from '../../src/features/templates/equity-scale/equityMath';
+
+export type EquityScaleDemoSpot = {
+  grading: CalibrationSpot;
+  table: EquityScaleSpot;
+};
+
+const authored: EquityScaleDemoSpot[] = [
+  {
+    grading: {
+      id: '33333333-3333-4333-8333-333333333301',
+      spotType: 'level1_stage1',
+      sequenceOrder: 1,
+      heroPosition: 'BTN',
+      holeCards: ['Ah', '5h'],
+      board: ['Kh', '9h', '2c', '7d'],
+      potSize: 20,
+      villainAction: 'BB bets 4bb',
+      prompt: 'Nine hearts give about 20% equity. You need 17%, so the call earns chips.',
+      correctAnswer: 'call',
+      isCatastrophicIfWrong: false,
+    },
+    table: {
+      id: '33333333-3333-4333-8333-333333333301',
+      templateId: 2,
+      pillar: 2,
+      skin: 'garden',
+      heroCards: ['Ah', '5h'],
+      board: ['Kh', '9h', '2c', '7d'],
+      position: 'BTN',
+      actionLine: 'BB bets 4bb',
+      street: 'turn',
+      potBeforeCall: 20,
+      priceToCall: 4,
+      correctOuts: 9,
+      correctDecision: 'call',
+      takeaway: 'Nine hearts give about 20% equity. You need 17%, so the call earns chips.',
+    },
+  },
+  {
+    grading: {
+      id: '33333333-3333-4333-8333-333333333302',
+      spotType: 'level1_stage1',
+      sequenceOrder: 2,
+      heroPosition: 'CO',
+      holeCards: ['8s', '7s'],
+      board: ['6s', '5d', 'Kc'],
+      potSize: 18,
+      villainAction: 'BB bets 8bb',
+      prompt:
+        'Eight straight outs hit by the river about 31%. The price needs 31%, making this barely profitable.',
+      correctAnswer: 'call',
+      isCatastrophicIfWrong: false,
+    },
+    table: {
+      id: '33333333-3333-4333-8333-333333333302',
+      templateId: 2,
+      pillar: 2,
+      skin: 'garden',
+      heroCards: ['8s', '7s'],
+      board: ['6s', '5d', 'Kc'],
+      position: 'CO',
+      actionLine: 'BB bets 8bb',
+      street: 'flop',
+      potBeforeCall: 18,
+      priceToCall: 8,
+      correctOuts: 8,
+      correctDecision: 'call',
+      takeaway:
+        'Eight straight outs hit by the river about 31%. The price needs 31%, making this barely profitable.',
+    },
+  },
+  {
+    grading: {
+      id: '33333333-3333-4333-8333-333333333303',
+      spotType: 'level1_stage1',
+      sequenceOrder: 3,
+      heroPosition: 'BB',
+      holeCards: ['Qh', 'Jh'],
+      board: ['Ah', '7h', '2c', '9d'],
+      potSize: 18,
+      villainAction: 'BTN bets 10bb',
+      prompt: 'Nine hearts give about 20% equity, but this price demands 36%. Fold the draw.',
+      correctAnswer: 'fold',
+      isCatastrophicIfWrong: true,
+    },
+    table: {
+      id: '33333333-3333-4333-8333-333333333303',
+      templateId: 2,
+      pillar: 2,
+      skin: 'garden',
+      heroCards: ['Qh', 'Jh'],
+      board: ['Ah', '7h', '2c', '9d'],
+      position: 'BB',
+      actionLine: 'BTN bets 10bb',
+      street: 'turn',
+      potBeforeCall: 18,
+      priceToCall: 10,
+      correctOuts: 9,
+      correctDecision: 'fold',
+      takeaway: 'Nine hearts give about 20% equity, but this price demands 36%. Fold the draw.',
+    },
+  },
+  {
+    grading: {
+      id: '33333333-3333-4333-8333-333333333304',
+      spotType: 'level1_stage1',
+      sequenceOrder: 4,
+      heroPosition: 'SB',
+      holeCards: ['8c', '7c'],
+      board: ['6d', '5h', 'Ks', '2c'],
+      potSize: 30,
+      villainAction: 'BTN bets 5bb',
+      prompt: 'Eight straight outs give 17% equity. The small price asks for only 14%.',
+      correctAnswer: 'call',
+      isCatastrophicIfWrong: false,
+    },
+    table: {
+      id: '33333333-3333-4333-8333-333333333304',
+      templateId: 2,
+      pillar: 2,
+      skin: 'garden',
+      heroCards: ['8c', '7c'],
+      board: ['6d', '5h', 'Ks', '2c'],
+      position: 'SB',
+      actionLine: 'BTN bets 5bb',
+      street: 'turn',
+      potBeforeCall: 30,
+      priceToCall: 5,
+      correctOuts: 8,
+      correctDecision: 'call',
+      takeaway: 'Eight straight outs give 17% equity. The small price asks for only 14%.',
+    },
+  },
+  {
+    grading: {
+      id: '33333333-3333-4333-8333-333333333305',
+      spotType: 'level1_stage1',
+      sequenceOrder: 5,
+      heroPosition: 'UTG',
+      holeCards: ['Ad', 'Qd'],
+      board: ['Jd', '8d', '2s'],
+      potSize: 12,
+      villainAction: 'CO bets 8bb',
+      prompt: 'Nine diamond outs hit by the river about 35%. This price needs 40%, above the draw.',
+      correctAnswer: 'fold',
+      isCatastrophicIfWrong: true,
+    },
+    table: {
+      id: '33333333-3333-4333-8333-333333333305',
+      templateId: 2,
+      pillar: 2,
+      skin: 'garden',
+      heroCards: ['Ad', 'Qd'],
+      board: ['Jd', '8d', '2s'],
+      position: 'UTG',
+      actionLine: 'CO bets 8bb',
+      street: 'flop',
+      potBeforeCall: 12,
+      priceToCall: 8,
+      correctOuts: 9,
+      correctDecision: 'fold',
+      takeaway:
+        'Nine diamond outs hit by the river about 35%. This price needs 40%, above the draw.',
+    },
+  },
+];
+
+authored.forEach(({ table }) => validateEquitySpot(table));
+
+export const EQUITY_SCALE_DEMO_SPOTS: readonly EquityScaleDemoSpot[] = authored;

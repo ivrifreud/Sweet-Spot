@@ -19,8 +19,12 @@ import {
   type DecisionFeedbackCopy,
   type FeedbackTempo,
 } from '../src/features/decision-feedback';
-import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
+import type {
+  EquityDecision,
+  EquityScaleSubmission,
+} from '../src/features/templates/equity-scale/types';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { StageTemplateRenderer } from '../src/features/templates/StageTemplateRenderer';
 import { artStyle } from '../theme/artStyle';
 
 export type StagePlayResolved = {
@@ -53,7 +57,7 @@ type Pending = {
   tempo: FeedbackTempo;
 };
 
-function tempoForDecision(decision: SpotDecision): FeedbackTempo {
+function tempoForDecision(decision: SpotDecision | EquityDecision): FeedbackTempo {
   if (decision === 'fold') return 'fold';
   if (decision === 'raise') return 'raise';
   return 'default';
@@ -83,6 +87,8 @@ export function StagePlayScreen({
   const [busy, setBusy] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [feedback, setFeedback] = useState<Pending | null>(null);
+  const [pendingFeedback, setPendingFeedback] = useState<Pending | null>(null);
+  const [equityOutcome, setEquityOutcome] = useState<'correct' | 'incorrect' | null>(null);
   const [settled, setSettled] = useState<boolean | null>(null);
   const [stageComplete, setStageComplete] = useState(
     () => initialSpotsCompleted >= SPOTS_PER_STAGE
@@ -95,6 +101,7 @@ export function StagePlayScreen({
   const [showStreak, setShowStreak] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror authoritative parent state
     setHudChips(remainingChips);
     setLockedOut(remainingChips === 0);
   }, [remainingChips]);
@@ -105,12 +112,12 @@ export function StagePlayScreen({
     return () => clearInterval(id);
   }, [feedback, hudChips, regenAt]);
 
-  const calibration = bundle.calibration[spotIndex]!;
-  const table = bundle.tables[spotIndex]!;
+  const item = bundle.items[spotIndex]!;
+  const calibration = item.grading;
 
   const handleDecision = useCallback(
-    (decision: SpotDecision) => {
-      if (busy || feedback) return;
+    (decision: SpotDecision | EquityDecision, equity?: EquityScaleSubmission) => {
+      if (busy || feedback || pendingFeedback) return;
       const chosen = pokerActionForDecision(decision, calibration);
       const live =
         Boolean(stageProgressId) && stageNumber === 1 && calibration.spotType === 'level1_stage1';
@@ -132,6 +139,7 @@ export function StagePlayScreen({
               stageProgressId,
               spotId: calibration.id,
               chosenAnswer: chosen,
+              answerMetadata: equity ? { selectedOuts: equity.selectedOuts } : undefined,
             });
             correct = result.isCorrect;
             nextChips = result.chips;
@@ -184,21 +192,30 @@ export function StagePlayScreen({
           setStageComplete(progress.stageComplete);
 
           const lastHand = progress.stageComplete || nextLockedOut;
-          const copy = buildDecisionFeedbackCopy({
-            correct,
-            chosen,
-            correctAnswer: calibration.correctAnswer,
-            lesson: calibration.prompt,
-            continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
-          });
-          setSettled(correct);
-          setFeedback({
-            copy,
+          const selectedOutsLesson = equity
+            ? `${calibration.prompt} You dialed ${equity.selectedOuts} outs.`
+            : calibration.prompt;
+          const nextFeedback = {
+            copy: buildDecisionFeedbackCopy({
+              correct,
+              chosen,
+              correctAnswer: calibration.correctAnswer,
+              lesson: selectedOutsLesson,
+              continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
+            }),
             key: `${calibration.id}-${chosen}-${Date.now()}`,
             tempo: tempoForDecision(decision),
-          });
+          };
+          setSettled(correct);
+          if (item.templateId === 2) {
+            setPendingFeedback(nextFeedback);
+            setEquityOutcome(correct ? 'correct' : 'incorrect');
+          } else {
+            setFeedback(nextFeedback);
+          }
         } catch (err) {
           setPlayError(err instanceof Error ? err.message : 'Could not save that hand');
+          setResetKey((value) => value + 1);
         } finally {
           setBusy(false);
         }
@@ -208,7 +225,9 @@ export function StagePlayScreen({
       busy,
       calibration,
       feedback,
+      item.templateId,
       onResolved,
+      pendingFeedback,
       remainingChips,
       regenAt,
       spotsCompleted,
@@ -220,6 +239,8 @@ export function StagePlayScreen({
   const continueAfterFeedback = useCallback(() => {
     if (!feedback) return;
     setFeedback(null);
+    setPendingFeedback(null);
+    setEquityOutcome(null);
     setSettled(null);
     if (stageComplete || lockedOut) {
       onBack();
@@ -235,11 +256,15 @@ export function StagePlayScreen({
       restartKey={feedback?.key}
       tempo={feedback?.tempo ?? 'default'}
       style={styles.root}>
-      <PeekAndPitchTemplate
-        spot={table}
-        onDecision={(decision) => handleDecision(decision)}
-        showAuthoringControls={false}
-        showNextHandControl={false}
+      <StageTemplateRenderer
+        item={item}
+        outcome={equityOutcome}
+        onPeekDecision={(decision) => handleDecision(decision)}
+        onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
+        onOutcomeAnimationComplete={() => {
+          if (!pendingFeedback) return;
+          setFeedback(pendingFeedback);
+        }}
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
       />
