@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Image, StyleSheet, Text, View, type ImageStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -10,21 +10,27 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { parseCard, type HoleCardCodes } from '@/lib/cards';
-
 import { artStyle } from '../../../../../theme/artStyle';
 import { ChipSprite } from '../../peek-and-pitch/components/ChipSprite';
-import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
+import { CARD_ASPECT, CardBack } from '../../peek-and-pitch/components/PlayingCard';
 import type { DecisionOutcome } from '../../../decision-feedback/types';
-import { equityScaleArt } from '../equityScaleArt';
+import { ScaleBeam, ScaleLyre, ScalePlate, ScaleStand } from './ScaleRig';
+import { SCALE_RIG } from './scaleRigArt';
 
 type Props = {
   tilt: number;
   outcome: DecisionOutcome | null;
-  heroCards: HoleCardCodes;
 };
 
-export function ScaleScene({ tilt, outcome, heroCards }: Props) {
+const DECK_COUNT = 16;
+const DECK_CARD_WIDTH = 52;
+const DECK_EDGE = 2.4;
+const DECK_CARD_HEIGHT = DECK_CARD_WIDTH * CARD_ASPECT;
+const DECK_STACK_HEIGHT = DECK_CARD_HEIGHT + (DECK_COUNT - 1) * DECK_EDGE;
+/** Pitch the pile onto the plate: 0 is standing, 90 is fully flat. */
+const DECK_ROTATE_X = 68;
+
+export function ScaleScene({ tilt, outcome }: Props) {
   const reducedMotion = useReducedMotion();
   const beamAngle = useSharedValue(tilt);
   const outcomeProgress = useSharedValue(0);
@@ -70,7 +76,7 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
       },
     ],
   }));
-  const leftPanStyle = useAnimatedStyle(() => {
+  const leftPlateStyle = useAnimatedStyle(() => {
     const fall =
       outcome === 'incorrect' && !reducedMotion
         ? Math.max(0, (outcomeProgress.value - 0.34) / 0.66)
@@ -84,7 +90,7 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
       opacity: interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
     };
   });
-  const rightPanStyle = useAnimatedStyle(() => {
+  const rightPlateStyle = useAnimatedStyle(() => {
     const fall =
       outcome === 'incorrect' && !reducedMotion
         ? Math.max(0, (outcomeProgress.value - 0.34) / 0.66)
@@ -98,7 +104,7 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
       opacity: interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
     };
   });
-  const pitStyle = useAnimatedStyle<ImageStyle>(() => ({
+  const pitStyle = useAnimatedStyle<ViewStyle>(() => ({
     opacity:
       outcome === 'incorrect'
         ? reducedMotion
@@ -106,7 +112,7 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
           : interpolate(outcomeProgress.value, [0, 0.2, 0.32], [0, 0, 1])
         : 0,
   }));
-  const hatchStyle = useAnimatedStyle<ImageStyle>(() => ({
+  const hatchStyle = useAnimatedStyle<ViewStyle>(() => ({
     opacity:
       outcome === 'incorrect' ? interpolate(outcomeProgress.value, [0, 0.2, 0.32], [1, 1, 0]) : 1,
   }));
@@ -137,39 +143,15 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
     };
   });
 
-  const signal =
-    outcome === 'correct'
-      ? artStyle.colors.feltGreen
-      : outcome === 'incorrect'
-        ? artStyle.colors.oxblood
-        : null;
-
   return (
     <Animated.View style={[styles.scene, sceneStyle]} pointerEvents="none">
-      {(['left', 'right'] as const).map((side) => (
-        <View
-          key={side}
-          style={[styles.pitSlot, side === 'left' ? styles.pitLeft : styles.pitRight]}>
-          <Animated.Image
-            source={equityScaleArt.hatchClosed}
-            resizeMode="contain"
-            style={[styles.pitArt, hatchStyle]}
-          />
-          <Animated.Image
-            source={equityScaleArt.pitOpen}
-            resizeMode="contain"
-            style={[styles.pitArt, styles.pitOpen, pitStyle]}
-          />
-        </View>
-      ))}
-
-      <Image source={equityScaleArt.base} resizeMode="contain" style={styles.base} />
+      <ScaleLyre />
 
       <Animated.View style={[styles.beamGroup, beamStyle]}>
-        <Image source={equityScaleArt.beam} resizeMode="contain" style={styles.beam} />
+        <ScaleBeam />
 
-        <Animated.View style={[styles.leftPan, leftPanStyle]}>
-          <Image source={equityScaleArt.pan} resizeMode="contain" style={styles.pan} />
+        <Animated.View style={[styles.leftPlate, leftPlateStyle]}>
+          <ScalePlate />
           <Animated.View style={[styles.chips, leftPayloadStyle]}>
             {[0, 1, 2, 3, 4].map((id) => (
               <ChipSprite
@@ -183,166 +165,194 @@ export function ScaleScene({ tilt, outcome, heroCards }: Props) {
           </Animated.View>
         </Animated.View>
 
-        <Animated.View style={[styles.rightPan, rightPanStyle]}>
-          <Image source={equityScaleArt.pan} resizeMode="contain" style={styles.pan} />
-          <Animated.View style={[styles.cards, rightPayloadStyle]}>
-            <CardFace card={parseCard(heroCards[0])} width={37} />
-            <View style={styles.secondCard}>
-              <CardFace card={parseCard(heroCards[1])} width={37} />
-            </View>
+        <Animated.View style={[styles.rightPlate, rightPlateStyle]}>
+          <ScalePlate />
+          <Animated.View
+            style={[
+              styles.cards,
+              { top: SCALE_RIG.plateFloorY - DECK_STACK_HEIGHT },
+              rightPayloadStyle,
+            ]}>
+            <FaceDownDeck />
           </Animated.View>
         </Animated.View>
       </Animated.View>
 
-      <View style={styles.signalRow}>
-        <SignalBulb
-          label="EV+"
-          active={signal === artStyle.colors.feltGreen}
-          color={artStyle.colors.feltGreen}
-        />
-        <SignalBulb
-          label="MISS"
-          active={signal === artStyle.colors.oxblood}
-          color={artStyle.colors.oxblood}
-        />
-      </View>
+      <ScaleStand />
+
+      {(['left', 'right'] as const).map((side) => (
+        <View
+          key={side}
+          style={[styles.pitSlot, side === 'left' ? styles.pitLeft : styles.pitRight]}>
+          <Animated.View style={[styles.pitFace, hatchStyle]}>
+            <View style={styles.hatchBoard}>
+              <View style={styles.hatchLip} />
+              <View style={styles.hatchGrain} />
+              <View style={[styles.hatchGrain, styles.hatchGrainMid]} />
+              <View style={[styles.hatchGrain, styles.hatchGrainLow]} />
+            </View>
+          </Animated.View>
+          <Animated.View style={[styles.pitFace, styles.pitOpen, pitStyle]}>
+            <View style={styles.pitRim}>
+              <View style={styles.pitVoid} />
+            </View>
+          </Animated.View>
+        </View>
+      ))}
     </Animated.View>
   );
 }
 
-function SignalBulb({ label, active, color }: { label: string; active: boolean; color: string }) {
+function FaceDownDeck() {
   return (
-    <View style={styles.signal}>
-      <View style={styles.bulbWrap}>
-        <Image source={equityScaleArt.bulbOff} resizeMode="contain" style={styles.bulb} />
-        {active ? (
-          <View style={[styles.bulbGlow, { backgroundColor: color, shadowColor: color }]} />
-        ) : null}
-      </View>
-      <Text style={styles.signalLabel}>{label}</Text>
+    <View
+      accessibilityLabel="Face-down card stack"
+      style={[
+        styles.deck,
+        {
+          height: DECK_STACK_HEIGHT + 7,
+          width: DECK_CARD_WIDTH + 8,
+          transform: [{ perspective: 480 }, { rotateX: `${DECK_ROTATE_X}deg` }],
+        },
+      ]}>
+      {Array.from({ length: DECK_COUNT }, (_, id) => (
+        <View
+          key={id}
+          style={[
+            styles.deckCard,
+            {
+              bottom: id * DECK_EDGE,
+              transform: [{ translateX: ((id % 3) - 1) * 0.8 }],
+              zIndex: id,
+            },
+          ]}>
+          <CardBack width={DECK_CARD_WIDTH} />
+        </View>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   scene: {
-    width: 390,
-    height: 338,
+    width: SCALE_RIG.scene,
+    height: SCALE_RIG.scene,
     alignSelf: 'center',
   },
-  base: {
-    position: 'absolute',
-    width: 292,
-    height: 186,
-    left: 49,
-    top: 117,
-  },
+  /** Centred on the pivot screw, so rotating this group swings the beam about it. */
   beamGroup: {
     position: 'absolute',
-    width: 374,
-    height: 116,
-    left: 8,
-    top: 74,
+    left: SCALE_RIG.beam.left,
+    top: SCALE_RIG.beam.top,
+    width: SCALE_RIG.beam.width,
+    height: SCALE_RIG.beam.height,
   },
-  beam: {
-    width: 374,
-    height: 91,
-  },
-  pan: {
-    width: 126,
-    height: 63,
-  },
-  leftPan: {
+  leftPlate: {
     position: 'absolute',
-    left: -4,
-    top: 64,
-    width: 126,
-    height: 84,
+    left: SCALE_RIG.plate.leftOffset,
+    top: SCALE_RIG.plate.top,
+    width: SCALE_RIG.plate.width,
+    height: SCALE_RIG.plate.height,
     alignItems: 'center',
   },
-  rightPan: {
+  rightPlate: {
     position: 'absolute',
-    right: -4,
-    top: 64,
-    width: 126,
-    height: 84,
+    left: SCALE_RIG.plate.rightOffset,
+    top: SCALE_RIG.plate.top,
+    width: SCALE_RIG.plate.width,
+    height: SCALE_RIG.plate.height,
     alignItems: 'center',
   },
   chips: {
     position: 'absolute',
-    top: -4,
+    top: SCALE_RIG.plateFloorY - 27,
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
   cards: {
     position: 'absolute',
-    top: -18,
-    flexDirection: 'row',
-    transform: [{ rotate: '82deg' }, { scale: 0.76 }],
+    alignItems: 'center',
   },
-  secondCard: {
-    marginLeft: -20,
-    marginTop: 4,
+  deck: {
+    alignItems: 'center',
+    transformOrigin: '50% 100%',
+  },
+  deckCard: {
+    position: 'absolute',
+    left: 2,
+    shadowColor: artStyle.colors.projectorBlack,
+    shadowOpacity: 0.28,
+    shadowRadius: 1,
+    shadowOffset: { width: 0, height: 1 },
   },
   pitSlot: {
     position: 'absolute',
-    width: 128,
-    height: 62,
-    top: 270,
+    width: 118,
+    height: 48,
+    top: 332,
+    zIndex: 4,
   },
   pitLeft: {
-    left: 1,
+    left: 12,
   },
   pitRight: {
-    right: 1,
+    right: 12,
   },
-  pitArt: {
+  pitFace: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
     bottom: 0,
-    width: 128,
-    height: 62,
   },
   pitOpen: {
     zIndex: 2,
   },
-  signalRow: {
+  hatchBoard: {
+    flex: 1,
+    borderRadius: 6,
+    backgroundColor: artStyle.colors.tobacco,
+    borderWidth: 2,
+    borderColor: artStyle.colors.projectorBlack,
+    overflow: 'hidden',
+  },
+  hatchLip: {
+    height: 8,
+    backgroundColor: artStyle.colors.cream,
+    borderBottomWidth: 2,
+    borderBottomColor: artStyle.colors.projectorBlack,
+    opacity: 0.22,
+  },
+  hatchGrain: {
     position: 'absolute',
-    left: 142,
-    right: 142,
-    top: 242,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    left: 18,
+    right: 18,
+    top: 18,
+    height: 2,
+    backgroundColor: artStyle.colors.projectorBlack,
+    opacity: 0.28,
   },
-  signal: {
-    alignItems: 'center',
+  hatchGrainMid: {
+    top: 26,
+    left: 28,
+    right: 24,
   },
-  bulbWrap: {
-    width: 35,
-    height: 49,
-    alignItems: 'center',
-    justifyContent: 'center',
+  hatchGrainLow: {
+    top: 34,
+    left: 22,
+    right: 32,
   },
-  bulb: {
-    width: 35,
-    height: 49,
+  pitRim: {
+    flex: 1,
+    borderRadius: 6,
+    padding: 8,
+    backgroundColor: artStyle.colors.tobacco,
+    borderWidth: 2,
+    borderColor: artStyle.colors.projectorBlack,
   },
-  bulbGlow: {
-    position: 'absolute',
-    width: 22,
-    height: 28,
-    top: 3,
-    borderRadius: 13,
-    opacity: 0.78,
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-  },
-  signalLabel: {
-    color: artStyle.colors.cream,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+  pitVoid: {
+    flex: 1,
+    borderRadius: 3,
+    backgroundColor: artStyle.colors.projectorBlack,
   },
 });

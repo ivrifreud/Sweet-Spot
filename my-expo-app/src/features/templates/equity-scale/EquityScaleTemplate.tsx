@@ -3,7 +3,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -17,12 +17,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
-import { TableScene } from '../peek-and-pitch/components/TableScene';
 import { DEFAULT_EQUITY_SPOT, OUTCOME_ANIMATION_MS, REDUCED_OUTCOME_MS } from './config';
 import { scaleTilt } from './dialMath';
 import { equityScaleArt } from './equityScaleArt';
 import { percent, requiredEquity } from './equityMath';
 import { EQUITY_STRINGS } from './strings';
+import { HeroChipStack } from './components/HeroChipStack';
+import { HeroHoleCards } from './components/HeroHoleCards';
 import { OutsDial } from './components/OutsDial';
 import { ScaleScene } from './components/ScaleScene';
 import type {
@@ -50,7 +51,6 @@ export function EquityScaleTemplate({
   onOutcomeAnimationComplete,
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const [selectedOuts, setSelectedOuts] = useState(8);
@@ -136,11 +136,6 @@ export function EquityScaleTemplate({
 
   return (
     <View style={styles.root}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <TableScene skin={spot.skin} width={width} height={height} />
-        <View style={styles.scrim} />
-      </View>
-
       <View style={[styles.header, { top: insets.top + 64 }]}>
         <View>
           <Text style={[styles.title, display]}>{EQUITY_STRINGS.title}</Text>
@@ -157,11 +152,14 @@ export function EquityScaleTemplate({
         <ValuePlate label={EQUITY_STRINGS.callLabel} value={`${spot.priceToCall}bb`} />
       </View>
 
-      <View style={[styles.scaleWrap, { top: insets.top + 156 }]}>
-        <ScaleScene tilt={tilt} outcome={activeOutcome} heroCards={spot.heroCards} />
+      <View style={[styles.scaleWrap, { top: insets.top + 108 }]}>
+        <ScaleScene tilt={tilt} outcome={activeOutcome} />
       </View>
 
-      <View style={[styles.dialWrap, { bottom: insets.bottom + 83 }]}>
+      <HeroChipStack bottom={insets.bottom + 8} />
+      <HeroHoleCards cards={spot.heroCards} bottom={insets.bottom + 8} />
+
+      <View style={[styles.dialWrap, { bottom: insets.bottom + 52 }]}>
         <Text style={styles.instruction}>{EQUITY_STRINGS.instruction}</Text>
         <OutsDial
           value={selectedOuts}
@@ -172,17 +170,18 @@ export function EquityScaleTemplate({
         />
       </View>
 
-      <View style={[styles.actions, { bottom: insets.bottom + 18 }]}>
+      <View style={[styles.actions, { bottom: insets.bottom + 116 }]}>
         <DecisionButton
-          label={EQUITY_STRINGS.fold}
-          decision="fold"
+          label={EQUITY_STRINGS.call}
+          decision="call"
           enabled={live}
           onPress={submit}
           display={display}
         />
+        <View pointerEvents="none" style={styles.dialClearance} />
         <DecisionButton
-          label={EQUITY_STRINGS.call}
-          decision="call"
+          label={EQUITY_STRINGS.fold}
+          decision="fold"
           enabled={live}
           onPress={submit}
           display={display}
@@ -225,6 +224,8 @@ function ValuePlate({ label, value }: { label: string; value: string }) {
   );
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 function DecisionButton({
   label,
   decision,
@@ -238,20 +239,42 @@ function DecisionButton({
   onPress: (decision: EquityDecision) => void;
   display: object | null;
 }) {
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const pressIn = () => {
+    if (!enabled) return;
+    scale.value = reducedMotion ? 0.96 : withTiming(0.96, { duration: 100 });
+  };
+
+  const pressOut = () => {
+    scale.value = reducedMotion
+      ? 1
+      : withSequence(
+          withTiming(1.04, { duration: 90 }),
+          withTiming(1, { duration: 110, easing: Easing.out(Easing.cubic) })
+        );
+  };
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={`${label.toLowerCase()} and lock in`}
       disabled={!enabled}
       onPress={() => onPress(decision)}
-      style={({ pressed }) => [
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      style={[
         styles.actionButton,
         decision === 'call' ? styles.callButton : styles.foldButton,
         !enabled && styles.actionDisabled,
-        pressed && enabled && styles.actionPressed,
+        pressStyle,
       ]}>
       <Text style={[styles.actionText, display]}>{label}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -260,14 +283,6 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     backgroundColor: artStyle.colors.projectorBlack,
-  },
-  scrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(17,23,20,0.48)',
   },
   header: {
     position: 'absolute',
@@ -344,6 +359,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 45,
+    overflow: 'visible',
   },
   instruction: {
     color: artStyle.colors.cream,
@@ -352,42 +368,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     width: 290,
-    marginBottom: -2,
+    marginBottom: 4,
+    zIndex: 6,
   },
   actions: {
     position: 'absolute',
-    left: 18,
-    right: 18,
+    left: 10,
+    right: 10,
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     zIndex: 50,
   },
-  actionButton: {
+  dialClearance: {
     flex: 1,
-    minHeight: 54,
-    borderRadius: 16,
+    minWidth: 132,
+    height: 1,
+  },
+  actionButton: {
+    width: 104,
+    minHeight: 64,
+    paddingHorizontal: 8,
+    borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#171713',
+    borderColor: artStyle.colors.projectorBlack,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  foldButton: {
-    backgroundColor: artStyle.colors.tobacco,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.78,
+    shadowRadius: 12,
+    elevation: 8,
   },
   callButton: {
-    backgroundColor: artStyle.colors.goldBright,
+    backgroundColor: artStyle.colors.feltGreen,
+    shadowColor: artStyle.colors.feltGreen,
+  },
+  foldButton: {
+    backgroundColor: artStyle.colors.oxblood,
+    shadowColor: artStyle.colors.oxblood,
   },
   actionDisabled: {
     opacity: 0.48,
   },
-  actionPressed: {
-    transform: [{ scale: 0.96 }],
-  },
   actionText: {
-    color: '#171713',
-    fontSize: 27,
-    letterSpacing: 1.8,
+    color: artStyle.colors.cream,
+    fontSize: 32,
+    letterSpacing: 2.2,
     fontWeight: '900',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 0,
   },
   status: {
     position: 'absolute',
