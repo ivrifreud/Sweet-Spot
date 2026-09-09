@@ -1,8 +1,9 @@
 """Generate transparent, layered Equity Scale production sprites.
 
 The supplied JPG sheets are composition references only. These sprites are
-purpose-built with stable pivots and no baked labels so React Native can animate
-the beam, pans, hatches, dial, lamps, and glove poses independently.
+purpose-built with no baked labels so React Native can animate the hatches, dial,
+lamps, and glove poses independently. The balance scale itself is inked vector
+art in my-expo-app/.../equity-scale/components/scaleRigArt.ts.
 """
 
 from pathlib import Path
@@ -60,51 +61,6 @@ def wood_grain(draw, areas, seed):
                 fill="#604027",
                 width=1,
             )
-
-
-def scale_base():
-    image, draw = canvas(520, 330)
-    draw.rounded_rectangle(box((42, 268, 478, 310)), radius=14 * SCALE, fill=WOOD_DARK, outline=INK, width=6 * SCALE)
-    draw.polygon(points([(55, 246), (465, 246), (484, 279), (36, 279)]), fill=TOBACCO, outline=INK)
-    line(draw, [(49, 253), (466, 253)], fill=WOOD_LIGHT, width=4)
-    draw.ellipse(box((64, 296, 119, 324)), fill=WOOD_DARK, outline=INK, width=5 * SCALE)
-    draw.ellipse(box((401, 296, 456, 324)), fill=WOOD_DARK, outline=INK, width=5 * SCALE)
-    draw.polygon(points([(204, 247), (222, 107), (298, 107), (316, 247)]), fill=TOBACCO, outline=INK)
-    draw.polygon(points([(224, 239), (238, 125), (282, 125), (296, 239)]), fill=WOOD_LIGHT)
-    line(draw, [(224, 239), (238, 125), (282, 125), (296, 239)], width=5)
-    draw.ellipse(box((226, 80, 294, 148)), fill=WOOD_DARK, outline=INK, width=6 * SCALE)
-    draw.ellipse(box((239, 93, 281, 135)), fill=GOLD, outline=INK, width=5 * SCALE)
-    line(draw, [(248, 123), (272, 101)], width=4)
-    draw.polygon(points([(247, 81), (249, 28), (260, 12), (271, 28), (273, 81)]), fill=GOLD, outline=INK)
-    draw.polygon(points([(253, 31), (260, 20), (267, 31), (266, 76), (254, 76)]), fill=CREAM)
-    line(draw, [(247, 81), (249, 28), (260, 12), (271, 28), (273, 81)], width=5)
-    wood_grain(draw, [(55, 246, 465, 279), (224, 126, 296, 239)], 11)
-    finish(image, "scale-base.png")
-
-
-def scale_beam():
-    image, draw = canvas(660, 160)
-    beam = [(38, 60), (105, 91), (225, 88), (330, 61), (435, 88), (555, 91), (622, 60)]
-    line(draw, beam, fill=INK, width=26)
-    line(draw, beam, fill=GOLD, width=16)
-    line(draw, [(52, 61), (110, 83), (226, 80), (330, 55)], fill=GOLD_BRIGHT, width=3)
-    line(draw, [(330, 55), (434, 80), (550, 83), (608, 61)], fill=WOOD_LIGHT, width=4)
-    for x in (37, 623):
-        draw.rounded_rectangle(box((x - 13, 43, x + 13, 78)), radius=4 * SCALE, fill=GOLD, outline=INK, width=5 * SCALE)
-        draw.rectangle(box((x - 4, 74, x + 4, 122)), fill=GOLD, outline=INK, width=3 * SCALE)
-    draw.ellipse(box((302, 31, 358, 87)), fill=TOBACCO, outline=INK, width=6 * SCALE)
-    draw.ellipse(box((315, 44, 345, 74)), fill=GOLD, outline=INK, width=4 * SCALE)
-    finish(image, "scale-beam.png")
-
-
-def scale_pan():
-    image, draw = canvas(240, 120)
-    draw.ellipse(box((19, 24, 221, 82)), fill=WOOD_DARK, outline=INK, width=5 * SCALE)
-    draw.pieslice(box((22, 23, 218, 111)), 0, 180, fill=GOLD, outline=INK, width=5 * SCALE)
-    draw.ellipse(box((29, 28, 211, 75)), fill="#B77B39", outline=INK, width=4 * SCALE)
-    draw.arc(box((42, 37, 198, 68)), 180, 355, fill=GOLD_BRIGHT, width=3 * SCALE)
-    draw.rounded_rectangle(box((108, 88, 132, 116)), radius=4 * SCALE, fill=GOLD, outline=INK, width=4 * SCALE)
-    finish(image, "scale-pan.png")
 
 
 def hatch():
@@ -183,9 +139,6 @@ def glove(name, pose):
 
 
 if __name__ == "__main__":
-    scale_base()
-    scale_beam()
-    scale_pan()
     hatch()
     pit()
     dial()
