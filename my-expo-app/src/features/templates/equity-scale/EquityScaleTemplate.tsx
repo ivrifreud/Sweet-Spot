@@ -3,7 +3,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -19,10 +19,9 @@ import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
 import { DEFAULT_EQUITY_SPOT, OUTCOME_ANIMATION_MS, REDUCED_OUTCOME_MS } from './config';
 import { scaleTilt } from './dialMath';
-import { equityScaleArt } from './equityScaleArt';
 import { percent, requiredEquity } from './equityMath';
+import { equityScaleArt } from './equityScaleArt';
 import { EQUITY_STRINGS } from './strings';
-import { HeroChipStack } from './components/HeroChipStack';
 import { HeroHoleCards } from './components/HeroHoleCards';
 import { OutsDial } from './components/OutsDial';
 import { ScaleScene } from './components/ScaleScene';
@@ -58,7 +57,6 @@ export function EquityScaleTemplate({
   const submittedRef = useRef(false);
   const animatedOutcomeRef = useRef<DecisionOutcome | null>(null);
   const onOutcomeCompleteRef = useRef(onOutcomeAnimationComplete);
-  const reaction = useSharedValue(0);
 
   useEffect(() => {
     onOutcomeCompleteRef.current = onOutcomeAnimationComplete;
@@ -69,10 +67,9 @@ export function EquityScaleTemplate({
     setPhase('entering');
     submittedRef.current = false;
     animatedOutcomeRef.current = null;
-    reaction.value = 0;
     const timer = setTimeout(() => setPhase('deciding'), reducedMotion ? 80 : 360);
     return () => clearTimeout(timer);
-  }, [reaction, reducedMotion, resetKey, spot.id]);
+  }, [reducedMotion, resetKey, spot.id]);
 
   useEffect(() => {
     if (spot.skin !== 'garden') return;
@@ -84,13 +81,6 @@ export function EquityScaleTemplate({
     if (!outcome || !submittedRef.current || animatedOutcomeRef.current === outcome) return;
     animatedOutcomeRef.current = outcome;
     setPhase(outcome);
-    reaction.value = reducedMotion
-      ? 1
-      : withSequence(
-          withTiming(1, { duration: 210, easing: Easing.out(Easing.cubic) }),
-          withTiming(0.88, { duration: 180 }),
-          withTiming(1, { duration: 180 })
-        );
     const timer = setTimeout(
       () => {
         setPhase('resolved');
@@ -99,7 +89,7 @@ export function EquityScaleTemplate({
       reducedMotion ? REDUCED_OUTCOME_MS : OUTCOME_ANIMATION_MS
     );
     return () => clearTimeout(timer);
-  }, [outcome, reaction, reducedMotion]);
+  }, [outcome, reducedMotion]);
 
   const tilt = useMemo(
     () =>
@@ -126,16 +116,16 @@ export function EquityScaleTemplate({
     [live, onSubmit, selectedOuts]
   );
 
-  const gloveStyle = useAnimatedStyle(() => ({
-    opacity: reaction.value,
-    transform: [{ translateY: (1 - reaction.value) * 24 }, { scale: 0.9 + reaction.value * 0.1 }],
-  }));
-
   const activeOutcome =
     phase === 'correct' || phase === 'incorrect' || phase === 'resolved' ? outcome : null;
 
   return (
-    <View style={styles.root}>
+    <ImageBackground
+      source={equityScaleArt.background}
+      style={styles.root}
+      resizeMode="cover"
+      accessibilityRole="image"
+      accessibilityLabel="Benny at the casino table">
       <View style={[styles.header, { top: insets.top + 64 }]}>
         <View>
           <Text style={[styles.title, display]}>{EQUITY_STRINGS.title}</Text>
@@ -156,7 +146,6 @@ export function EquityScaleTemplate({
         <ScaleScene tilt={tilt} outcome={activeOutcome} />
       </View>
 
-      <HeroChipStack bottom={insets.bottom + 8} />
       <HeroHoleCards cards={spot.heroCards} bottom={insets.bottom + 8} />
 
       <View style={[styles.dialWrap, { bottom: insets.bottom + 52 }]}>
@@ -194,24 +183,11 @@ export function EquityScaleTemplate({
         </Text>
       ) : null}
       {activeOutcome ? (
-        <>
-          <Animated.View pointerEvents="none" style={[styles.reaction, gloveStyle]}>
-            <Image
-              source={
-                activeOutcome === 'correct'
-                  ? equityScaleArt.gloveCelebrate
-                  : equityScaleArt.gloveSurprise
-              }
-              resizeMode="contain"
-              style={styles.reactionImage}
-            />
-          </Animated.View>
-          <Text accessibilityLiveRegion="polite" style={styles.outcomeText}>
-            {activeOutcome === 'correct' ? EQUITY_STRINGS.correct : EQUITY_STRINGS.incorrect}
-          </Text>
-        </>
+        <Text accessibilityLiveRegion="polite" style={styles.outcomeText}>
+          {activeOutcome === 'correct' ? EQUITY_STRINGS.correct : EQUITY_STRINGS.incorrect}
+        </Text>
       ) : null}
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -427,18 +403,6 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontWeight: '800',
     zIndex: 60,
-  },
-  reaction: {
-    position: 'absolute',
-    right: 8,
-    top: 196,
-    width: 90,
-    height: 90,
-    zIndex: 55,
-  },
-  reactionImage: {
-    width: '100%',
-    height: '100%',
   },
   outcomeText: {
     position: 'absolute',
