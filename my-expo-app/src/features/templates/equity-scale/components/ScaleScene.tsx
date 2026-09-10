@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -14,7 +14,7 @@ import { artStyle } from '../../../../../theme/artStyle';
 import { ChipSprite } from '../../peek-and-pitch/components/ChipSprite';
 import { CARD_ASPECT, CardBack } from '../../peek-and-pitch/components/PlayingCard';
 import type { DecisionOutcome } from '../../../decision-feedback/types';
-import { ScaleBeam, ScaleLyre, ScalePlate, ScaleStand } from './ScaleRig';
+import { ScaleBeam, ScaleLyre, ScalePitBack, ScalePitFront, ScalePlate, ScaleStand } from './ScaleRig';
 import { SCALE_RIG } from './scaleRigArt';
 
 type Props = {
@@ -22,13 +22,13 @@ type Props = {
   outcome: DecisionOutcome | null;
 };
 
-const DECK_COUNT = 16;
-const DECK_CARD_WIDTH = 52;
-const DECK_EDGE = 2.4;
+const DECK_COUNT = 10;
+const DECK_CARD_WIDTH = 50;
+const DECK_EDGE = 2;
 const DECK_CARD_HEIGHT = DECK_CARD_WIDTH * CARD_ASPECT;
 const DECK_STACK_HEIGHT = DECK_CARD_HEIGHT + (DECK_COUNT - 1) * DECK_EDGE;
-/** Pitch the pile onto the plate: 0 is standing, 90 is fully flat. */
-const DECK_ROTATE_X = 68;
+/** Squash in 2D so the pile lies on the dish without a rotateX that tucks it behind the plate. */
+const DECK_SQUASH_Y = 0.46;
 
 export function ScaleScene({ tilt, outcome }: Props) {
   const reducedMotion = useReducedMotion();
@@ -49,6 +49,7 @@ export function ScaleScene({ tilt, outcome }: Props) {
       return;
     }
     if (outcome === 'incorrect') {
+      // Scale and pits stay perfectly still; the beam holds its resting tilt.
       outcomeProgress.value = withTiming(1, {
         duration: reducedMotion ? 240 : 1500,
         easing: Easing.in(Easing.quad),
@@ -62,97 +63,80 @@ export function ScaleScene({ tilt, outcome }: Props) {
   const beamStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${beamAngle.value}deg` }],
   }));
-  const sceneStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX:
-          outcome === 'incorrect' && !reducedMotion
-            ? interpolate(
-                outcomeProgress.value,
-                [0, 0.04, 0.08, 0.12, 0.18, 0.22],
-                [0, 8, -8, 5, -3, 0]
-              )
-            : 0,
-      },
-    ],
-  }));
+
+  // Each plate + its content falls as one rigid unit on a single timeline: it
+  // starts perfectly level, tips over to pour, drifts inward, and drops into the
+  // pit in front of it, fading as it sinks past the near lip.
   const leftPlateStyle = useAnimatedStyle(() => {
-    const fall =
-      outcome === 'incorrect' && !reducedMotion
-        ? Math.max(0, (outcomeProgress.value - 0.34) / 0.66)
-        : 0;
-    return {
-      transform: [
-        { rotate: `${-beamAngle.value - fall * 72}deg` },
-        { translateX: -fall * 22 },
-        { translateY: fall * fall * 310 },
-      ],
-      opacity: interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
-    };
+    if (outcome === 'incorrect') {
+      if (reducedMotion) {
+        return {
+          transform: [{ rotate: `${-beamAngle.value}deg` }],
+          opacity: interpolate(outcomeProgress.value, [0, 0.6, 1], [1, 1, 0]),
+        };
+      }
+      const f = Math.max(0, (outcomeProgress.value - 0.15) / 0.85);
+      // Order matters: translate first (world-space down + inward), rotate last
+      // (spins the dish about its own centre) so the drop is straight into the
+      // pit and not swung off to the side.
+      return {
+        transform: [
+          { translateX: f * 18 },
+          { translateY: f * f * 240 },
+          { rotate: `${-beamAngle.value + f * 80}deg` },
+        ],
+        opacity: interpolate(f, [0, 0.7, 0.9], [1, 1, 0]),
+      };
+    }
+    return { transform: [{ rotate: `${-beamAngle.value}deg` }], opacity: 1 };
   });
   const rightPlateStyle = useAnimatedStyle(() => {
-    const fall =
-      outcome === 'incorrect' && !reducedMotion
-        ? Math.max(0, (outcomeProgress.value - 0.34) / 0.66)
-        : 0;
-    return {
-      transform: [
-        { rotate: `${-beamAngle.value + fall * 72}deg` },
-        { translateX: fall * 22 },
-        { translateY: fall * fall * 310 },
-      ],
-      opacity: interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
-    };
-  });
-  const pitStyle = useAnimatedStyle<ViewStyle>(() => ({
-    opacity:
-      outcome === 'incorrect'
-        ? reducedMotion
-          ? outcomeProgress.value
-          : interpolate(outcomeProgress.value, [0, 0.2, 0.32], [0, 0, 1])
-        : 0,
-  }));
-  const hatchStyle = useAnimatedStyle<ViewStyle>(() => ({
-    opacity:
-      outcome === 'incorrect' ? interpolate(outcomeProgress.value, [0, 0.2, 0.32], [1, 1, 0]) : 1,
-  }));
-  const leftPayloadStyle = useAnimatedStyle(() => {
-    const fall = outcome === 'incorrect' ? Math.max(0, (outcomeProgress.value - 0.42) / 0.58) : 0;
-    return {
-      transform: [
-        { translateY: reducedMotion ? 0 : fall * fall * 270 },
-        { translateX: reducedMotion ? 0 : -fall * 24 },
-        { rotate: `${-fall * 105}deg` },
-      ],
-      opacity: reducedMotion
-        ? interpolate(outcomeProgress.value, [0, 0.6, 1], [1, 1, 0])
-        : interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
-    };
-  });
-  const rightPayloadStyle = useAnimatedStyle(() => {
-    const fall = outcome === 'incorrect' ? Math.max(0, (outcomeProgress.value - 0.42) / 0.58) : 0;
-    return {
-      transform: [
-        { translateY: reducedMotion ? 0 : fall * fall * 270 },
-        { translateX: reducedMotion ? 0 : fall * 24 },
-        { rotate: `${fall * 105}deg` },
-      ],
-      opacity: reducedMotion
-        ? interpolate(outcomeProgress.value, [0, 0.6, 1], [1, 1, 0])
-        : interpolate(fall, [0, 0.88, 1], [1, 1, 0]),
-    };
+    if (outcome === 'incorrect') {
+      if (reducedMotion) {
+        return {
+          transform: [{ rotate: `${-beamAngle.value}deg` }],
+          opacity: interpolate(outcomeProgress.value, [0, 0.6, 1], [1, 1, 0]),
+        };
+      }
+      const f = Math.max(0, (outcomeProgress.value - 0.15) / 0.85);
+      return {
+        transform: [
+          { translateX: -f * 18 },
+          { translateY: f * f * 240 },
+          { rotate: `${-beamAngle.value - f * 80}deg` },
+        ],
+        opacity: interpolate(f, [0, 0.7, 0.9], [1, 1, 0]),
+      };
+    }
+    return { transform: [{ rotate: `${-beamAngle.value}deg` }], opacity: 1 };
   });
 
   return (
-    <Animated.View style={[styles.scene, sceneStyle]} pointerEvents="none">
+    <View style={styles.scene} pointerEvents="none">
       <ScaleLyre />
 
+      {/* Beam only — stays below the stand so its centre hump hides behind the column. */}
       <Animated.View style={[styles.beamGroup, beamStyle]}>
         <ScaleBeam />
+      </Animated.View>
 
+      <ScaleStand />
+
+      {/* Pit voids: always open, on the ground in front of each plate, behind the plate. */}
+      {(['left', 'right'] as const).map((side) => (
+        <View
+          key={`pit-back-${side}`}
+          style={[styles.pitSlot, styles.pitBackLayer, side === 'left' ? styles.pitLeft : styles.pitRight]}>
+          <ScalePitBack />
+        </View>
+      ))}
+
+      {/* Plates + content — same rotation box as the beam, but raised in front of the
+          stand base and pit voids so they visibly drop into the holes. */}
+      <Animated.View style={[styles.platesGroup, beamStyle]}>
         <Animated.View style={[styles.leftPlate, leftPlateStyle]}>
           <ScalePlate />
-          <Animated.View style={[styles.chips, leftPayloadStyle]}>
+          <View style={styles.chips}>
             {[0, 1, 2, 3, 4].map((id) => (
               <ChipSprite
                 key={id}
@@ -162,44 +146,26 @@ export function ScaleScene({ tilt, outcome }: Props) {
                 style={{ marginLeft: id === 0 ? 0 : -18, marginTop: Math.abs(2 - id) * 2 }}
               />
             ))}
-          </Animated.View>
+          </View>
         </Animated.View>
 
         <Animated.View style={[styles.rightPlate, rightPlateStyle]}>
           <ScalePlate />
-          <Animated.View
-            style={[
-              styles.cards,
-              { top: SCALE_RIG.plateFloorY - DECK_STACK_HEIGHT },
-              rightPayloadStyle,
-            ]}>
+          <View style={styles.cards}>
             <FaceDownDeck />
-          </Animated.View>
+          </View>
         </Animated.View>
       </Animated.View>
 
-      <ScaleStand />
-
+      {/* Near lips of the pits — in front of the falling plates so they sink out of sight. */}
       {(['left', 'right'] as const).map((side) => (
         <View
-          key={side}
-          style={[styles.pitSlot, side === 'left' ? styles.pitLeft : styles.pitRight]}>
-          <Animated.View style={[styles.pitFace, hatchStyle]}>
-            <View style={styles.hatchBoard}>
-              <View style={styles.hatchLip} />
-              <View style={styles.hatchGrain} />
-              <View style={[styles.hatchGrain, styles.hatchGrainMid]} />
-              <View style={[styles.hatchGrain, styles.hatchGrainLow]} />
-            </View>
-          </Animated.View>
-          <Animated.View style={[styles.pitFace, styles.pitOpen, pitStyle]}>
-            <View style={styles.pitRim}>
-              <View style={styles.pitVoid} />
-            </View>
-          </Animated.View>
+          key={`pit-front-${side}`}
+          style={[styles.pitSlot, styles.pitFrontLayer, side === 'left' ? styles.pitLeft : styles.pitRight]}>
+          <ScalePitFront />
         </View>
       ))}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -212,7 +178,7 @@ function FaceDownDeck() {
         {
           height: DECK_STACK_HEIGHT + 7,
           width: DECK_CARD_WIDTH + 8,
-          transform: [{ perspective: 480 }, { rotateX: `${DECK_ROTATE_X}deg` }],
+          transform: [{ scaleY: DECK_SQUASH_Y }],
         },
       ]}>
       {Array.from({ length: DECK_COUNT }, (_, id) => (
@@ -238,6 +204,7 @@ const styles = StyleSheet.create({
     width: SCALE_RIG.scene,
     height: SCALE_RIG.scene,
     alignSelf: 'center',
+    overflow: 'visible',
   },
   /** Centred on the pivot screw, so rotating this group swings the beam about it. */
   beamGroup: {
@@ -246,6 +213,17 @@ const styles = StyleSheet.create({
     top: SCALE_RIG.beam.top,
     width: SCALE_RIG.beam.width,
     height: SCALE_RIG.beam.height,
+    zIndex: 1,
+  },
+  /** Same box/rotation as the beam, but painted in front of the stand + pit voids. */
+  platesGroup: {
+    position: 'absolute',
+    left: SCALE_RIG.beam.left,
+    top: SCALE_RIG.beam.top,
+    width: SCALE_RIG.beam.width,
+    height: SCALE_RIG.beam.height,
+    zIndex: 4,
+    overflow: 'visible',
   },
   leftPlate: {
     position: 'absolute',
@@ -254,6 +232,8 @@ const styles = StyleSheet.create({
     width: SCALE_RIG.plate.width,
     height: SCALE_RIG.plate.height,
     alignItems: 'center',
+    overflow: 'visible',
+    zIndex: 2,
   },
   rightPlate: {
     position: 'absolute',
@@ -262,16 +242,23 @@ const styles = StyleSheet.create({
     width: SCALE_RIG.plate.width,
     height: SCALE_RIG.plate.height,
     alignItems: 'center',
+    overflow: 'visible',
+    zIndex: 2,
   },
   chips: {
     position: 'absolute',
     top: SCALE_RIG.plateFloorY - 27,
     flexDirection: 'row',
     alignItems: 'flex-end',
+    zIndex: 3,
+    elevation: 6,
   },
   cards: {
     position: 'absolute',
+    top: SCALE_RIG.plateFloorY - DECK_STACK_HEIGHT + 2,
     alignItems: 'center',
+    zIndex: 3,
+    elevation: 8,
   },
   deck: {
     alignItems: 'center',
@@ -287,72 +274,20 @@ const styles = StyleSheet.create({
   },
   pitSlot: {
     position: 'absolute',
-    width: 118,
-    height: 48,
-    top: 332,
-    zIndex: 4,
+    width: SCALE_RIG.pit.width,
+    height: SCALE_RIG.pit.height,
+    top: SCALE_RIG.pit.top,
   },
   pitLeft: {
-    left: 12,
+    left: SCALE_RIG.pit.left,
   },
   pitRight: {
-    right: 12,
+    left: SCALE_RIG.pit.right,
   },
-  pitFace: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  pitBackLayer: {
+    zIndex: 3,
   },
-  pitOpen: {
-    zIndex: 2,
-  },
-  hatchBoard: {
-    flex: 1,
-    borderRadius: 6,
-    backgroundColor: artStyle.colors.tobacco,
-    borderWidth: 2,
-    borderColor: artStyle.colors.projectorBlack,
-    overflow: 'hidden',
-  },
-  hatchLip: {
-    height: 8,
-    backgroundColor: artStyle.colors.cream,
-    borderBottomWidth: 2,
-    borderBottomColor: artStyle.colors.projectorBlack,
-    opacity: 0.22,
-  },
-  hatchGrain: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    top: 18,
-    height: 2,
-    backgroundColor: artStyle.colors.projectorBlack,
-    opacity: 0.28,
-  },
-  hatchGrainMid: {
-    top: 26,
-    left: 28,
-    right: 24,
-  },
-  hatchGrainLow: {
-    top: 34,
-    left: 22,
-    right: 32,
-  },
-  pitRim: {
-    flex: 1,
-    borderRadius: 6,
-    padding: 8,
-    backgroundColor: artStyle.colors.tobacco,
-    borderWidth: 2,
-    borderColor: artStyle.colors.projectorBlack,
-  },
-  pitVoid: {
-    flex: 1,
-    borderRadius: 3,
-    backgroundColor: artStyle.colors.projectorBlack,
+  pitFrontLayer: {
+    zIndex: 5,
   },
 });

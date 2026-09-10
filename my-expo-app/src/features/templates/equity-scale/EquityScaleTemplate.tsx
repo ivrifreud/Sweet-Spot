@@ -352,6 +352,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 10,
+    overflow: 'visible',
   },
   dialWrap: {
     position: 'absolute',

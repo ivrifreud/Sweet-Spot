@@ -37,6 +37,11 @@ export const SCALE_RIG = {
   plate: { width: 128, height: 56, top: -9, leftOffset: 4, rightOffset: 228 },
   /** Y inside a plate box where payload rests on the dish floor. */
   plateFloorY: 26,
+  /**
+   * Perspective parallelogram hole on the floor in front of the stand — not
+   * cut into the plinth. `top` is scene Y; far rim sits just below the feet.
+   */
+  pit: { width: 150, height: 84, top: 306, left: 25, right: 215 },
 } as const;
 
 /** Brass lyre above the pivot. Behind the beam, so it reads as fixed to the stand. */
@@ -152,4 +157,32 @@ export const PLATE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
   <ellipse cx="64" cy="22.5" rx="54" ry="12.5" fill="${brass}" stroke="${ink}" stroke-width="2.2"/>
   <path d="M80,13 L102,16.5 L98,25 L76,21 Z" fill="${brassLight}"/>
   <path d="M82,7 L102,10 L101,13.5 L81,10.5 Z" fill="${brassPale}"/>
+</svg>`;
+
+/**
+ * Open pit as a perspective parallelogram hole in the ground (per the two
+ * pit-fall storyboards). Split into two layers so a falling plate can pass
+ * between them: `PIT_BACK` (void + far/side rims, drawn behind the plate) and
+ * `PIT_FRONT` (the near wooden lip, drawn in front so the plate sinks behind it).
+ *
+ * Shared parallelogram opening (viewBox 0 0 150 84):
+ *   near edge  NL(14,60) -> NR(116,60)   (front, horizontal)
+ *   far edge   FL(38,22) -> FR(140,22)   (back, sheared right for depth)
+ */
+export const PIT_BACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 84">
+  <path d="M14,60 L38,22 L140,22 L116,60 Z"
+    fill="${woodTop}" stroke="${ink}" stroke-width="3.4" stroke-linejoin="round"/>
+  <path d="M19,56 L41,25.5 L137,25.5 L111,56 Z"
+    fill="${ink}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M19,56 L14,60 L38,22 L41,25.5 Z" fill="${woodDeep}"/>
+  <path d="M111,56 L116,60 L140,22 L137,25.5 Z" fill="${woodDeep}"/>
+  <path d="M41,25.5 L137,25.5 L140,22 L38,22 Z" fill="${woodLight}"/>
+  <path d="M45,29 C70,34 108,34 133,29" fill="none" stroke="${ink}" stroke-width="1.6" opacity="0.4"/>
+</svg>`;
+
+export const PIT_FRONT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 84">
+  <path d="M14,60 L116,60 L114,73 L12,73 Z"
+    fill="${wood}" stroke="${ink}" stroke-width="3.4" stroke-linejoin="round"/>
+  <path d="M15.4,61.6 L114.4,61.6 L113.8,64.4 L14.8,64.4 Z" fill="${woodLight}"/>
+  <path d="M26,69 L96,69" stroke="${ink}" stroke-width="1.4" opacity="0.22" stroke-linecap="round"/>
 </svg>`;
