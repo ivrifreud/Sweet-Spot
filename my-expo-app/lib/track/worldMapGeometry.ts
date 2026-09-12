@@ -2,14 +2,6 @@ import { svgPolyline, type Point } from './mapPath';
 import type { MapNode, MapPercent } from './tree';
 import type { WorldRoutePoint } from './worldRoute';
 
-/** Distance bands along the authored polyline, bottom entrance toward the top exit. */
-const NODE_DISTANCE_RANGES = [
-  { min: 0.1, max: 0.26 },
-  { min: 0.32, max: 0.46 },
-  { min: 0.54, max: 0.68 },
-  { min: 0.76, max: 0.9 },
-] as const;
-
 export type RoutedChunk = {
   index: number;
   route: readonly WorldRoutePoint[];
@@ -65,24 +57,45 @@ function asPercent(value: number): MapPercent {
   return `${value}%`;
 }
 
-function anchorsInRange(
-  route: readonly WorldRoutePoint[],
-  distances: readonly number[],
-  min: number,
-  max: number,
-  landingsOnly = false
-): number[] {
-  const total = distances[distances.length - 1] || 1;
-  const indexes: number[] = [];
-  for (let i = 0; i < route.length; i += 1) {
-    const progress = distances[i]! / total;
-    if (progress < min - 1e-6 || progress > max + 1e-6) continue;
-    const point = route[i]!;
-    if (!point.nodeSafe || point.surface !== 'road') continue;
-    if (landingsOnly && !point.landing) continue;
-    indexes.push(i);
+function landingIndexesOn(route: readonly WorldRoutePoint[]): number[] {
+  return route
+    .map((point, index) => (point.landing && point.nodeSafe ? index : -1))
+    .filter((index) => index >= 0);
+}
+
+function safeRoadIndexesOn(route: readonly WorldRoutePoint[]): number[] {
+  return route
+    .map((point, index) =>
+      point.nodeSafe && point.surface === 'road' && !point.landing ? index : -1
+    )
+    .filter((index) => index >= 0);
+}
+
+/** Pick `count` indexes spread along a sorted list so extra landings do not crash. */
+export function spreadIndexes(indexes: readonly number[], count: number): number[] {
+  if (count <= 0 || indexes.length === 0) return [];
+  if (indexes.length <= count) return [...indexes];
+  const used = new Set<number>();
+  const picked: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = count === 1 ? 0 : i / (count - 1);
+    let at = Math.round(t * (indexes.length - 1));
+    while (used.has(at) && at < indexes.length - 1) at += 1;
+    while (used.has(at) && at > 0) at -= 1;
+    used.add(at);
+    picked.push(indexes[at]!);
   }
-  return indexes;
+  return picked.sort((left, right) => left - right);
+}
+
+function spotsFromIndexes(
+  route: readonly WorldRoutePoint[],
+  indexes: readonly number[]
+): { left: MapPercent; top: MapPercent; routeIndex: number }[] {
+  return indexes.map((routeIndex) => {
+    const point = route[routeIndex]!;
+    return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
+  });
 }
 
 export function landingClusters(route: readonly WorldRoutePoint[]): number[][] {
@@ -123,41 +136,22 @@ export function pickRouteNodes(
       return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
     });
   }
-  const landingIndexes = route
-    .map((point, index) => (point.landing && point.nodeSafe ? index : -1))
-    .filter((index) => index >= 0);
-  if (landingIndexes.length === count) {
-    return landingIndexes.map((routeIndex) => {
-      const point = route[routeIndex]!;
-      return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
-    });
+  const landingIndexes = landingIndexesOn(route);
+  if (landingIndexes.length >= count) {
+    return spotsFromIndexes(route, spreadIndexes(landingIndexes, count));
   }
-  const distances = routeDistances(route);
-  const bands = NODE_DISTANCE_RANGES.slice(0, Math.max(0, count));
-  const used = new Set<number>();
-  return bands.map((band) => {
-    const widened = {
-      min: Math.max(0, band.min - 0.08),
-      max: Math.min(1, band.max + 0.08),
-    };
-    const take = (min: number, max: number, landingsOnly: boolean) =>
-      anchorsInRange(route, distances, min, max, landingsOnly).filter((index) => !used.has(index));
-    let pool = take(band.min, band.max, true);
-    if (pool.length === 0) pool = take(widened.min, widened.max, true);
-    if (pool.length === 0) pool = take(band.min, band.max, false);
-    if (pool.length === 0) pool = take(widened.min, widened.max, false);
-    if (pool.length === 0) {
-      throw new Error('Level node left the authored road-and-bridge route.');
-    }
-    const routeIndex =
-      pool[Math.min(pool.length - 1, Math.max(0, Math.floor(rng() * pool.length)))]!;
-    used.add(routeIndex);
-    const point = route[routeIndex]!;
-    if (!isOnRoute(point.left, point.top, route)) {
-      throw new Error('Level node left the authored road-and-bridge route.');
-    }
-    return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
-  });
+  const fill = [...landingIndexes];
+  for (const index of safeRoadIndexesOn(route)) {
+    if (fill.length >= count) break;
+    fill.push(index);
+  }
+  fill.sort((left, right) => left - right);
+  if (fill.length >= count) {
+    return spotsFromIndexes(route, fill.slice(0, count));
+  }
+  throw new Error(
+    `Need ${count} road landings but this map only has ${fill.length}. Add landing(left, top) points.`
+  );
 }
 
 export function routePointPixels(

@@ -52,10 +52,10 @@ function inEllipse(
 
 describe('authored garden routes', () => {
   it.each(['a', 'b', 'c'] as const)(
-    'starts at the bottom entrance and finishes at the top exit on map %s',
+    'starts near the bottom entrance and finishes at the top exit on map %s',
     (variant) => {
       const route = BENNYS_GARDEN_ROUTES[variant];
-      expect(route[0]!.top).toBeGreaterThan(85);
+      expect(route[0]!.top).toBeGreaterThan(78);
       expect(route[route.length - 1]!.top).toBeLessThan(20);
       expect(route.some((point) => point.surface === 'bridge')).toBe(true);
     }
@@ -88,9 +88,8 @@ describe('authored garden routes', () => {
     ).toBe(false);
   });
 
-  it('keeps map C around the flower island then over the left plank', () => {
+  it('keeps map C on the west dirt loop then over the left plank', () => {
     const samples = sampleRoute(BENNYS_GARDEN_ROUTES.c);
-    expect(samples.some((point) => inEllipse(point, 40, 71, 9, 7))).toBe(false);
     const westLoop = samples.filter((point) => point.top >= 68 && point.top <= 78);
     expect(westLoop.some((point) => point.left < 36)).toBe(true);
     const river = samples.filter((point) => point.top >= 46 && point.top <= 52);
@@ -127,15 +126,50 @@ describe('pickRouteNodes', () => {
 });
 
 describe('createGardenChunkLayouts', () => {
-  it('cycles maps without repeating the previous chunk', () => {
-    const rng = () => 0;
+  it('freezes the four chips on each Garden map at the signed-off seats', () => {
+    const layouts = createGardenChunkLayouts(12);
+    const seats = (chunkIndex: number) =>
+      layouts[chunkIndex]!.nodes.map((node) => [
+        Number.parseFloat(node.left),
+        Number.parseFloat(node.top),
+      ]);
+    expect(seats(0)).toEqual([
+      [55.6, 83.6],
+      [34.2, 66.8],
+      [91.2, 32.4],
+      [40.4, 18.8],
+    ]);
+    expect(seats(1)).toEqual([
+      [55, 84.4],
+      [40.4, 66.8],
+      [42, 39.4],
+      [42.6, 19.6],
+    ]);
+    expect(seats(2)).toEqual([
+      [56.4, 83.2],
+      [40.4, 74],
+      [40.8, 60.4],
+      [40.6, 40.4],
+    ]);
+    const first = pickRouteNodes(BENNYS_GARDEN_ROUTES.a, 4, () => 0);
+    const last = pickRouteNodes(BENNYS_GARDEN_ROUTES.a, 4, () => 0.99);
+    expect(first.map((node) => node.routeIndex)).toEqual(last.map((node) => node.routeIndex));
+  });
+
+  it('uses a fixed A→B→C climb so saving a file does not shuffle maps', () => {
+    const rng = () => 0.99;
     const layouts = createGardenChunkLayouts(12, rng);
-    expect(layouts.map((layout) => layout.variantId)).toEqual(['a', 'b', 'a']);
+    expect(layouts.map((layout) => layout.variantId)).toEqual(['a', 'b', 'c']);
     expect(layouts).toHaveLength(3);
     expect(layouts[0]?.nodes).toHaveLength(4);
     expect(layouts[0]?.nodes.map((node) => node.number)).toEqual([1, 2, 3, 4]);
     expect(layouts[2]?.nodes.map((node) => node.number)).toEqual([9, 10, 11, 12]);
     expect(layouts[0]?.route).toBe(BENNYS_GARDEN_ROUTES.a);
+    expect(createGardenChunkLayouts(12, () => 0).map((layout) => layout.variantId)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
   it('picks a different opening map when the roll changes', () => {

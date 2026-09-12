@@ -157,6 +157,20 @@ export function shouldAutoWalkOnFocus(
   return null;
 }
 
+/**
+ * Phone compositors (Android elevation, iOS transformed layers) draw a
+ * translateY camera above later siblings even when CSS z-index would win on
+ * web. Isolate the camera, then stack fog with a higher elevation so clouds
+ * paint on the device — Expo web is only a preview of this phone UI.
+ * Fog stays below the map HUD (elevation 12) so chips stay tappable.
+ */
+export const WORLD_MAP_LAYER_STACK = {
+  camera: { zIndex: 1, elevation: 0 },
+  play: { zIndex: 4, elevation: 0 },
+  vignette: { zIndex: 8, elevation: 2 },
+  fog: { zIndex: 20, elevation: 6 },
+} as const;
+
 /** Fit the largest exact 9:16 map inside the available area. */
 export function fitMap(areaWidth: number, areaHeight: number): { width: number; height: number } {
   if (areaWidth <= 0 || areaHeight <= 0) {
