@@ -15,6 +15,41 @@ function maxJump(variant: keyof typeof BENNYS_GARDEN_ROUTES): number {
   return Math.max(...routeStepLengths(BENNYS_GARDEN_ROUTES[variant]));
 }
 
+function sampleRoute(
+  route: readonly { left: number; top: number }[],
+  spacing = 0.6
+): { left: number; top: number }[] {
+  const samples: { left: number; top: number }[] = [];
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const from = route[i]!;
+    const to = route[i + 1]!;
+    const distance = Math.hypot(to.left - from.left, to.top - from.top);
+    const steps = Math.max(1, Math.ceil(distance / spacing));
+    for (let step = 0; step < steps; step += 1) {
+      const t = step / steps;
+      samples.push({
+        left: from.left + (to.left - from.left) * t,
+        top: from.top + (to.top - from.top) * t,
+      });
+    }
+  }
+  const last = route[route.length - 1]!;
+  samples.push({ left: last.left, top: last.top });
+  return samples;
+}
+
+function inEllipse(
+  point: { left: number; top: number },
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number
+): boolean {
+  const dx = (point.left - cx) / rx;
+  const dy = (point.top - cy) / ry;
+  return dx * dx + dy * dy <= 1;
+}
+
 describe('authored garden routes', () => {
   it.each(['a', 'b', 'c'] as const)(
     'starts at the bottom entrance and finishes at the top exit on map %s',
@@ -27,9 +62,40 @@ describe('authored garden routes', () => {
   );
 
   it('has no discontinuous jumps onto grass or props', () => {
-    expect(maxJump('a')).toBeLessThan(12);
-    expect(maxJump('b')).toBeLessThan(12);
-    expect(maxJump('c')).toBeLessThan(12);
+    expect(maxJump('a')).toBeLessThan(8);
+    expect(maxJump('b')).toBeLessThan(8);
+    expect(maxJump('c')).toBeLessThan(8);
+  });
+
+  it('keeps map A on the dirt road around the apple tree and over the painted bridge', () => {
+    const samples = sampleRoute(BENNYS_GARDEN_ROUTES.a);
+    expect(samples.some((point) => inEllipse(point, 36, 37, 17, 13))).toBe(false);
+    const afterBridge = samples.filter((point) => point.top > 32 && point.top < 42);
+    expect(afterBridge.length).toBeGreaterThan(0);
+    expect(afterBridge.every((point) => point.left > 58)).toBe(true);
+  });
+
+  it('keeps map B on the card-suit road over the left plank, not the side bridge', () => {
+    const samples = sampleRoute(BENNYS_GARDEN_ROUTES.b);
+    const river = samples.filter((point) => point.top >= 46 && point.top <= 52);
+    expect(river.length).toBeGreaterThan(0);
+    expect(river.every((point) => point.left >= 39 && point.left <= 45)).toBe(true);
+    expect(
+      samples.some((point) => point.left > 47 && point.left < 64 && point.top > 45 && point.top < 54)
+    ).toBe(false);
+    expect(
+      BENNYS_GARDEN_ROUTES.b.some((point) => point.nodeSafe && point.top >= 46 && point.top <= 52)
+    ).toBe(false);
+  });
+
+  it('keeps map C around the flower island then over the left plank', () => {
+    const samples = sampleRoute(BENNYS_GARDEN_ROUTES.c);
+    expect(samples.some((point) => inEllipse(point, 40, 71, 9, 7))).toBe(false);
+    const westLoop = samples.filter((point) => point.top >= 68 && point.top <= 78);
+    expect(westLoop.some((point) => point.left < 36)).toBe(true);
+    const river = samples.filter((point) => point.top >= 46 && point.top <= 52);
+    expect(river.length).toBeGreaterThan(0);
+    expect(river.every((point) => point.left >= 38 && point.left <= 52)).toBe(true);
   });
 });
 
@@ -46,6 +112,8 @@ describe('pickRouteNodes', () => {
       for (const node of nodes) {
         const point = route[node.routeIndex]!;
         expect(point.nodeSafe).toBe(true);
+        expect(point.surface).toBe('road');
+        expect(point.landing).toBe(true);
         expect(isOnRoute(Number.parseFloat(node.left), Number.parseFloat(node.top), route)).toBe(
           true
         );

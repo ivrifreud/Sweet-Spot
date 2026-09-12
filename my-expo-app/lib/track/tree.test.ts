@@ -16,6 +16,7 @@ import {
   mapPercentToUnit,
   mapNodeAnchorOffset,
   MAP_NODE_CHIP_HEIGHT,
+  MAP_NODE_CHIP_SIZE,
   nodePixels,
   progressChunkIndex,
   stageProgressPercent,
@@ -89,8 +90,9 @@ describe('overworld unlocks', () => {
     expect(markers[1]?.spotsCompleted).toBe(3);
     expect(markers[1]?.progressFraction).toBeCloseTo(3 / 7);
     expect(stageProgressPercent(3)).toBe(43);
+    expect(MAP_NODE_CHIP_SIZE).toBe(40);
     expect(mapNodeAnchorOffset().x).toBe(38);
-    expect(mapNodeAnchorOffset().y).toBeCloseTo(MAP_NODE_CHIP_HEIGHT / 2);
+    expect(mapNodeAnchorOffset().y).toBeCloseTo(MAP_NODE_CHIP_HEIGHT * 0.4);
   });
 });
 

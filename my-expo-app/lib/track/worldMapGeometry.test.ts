@@ -16,8 +16,24 @@ function maxJump(variant: keyof typeof BENNYS_GARDEN_ROUTES): number {
 
 describe('worldMapGeometry', () => {
   it('measures Benny route steps without leaving the authored polyline', () => {
-    expect(maxJump('a')).toBeLessThan(12);
+    expect(maxJump('a')).toBeLessThan(8);
     expect(isOnRoute(8, 50, BENNYS_GARDEN_ROUTES.b)).toBe(false);
+  });
+
+  it('picks a landing over a nearby ordinary road point in the same band', () => {
+    const route = [
+      { left: 50, top: 95, surface: 'road' as const, nodeSafe: false },
+      { left: 50, top: 82, surface: 'road' as const, nodeSafe: true },
+      { left: 50, top: 78, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 50, top: 60, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 50, top: 42, surface: 'bridge' as const, nodeSafe: true },
+      { left: 50, top: 28, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 50, top: 12, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 50, top: 6, surface: 'road' as const, nodeSafe: false },
+    ];
+    const nodes = pickRouteNodes(route, 4, () => 0);
+    expect(nodes.map((node) => node.routeIndex)).toEqual([2, 3, 5, 6]);
+    expect(route[4]!.surface).toBe('bridge');
   });
 
   it('picks four ordered safe nodes on a generic world route', () => {
@@ -29,6 +45,8 @@ describe('worldMapGeometry', () => {
     }
     for (const node of nodes) {
       expect(route[node.routeIndex]!.nodeSafe).toBe(true);
+      expect(route[node.routeIndex]!.surface).toBe('road');
+      expect(route[node.routeIndex]!.landing).toBe(true);
     }
   });
 

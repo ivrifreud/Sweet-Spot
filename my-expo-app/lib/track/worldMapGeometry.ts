@@ -69,17 +69,41 @@ function anchorsInRange(
   route: readonly WorldRoutePoint[],
   distances: readonly number[],
   min: number,
-  max: number
+  max: number,
+  landingsOnly = false
 ): number[] {
   const total = distances[distances.length - 1] || 1;
   const indexes: number[] = [];
   for (let i = 0; i < route.length; i += 1) {
     const progress = distances[i]! / total;
-    if (progress < min || progress > max) continue;
-    if (!route[i]!.nodeSafe) continue;
+    if (progress < min - 1e-6 || progress > max + 1e-6) continue;
+    const point = route[i]!;
+    if (!point.nodeSafe || point.surface !== 'road') continue;
+    if (landingsOnly && !point.landing) continue;
     indexes.push(i);
   }
   return indexes;
+}
+
+export function landingClusters(route: readonly WorldRoutePoint[]): number[][] {
+  const clusters: number[][] = [];
+  const grouped = new Map<string, number[]>();
+  for (let i = 0; i < route.length; i += 1) {
+    const point = route[i]!;
+    if (!point.landing || !point.nodeSafe) continue;
+    if (point.landingGroup) {
+      let cluster = grouped.get(point.landingGroup);
+      if (!cluster) {
+        cluster = [];
+        grouped.set(point.landingGroup, cluster);
+        clusters.push(cluster);
+      }
+      cluster.push(i);
+      continue;
+    }
+    clusters.push([i]);
+  }
+  return clusters;
 }
 
 export function pickRouteNodes(
@@ -90,23 +114,44 @@ export function pickRouteNodes(
   if (route.length === 0) {
     throw new Error('Cannot place level nodes without a route.');
   }
+  const clusters = landingClusters(route);
+  if (clusters.length === count) {
+    return clusters.map((indexes) => {
+      const routeIndex =
+        indexes[Math.min(indexes.length - 1, Math.max(0, Math.floor(rng() * indexes.length)))]!;
+      const point = route[routeIndex]!;
+      return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
+    });
+  }
+  const landingIndexes = route
+    .map((point, index) => (point.landing && point.nodeSafe ? index : -1))
+    .filter((index) => index >= 0);
+  if (landingIndexes.length === count) {
+    return landingIndexes.map((routeIndex) => {
+      const point = route[routeIndex]!;
+      return { left: asPercent(point.left), top: asPercent(point.top), routeIndex };
+    });
+  }
   const distances = routeDistances(route);
   const bands = NODE_DISTANCE_RANGES.slice(0, Math.max(0, count));
+  const used = new Set<number>();
   return bands.map((band) => {
-    let pool = anchorsInRange(route, distances, band.min, band.max);
-    if (pool.length === 0) {
-      pool = anchorsInRange(
-        route,
-        distances,
-        Math.max(0, band.min - 0.08),
-        Math.min(1, band.max + 0.08)
-      );
-    }
+    const widened = {
+      min: Math.max(0, band.min - 0.08),
+      max: Math.min(1, band.max + 0.08),
+    };
+    const take = (min: number, max: number, landingsOnly: boolean) =>
+      anchorsInRange(route, distances, min, max, landingsOnly).filter((index) => !used.has(index));
+    let pool = take(band.min, band.max, true);
+    if (pool.length === 0) pool = take(widened.min, widened.max, true);
+    if (pool.length === 0) pool = take(band.min, band.max, false);
+    if (pool.length === 0) pool = take(widened.min, widened.max, false);
     if (pool.length === 0) {
       throw new Error('Level node left the authored road-and-bridge route.');
     }
     const routeIndex =
       pool[Math.min(pool.length - 1, Math.max(0, Math.floor(rng() * pool.length)))]!;
+    used.add(routeIndex);
     const point = route[routeIndex]!;
     if (!isOnRoute(point.left, point.top, route)) {
       throw new Error('Level node left the authored road-and-bridge route.');

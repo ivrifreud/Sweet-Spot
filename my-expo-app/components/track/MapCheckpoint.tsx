@@ -94,7 +94,7 @@ export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }
           );
         }}
         disabled={false}
-        hitSlop={12}
+        hitSlop={Math.max(8, Math.ceil((HIT - MAP_NODE_CHIP_SIZE) / 2))}
         style={[styles.node, nodeStyle, locked && styles.lockedNode]}
         accessibilityRole="button"
         accessibilityState={{ disabled: locked }}
@@ -120,10 +120,12 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   node: {
-    width: Math.max(HIT, MAP_NODE_CHIP_SIZE),
-    height: Math.max(HIT, MAP_NODE_CHIP_HEIGHT),
+    width: MAP_NODE_CHIP_SIZE,
+    height: MAP_NODE_CHIP_HEIGHT,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    overflow: 'visible',
+    backgroundColor: 'transparent',
   },
   lockedNode: {
     opacity: 0.88,

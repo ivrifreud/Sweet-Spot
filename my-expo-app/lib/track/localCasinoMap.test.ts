@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LOCAL_CASINO_ROUTES } from './localCasinoRoads';
 import { createLocalCasinoChunkLayouts } from './localCasinoMap';
-import { routeSegmentPixels, routeStepLengths, walkWorldTrail } from './worldMapGeometry';
+import { landingClusters, pickRouteNodes, routeSegmentPixels, routeStepLengths, walkWorldTrail } from './worldMapGeometry';
 
 function maxJump(variant: keyof typeof LOCAL_CASINO_ROUTES): number {
   return Math.max(...routeStepLengths(LOCAL_CASINO_ROUTES[variant]));
@@ -18,10 +18,16 @@ describe('authored Local Casino routes', () => {
     }
   );
 
-  it('keeps every authored step under a 12-point jump', () => {
-    expect(maxJump('a')).toBeLessThan(12);
-    expect(maxJump('b')).toBeLessThan(12);
-    expect(maxJump('c')).toBeLessThan(12);
+  it('keeps every authored step under an 8-point jump', () => {
+    expect(maxJump('a')).toBeLessThan(8);
+    expect(maxJump('b')).toBeLessThan(8);
+    expect(maxJump('c')).toBeLessThan(8);
+  });
+
+  it('keeps map A on the town road instead of cutting through the left lot', () => {
+    const mid = LOCAL_CASINO_ROUTES.a.filter((point) => point.top >= 62 && point.top <= 74);
+    expect(mid.length).toBeGreaterThan(0);
+    expect(mid.every((point) => point.left > 42)).toBe(true);
   });
 
   it('includes both bridge and boardwalk surfaces on the town climb', () => {
@@ -45,6 +51,54 @@ describe('createLocalCasinoChunkLayouts', () => {
     ]);
   });
 
+  it('always places a checkpoint in the Local Casino A stair-terrace circle, not on the steps', () => {
+    const chunk = createLocalCasinoChunkLayouts(12)[0]!;
+    expect(chunk.variantId).toBe('a');
+    const hitching = chunk.nodes[2]!;
+    const point = chunk.route[hitching.routeIndex!]!;
+    expect(point.landingGroup).toBe('a-terrace');
+    const dx = (point.left - 48.2) / 4.2;
+    const dy = (point.top - 47.2) / 3.6;
+    expect(dx * dx + dy * dy).toBeLessThanOrEqual(1);
+    expect(point.top < 51 || point.top > 58 || point.left < 46 || point.left > 54).toBe(true);
+  });
+
+  it('uses four landing clusters in order, picking inside each circle', () => {
+    const route = LOCAL_CASINO_ROUTES.a;
+    const clusters = landingClusters(route);
+    expect(clusters).toHaveLength(4);
+    expect(clusters[2]).toHaveLength(3);
+    expect(clusters[3]).toHaveLength(3);
+    const first = pickRouteNodes(route, 4, () => 0);
+    const last = pickRouteNodes(route, 4, () => 0.99);
+    expect(clusters[2]).toContain(first[2]!.routeIndex);
+    expect(clusters[2]).toContain(last[2]!.routeIndex);
+    expect(clusters[3]).toContain(first[3]!.routeIndex);
+    expect(clusters[3]).toContain(last[3]!.routeIndex);
+  });
+
+  it('always places the last Local Casino A node in the crest circle, then exits right', () => {
+    const chunk = createLocalCasinoChunkLayouts(12)[0]!;
+    const last = chunk.nodes[3]!;
+    const point = chunk.route[last.routeIndex!]!;
+    expect(point.landingGroup).toBe('a-crest');
+    const dx = (point.left - 34.4) / 5.2;
+    const dy = (point.top - 14.8) / 4.2;
+    expect(dx * dx + dy * dy).toBeLessThanOrEqual(1);
+    const after = LOCAL_CASINO_ROUTES.a.slice(last.routeIndex!);
+    for (let i = 1; i < after.length; i += 1) {
+      expect(after[i]!.left).toBeGreaterThan(after[i - 1]!.left);
+    }
+  });
+
+  it('loops Local Casino A left of the upper stairs instead of climbing the steps', () => {
+    const upperStairs = LOCAL_CASINO_ROUTES.a.filter(
+      (point) => point.top >= 32 && point.top <= 41
+    );
+    expect(upperStairs.length).toBeGreaterThan(0);
+    expect(upperStairs.every((point) => point.left <= 42)).toBe(true);
+  });
+
   it('places four ordered unique safe nodes on each chunk route', () => {
     const layouts = createLocalCasinoChunkLayouts(12);
     for (const layout of layouts) {
@@ -57,6 +111,8 @@ describe('createLocalCasinoChunkLayouts', () => {
       for (const node of layout.nodes) {
         expect(node.routeIndex).toBeDefined();
         expect(layout.route[node.routeIndex!]!.nodeSafe).toBe(true);
+        expect(layout.route[node.routeIndex!]!.surface).toBe('road');
+        expect(layout.route[node.routeIndex!]!.landing).toBe(true);
       }
     }
   });
