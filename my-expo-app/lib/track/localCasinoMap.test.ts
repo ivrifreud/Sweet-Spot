@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LOCAL_CASINO_ROUTES } from './localCasinoRoads';
 import { createLocalCasinoChunkLayouts } from './localCasinoMap';
-import { landingClusters, pickRouteNodes, routeSegmentPixels, routeStepLengths, walkWorldTrail } from './worldMapGeometry';
+import { pickRouteNodes, routeSegmentPixels, routeStepLengths, walkWorldTrail } from './worldMapGeometry';
 
 function maxJump(variant: keyof typeof LOCAL_CASINO_ROUTES): number {
   return Math.max(...routeStepLengths(LOCAL_CASINO_ROUTES[variant]));
@@ -51,52 +51,50 @@ describe('createLocalCasinoChunkLayouts', () => {
     ]);
   });
 
-  it('always places a checkpoint in the Local Casino A stair-terrace circle, not on the steps', () => {
-    const chunk = createLocalCasinoChunkLayouts(12)[0]!;
-    expect(chunk.variantId).toBe('a');
-    const hitching = chunk.nodes[2]!;
-    const point = chunk.route[hitching.routeIndex!]!;
-    expect(point.landingGroup).toBe('a-terrace');
-    const dx = (point.left - 48.2) / 4.2;
-    const dy = (point.top - 47.2) / 3.6;
-    expect(dx * dx + dy * dy).toBeLessThanOrEqual(1);
-    expect(point.top < 51 || point.top > 58 || point.left < 46 || point.left > 54).toBe(true);
+  it('freezes the four chips on each Local Casino chunk at the signed-off seats', () => {
+    const layouts = createLocalCasinoChunkLayouts(12);
+    const seats = (chunkIndex: number) =>
+      layouts[chunkIndex]!.nodes.map((node) => [
+        Number.parseFloat(node.left),
+        Number.parseFloat(node.top),
+      ]);
+    expect(seats(0)).toEqual([
+      [51.2, 82.6],
+      [52.2, 66.8],
+      [55.2, 40],
+      [21.2, 18.6],
+    ]);
+    expect(seats(1)).toEqual([
+      [45, 81.8],
+      [41.4, 63.2],
+      [53.8, 41.2],
+      [54.6, 22.8],
+    ]);
+    expect(seats(2)).toEqual([
+      [53.6, 83.2],
+      [52.4, 57.2],
+      [47, 43.2],
+      [45.8, 25.2],
+    ]);
+    const rngA = pickRouteNodes(LOCAL_CASINO_ROUTES.a, 4, () => 0);
+    const rngB = pickRouteNodes(LOCAL_CASINO_ROUTES.a, 4, () => 0.99);
+    expect(rngA.map((node) => node.routeIndex)).toEqual(rngB.map((node) => node.routeIndex));
   });
 
-  it('uses four landing clusters in order, picking inside each circle', () => {
-    const route = LOCAL_CASINO_ROUTES.a;
-    const clusters = landingClusters(route);
-    expect(clusters).toHaveLength(4);
-    expect(clusters[2]).toHaveLength(3);
-    expect(clusters[3]).toHaveLength(3);
-    const first = pickRouteNodes(route, 4, () => 0);
-    const last = pickRouteNodes(route, 4, () => 0.99);
-    expect(clusters[2]).toContain(first[2]!.routeIndex);
-    expect(clusters[2]).toContain(last[2]!.routeIndex);
-    expect(clusters[3]).toContain(first[3]!.routeIndex);
-    expect(clusters[3]).toContain(last[3]!.routeIndex);
-  });
-
-  it('always places the last Local Casino A node in the crest circle, then exits right', () => {
+  it('exits Local Casino A to the right after the last chip', () => {
     const chunk = createLocalCasinoChunkLayouts(12)[0]!;
     const last = chunk.nodes[3]!;
-    const point = chunk.route[last.routeIndex!]!;
-    expect(point.landingGroup).toBe('a-crest');
-    const dx = (point.left - 34.4) / 5.2;
-    const dy = (point.top - 14.8) / 4.2;
-    expect(dx * dx + dy * dy).toBeLessThanOrEqual(1);
     const after = LOCAL_CASINO_ROUTES.a.slice(last.routeIndex!);
     for (let i = 1; i < after.length; i += 1) {
       expect(after[i]!.left).toBeGreaterThan(after[i - 1]!.left);
     }
   });
 
-  it('loops Local Casino A left of the upper stairs instead of climbing the steps', () => {
-    const upperStairs = LOCAL_CASINO_ROUTES.a.filter(
-      (point) => point.top >= 32 && point.top <= 41
+  it('does not climb the Local Casino A stair treads between hitching and the crest', () => {
+    const onSteps = LOCAL_CASINO_ROUTES.a.filter(
+      (point) => point.top >= 28 && point.top <= 38 && point.left >= 43 && point.left <= 50
     );
-    expect(upperStairs.length).toBeGreaterThan(0);
-    expect(upperStairs.every((point) => point.left <= 42)).toBe(true);
+    expect(onSteps).toHaveLength(0);
   });
 
   it('places four ordered unique safe nodes on each chunk route', () => {

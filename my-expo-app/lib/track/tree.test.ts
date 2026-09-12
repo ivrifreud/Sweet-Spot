@@ -10,6 +10,7 @@ import {
   fitMap,
   worldMapChunkFrame,
   worldMapChunkImageSize,
+  WORLD_MAP_LAYER_STACK,
   flattenMapChunks,
   levelMarkers,
   lockReason,
@@ -152,6 +153,20 @@ describe('shouldAutoWalkOnFocus', () => {
     expect(shouldAutoWalkOnFocus(1, 0, 12)).toBeNull();
     expect(shouldAutoWalkOnFocus(12, 12, 12)).toBeNull();
     expect(shouldAutoWalkOnFocus(2, 1, 12)).toBeNull();
+  });
+});
+
+describe('world map paint order', () => {
+  it('stacks fog above the transformed camera so phones paint the clouds', () => {
+    expect(WORLD_MAP_LAYER_STACK.fog.zIndex).toBeGreaterThan(WORLD_MAP_LAYER_STACK.camera.zIndex);
+    expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeGreaterThan(
+      WORLD_MAP_LAYER_STACK.camera.elevation
+    );
+    expect(WORLD_MAP_LAYER_STACK.fog.zIndex).toBeGreaterThan(WORLD_MAP_LAYER_STACK.vignette.zIndex);
+    expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeGreaterThan(
+      WORLD_MAP_LAYER_STACK.vignette.elevation
+    );
+    expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeLessThan(12);
   });
 });
 

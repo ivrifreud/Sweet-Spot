@@ -18,7 +18,7 @@ import {
   fogPartDrift,
   fogPartTremble,
 } from '../../lib/track/fogCycle';
-import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT } from '../../lib/track/tree';
+import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT, WORLD_MAP_LAYER_STACK } from '../../lib/track/tree';
 import { shouldApplyFilmTreatment } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
 import { WorldMapArtLayer } from './WorldMapArtLayer';
@@ -95,11 +95,13 @@ function FogOfWarClouds({ width, height, worldId, leftAsset, rightAsset, phase }
 
   return (
     <View
+      collapsable={false}
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
+      needsOffscreenAlphaCompositing
       style={styles.fog}>
-      <Animated.View style={[styles.cloudLayer, leftStyle]}>
+      <Animated.View collapsable={false} style={[styles.cloudLayer, leftStyle]}>
         <Image
           source={leftAsset.source}
           resizeMode="contain"
@@ -111,12 +113,11 @@ function FogOfWarClouds({ width, height, worldId, leftAsset, rightAsset, phase }
               top: leftBox.top,
               width: leftBox.width,
               height: leftBox.height,
-              aspectRatio: leftAsset.aspectRatio,
             },
           ]}
         />
       </Animated.View>
-      <Animated.View style={[styles.cloudLayer, rightStyle]}>
+      <Animated.View collapsable={false} style={[styles.cloudLayer, rightStyle]}>
         <Image
           source={rightAsset.source}
           resizeMode="contain"
@@ -128,7 +129,6 @@ function FogOfWarClouds({ width, height, worldId, leftAsset, rightAsset, phase }
               top: rightBox.top,
               width: rightBox.width,
               height: rightBox.height,
-              aspectRatio: rightAsset.aspectRatio,
             },
           ]}
         />
@@ -201,25 +201,27 @@ export function WorldMap({
 
   return (
     <View style={[styles.frame, { width, height }]}>
-      <Animated.View style={[styles.worldContent, { width, height: contentHeight }, cameraStyle]}>
-        {world.chunks.map((chunk) => {
-          const top = (world.chunks.length - 1 - chunk.index) * height;
-          return (
-            <WorldMapArtLayer
-              key={`art-${chunk.id}`}
-              width={width}
-              height={height}
-              top={top}
-              chunk={chunk}
-              completedCount={completedCount}
-              film={film}
-            />
-          );
-        })}
-        <View pointerEvents="box-none" style={styles.playLayer}>
-          {children}
-        </View>
-      </Animated.View>
+      <View collapsable={false} style={styles.cameraClip}>
+        <Animated.View style={[styles.worldContent, { width, height: contentHeight }, cameraStyle]}>
+          {world.chunks.map((chunk) => {
+            const top = (world.chunks.length - 1 - chunk.index) * height;
+            return (
+              <WorldMapArtLayer
+                key={`art-${chunk.id}`}
+                width={width}
+                height={height}
+                top={top}
+                chunk={chunk}
+                completedCount={completedCount}
+                film={film}
+              />
+            );
+          })}
+          <View pointerEvents="box-none" style={styles.playLayer}>
+            {children}
+          </View>
+        </Animated.View>
+      </View>
       <FogOfWarClouds
         width={width}
         height={height}
@@ -250,29 +252,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: artStyle.colors.projectorBlack,
   },
+  cameraClip: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+    zIndex: WORLD_MAP_LAYER_STACK.camera.zIndex,
+    elevation: WORLD_MAP_LAYER_STACK.camera.elevation,
+  },
   worldContent: {
     position: 'absolute',
     left: 0,
     top: 0,
-    zIndex: 1,
   },
   playLayer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 4,
+    zIndex: WORLD_MAP_LAYER_STACK.play.zIndex,
   },
   fog: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-    zIndex: 20,
+    zIndex: WORLD_MAP_LAYER_STACK.fog.zIndex,
+    elevation: WORLD_MAP_LAYER_STACK.fog.elevation,
   },
   cloudLayer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   cloud: {
     position: 'absolute',
   },
   vignette: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 8,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: WORLD_MAP_LAYER_STACK.vignette.zIndex,
+    elevation: WORLD_MAP_LAYER_STACK.vignette.elevation,
   },
 });

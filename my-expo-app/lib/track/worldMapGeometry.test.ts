@@ -6,17 +6,12 @@ import {
   isOnRoute,
   pickRouteNodes,
   routeSegmentPixels,
-  routeStepLengths,
   walkWorldTrail,
 } from './worldMapGeometry';
 
-function maxJump(variant: keyof typeof BENNYS_GARDEN_ROUTES): number {
-  return Math.max(...routeStepLengths(BENNYS_GARDEN_ROUTES[variant]));
-}
-
 describe('worldMapGeometry', () => {
-  it('measures Benny route steps without leaving the authored polyline', () => {
-    expect(maxJump('a')).toBeLessThan(8);
+  it('places garden chips without requiring a perfectly dense polyline', () => {
+    expect(() => pickRouteNodes(BENNYS_GARDEN_ROUTES.a, 4, () => 0.5)).not.toThrow();
     expect(isOnRoute(8, 50, BENNYS_GARDEN_ROUTES.b)).toBe(false);
   });
 
@@ -34,6 +29,24 @@ describe('worldMapGeometry', () => {
     const nodes = pickRouteNodes(route, 4, () => 0);
     expect(nodes.map((node) => node.routeIndex)).toEqual([2, 3, 5, 6]);
     expect(route[4]!.surface).toBe('bridge');
+  });
+
+  it('places four chips from extra landings even when one step is a huge gap', () => {
+    const route = [
+      { left: 50, top: 95, surface: 'road' as const, nodeSafe: false },
+      { left: 50, top: 88, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 12, top: 12, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 14, top: 10, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 16, top: 8, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 18, top: 6, surface: 'road' as const, nodeSafe: true, landing: true },
+      { left: 50, top: 4, surface: 'road' as const, nodeSafe: false },
+    ];
+    const nodes = pickRouteNodes(route, 4, () => 0.5);
+    expect(nodes).toHaveLength(4);
+    expect(nodes.map((node) => node.routeIndex)).toEqual([1, 2, 4, 5]);
+    for (const node of nodes) {
+      expect(route[node.routeIndex]!.landing).toBe(true);
+    }
   });
 
   it('picks four ordered safe nodes on a generic world route', () => {

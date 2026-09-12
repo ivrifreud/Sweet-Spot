@@ -87,7 +87,7 @@ export function createWorldMapTemplate(
 
 export function createBennysGardenChunks(
   totalLevels = 12,
-  rng: () => number = Math.random
+  rng: () => number = () => 0.5
 ): WorldMapChunk[] {
   return createGardenChunkLayouts(totalLevels, rng).map((layout) => ({
     id: `bennys-chunk-${layout.nodes[0]!.chunkIndex + 1}`,
@@ -102,7 +102,7 @@ export function createBennysGardenChunks(
 
 export function createBennysGardenWorld(
   totalLevels = 12,
-  rng: () => number = Math.random
+  rng: () => number = () => 0.5
 ): WorldMapTemplate {
   return createWorldMapTemplate(
     BENNYS_GARDEN_IDENTITY,
@@ -126,26 +126,6 @@ const LOCAL_CASINO_MAPS = {
   b: require('../../assets/themes/local-casino/map-chunk-b.jpg'),
   c: require('../../assets/themes/local-casino/map-chunk-c.jpg'),
 } as const;
-
-const LOCAL_CASINO_HAZE_PATHS = {
-  left: '../../assets/themes/local-casino/map-haze-left.png',
-  right: '../../assets/themes/local-casino/map-haze-right.png',
-} as const;
-// #region agent log
-fetch('http://127.0.0.1:7582/ingest/188086e2-e435-49ea-98d2-b1b490fd324d', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e27566' },
-  body: JSON.stringify({
-    sessionId: 'e27566',
-    runId: 'pre-fix',
-    hypothesisId: 'E',
-    location: 'worldMapTemplates.ts:LOCAL_CASINO_HAZE',
-    message: 'evaluating Local Casino haze requires at module load',
-    data: LOCAL_CASINO_HAZE_PATHS,
-    timestamp: Date.now(),
-  }),
-}).catch(() => {});
-// #endregion
 
 const LOCAL_CASINO_HAZE: WorldMapTemplate['fogAssets'] = {
   left: {

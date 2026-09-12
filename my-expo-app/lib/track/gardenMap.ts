@@ -56,17 +56,15 @@ export function pickGardenVariant(
 
 export function createGardenChunkLayouts(
   totalLevels = 12,
-  rng: () => number = Math.random
+  rng: () => number = () => 0.5
 ): GardenChunkLayout[] {
   if (!Number.isInteger(totalLevels) || totalLevels <= 0) {
     throw new RangeError("Benny's Garden requires a positive integer level count.");
   }
 
   const chunkCount = Math.ceil(totalLevels / MAP_NODES_PER_CHUNK);
-  let previous: GardenMapVariantId | null = null;
   return Array.from({ length: chunkCount }, (_, chunkIndex) => {
-    const variantId = pickGardenVariant(previous, rng);
-    previous = variantId;
+    const variantId = GARDEN_VARIANTS[chunkIndex % GARDEN_VARIANTS.length]!;
     const route = BENNYS_GARDEN_ROUTES[variantId];
     const firstStage = chunkIndex * MAP_NODES_PER_CHUNK + 1;
     const nodeCount = Math.min(MAP_NODES_PER_CHUNK, totalLevels - firstStage + 1);
