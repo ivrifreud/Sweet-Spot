@@ -13,8 +13,8 @@ type Props = {
 };
 
 /**
- * Three-quarter chip on the path — baked thickness from chip-3q, plus a contact
- * shadow so it sits on the road with volume instead of a flat decal.
+ * Three-quarter chip on the path — baked thickness from chip-3q, seated on the
+ * dirt without a drop shadow so it reads as part of the map.
  */
 export function MapNodeMedallion({ number, status, size = MAP_NODE_CHIP_SIZE }: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
@@ -32,20 +32,9 @@ export function MapNodeMedallion({ number, status, size = MAP_NODE_CHIP_SIZE }: 
   return (
     <View style={[styles.wrap, { width: chipSize, height: chipHeight }]}>
       <View
-        style={[
-          styles.shadow,
-          {
-            width: chipSize * 0.78,
-            height: chipSize * 0.22,
-            bottom: -chipSize * 0.02,
-          },
-        ]}
-      />
-      <View style={styles.chipBody} pointerEvents="none">
+        style={[styles.chipBody, locked && styles.lockedChip, completed && styles.completedChip]}
+        pointerEvents="none">
         <ChipSprite size={chipSize} view="threeQuarter" />
-        {completed ? <View style={[styles.tint, styles.completedTint]} /> : null}
-        {status === 'current' ? <View style={[styles.tint, styles.currentTint]} /> : null}
-        {locked ? <View style={[styles.tint, styles.lockedTint]} /> : null}
         <Text
           style={[
             styles.number,
@@ -72,30 +61,18 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-  },
-  shadow: {
-    position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: 'rgba(17,23,20,0.4)',
-    alignSelf: 'center',
-    transform: [{ scaleX: 1.05 }],
+    overflow: 'visible',
   },
   chipBody: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
-  tint: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 8,
+  lockedChip: {
+    opacity: 0.72,
   },
-  completedTint: {
-    backgroundColor: 'rgba(77,138,91,0.38)',
-  },
-  currentTint: {
-    backgroundColor: 'rgba(77,138,91,0.22)',
-  },
-  lockedTint: {
-    backgroundColor: 'rgba(79,88,84,0.55)',
+  completedChip: {
+    opacity: 0.96,
   },
   number: {
     position: 'absolute',
