@@ -11,6 +11,9 @@ export type AuthoredSpotType = CalibrationSpotType | 'level1_stage1';
 export type CalibrationSpot = {
   id: string;
   spotType: AuthoredSpotType;
+  pillar?: 1 | 2 | 3 | 4 | 5 | 6;
+  templateId?: 1 | 2 | 3 | 4 | 5 | 6;
+  templatePayload?: Record<string, unknown>;
   sequenceOrder: number;
   heroPosition: HeroPosition;
   holeCards: [string, string];

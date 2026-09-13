@@ -69,6 +69,18 @@ describe('mapSpotRow', () => {
     expect(mapped.correctAnswer).toBe('call');
     expect(mapped.isCatastrophicIfWrong).toBe(false);
   });
+
+  it('retains template routing fields when the backend supplies them', () => {
+    const mapped = mapSpotRow({
+      ...stage2Row,
+      pillar: 2,
+      template_id: 2,
+      template_payload: { street: 'turn', priceToCall: 3 },
+    });
+    expect(mapped.pillar).toBe(2);
+    expect(mapped.templateId).toBe(2);
+    expect(mapped.templatePayload).toEqual({ street: 'turn', priceToCall: 3 });
+  });
 });
 
 describe('nextCalibrationAction', () => {

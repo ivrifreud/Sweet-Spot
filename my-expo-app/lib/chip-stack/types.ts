@@ -2,6 +2,10 @@ export type ChipCount = 0 | 1 | 2 | 3;
 export type StagePokerAction = 'fold' | 'call' | 'raise';
 export type StageStatus = 'in_progress' | 'completed' | 'locked_out';
 
+export type StageAnswerMetadata = {
+  selectedOuts?: number;
+};
+
 export type ChipStackState = {
   chips: ChipCount;
   lockedOut: boolean;
