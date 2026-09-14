@@ -11,8 +11,8 @@ CC0 / Mixkit licensed foley. Gesture SFX stay shared across worlds; beds and mis
 | chip-pickup | chip-pickup.wav | Stack press / chip grab |
 | call | call.wav | Call commits |
 | raise | raise.wav | Raise commits |
-| correct pool | correct-clown.wav, correct-melody.wav, correct-scream.wav, correct-cheer.wav | One queued on a hit |
-| incorrect pool | incorrect-piano.wav, incorrect-fail.wav, incorrect-trombone.wav | One queued on a miss |
+| correct | correct.wav | Hit sting (Epidemic Sound UI alert) |
+| incorrect | incorrect.wav | Miss sting (Epidemic Sound male “no”) |
 | idle pool | idle-snore.wav, idle-yawn.wav | One queued after ~22s with no touch |
 | jackpot | jackpot.wav | Stage-complete overlay (correct real stage) |
 | jackpot-heavy | jackpot-heavy.wav | Worlds 2–3 dark jackpot (wired when those skins ship) |
@@ -28,4 +28,4 @@ CC0 / Mixkit licensed foley. Gesture SFX stay shared across worlds; beds and mis
 | vip-day-ambience | vip-day-ambience.wav | World 3 light (assets ready) |
 | vip-night-ambience | vip-night-ambience.wav | World 3 dark (assets ready) |
 
-Mix: ambience ducked by action SFX. Hit and miss stings queue one Mixkit cartoon cue each. Idle snore/yawn after no interaction. Mute persists. Failures never block play.
+Mix: ambience ducked by action SFX. Hit and miss each play a single Epidemic Sound sting. Idle snore/yawn after no interaction. Mute persists. Failures never block play.

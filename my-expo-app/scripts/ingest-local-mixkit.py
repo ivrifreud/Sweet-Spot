@@ -18,13 +18,8 @@ DOWNLOADS = Path.home() / "Downloads"
 # dest, source filename, kind, optional max seconds
 INGEST: list[tuple[str, str, str, float | None]] = [
     ("fold.wav", "mixkit-quick-rope-throw-730.mp3", "sting", 1.6),
-    ("correct-clown.wav", "mixkit-cartoon-clown-fun-nose-sound-528.wav", "sting", 2.0),
-    ("correct-melody.wav", "mixkit-funny-cartoon-melody-2881.wav", "sting", 3.2),
-    ("correct-scream.wav", "mixkit-human-fighter-pain-scream-2768.wav", "sting", 2.4),
-    ("correct-cheer.wav", "mixkit-small-group-cheer-and-applause-518.wav", "sting", 4.2),
-    ("incorrect-piano.wav", "mixkit-cartoon-failure-piano-473.wav", "sting", 2.6),
-    ("incorrect-fail.wav", "mixkit-funny-fail-low-tone-2876.wav", "sting", 2.4),
-    ("incorrect-trombone.wav", "mixkit-trombone-disappoint-744.wav", "sting", 3.2),
+    ("correct.wav", "correct feedback.mp3", "sting", None),
+    ("incorrect.wav", "ES_Voices, Male, In Peril, Says No 01 - Epidemic Sound.mp3", "sting", None),
     ("idle-snore.wav", "mixkit-man-strong-snore-2478.wav", "sting", 3.8),
     ("idle-yawn.wav", "mixkit-young-tired-male-yawns-2278.wav", "sting", 3.8),
     ("garden-ambience.wav", "mixkit-morning-birds-2472.wav", "bed", None),

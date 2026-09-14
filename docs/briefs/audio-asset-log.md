@@ -9,13 +9,8 @@
 | raise.wav | Kenney | CC0 | https://kenney.nl/assets/casino-audio (`chipsCollide1.ogg`) | chip stack clink |
 | jackpot.wav | Kenney | CC0 | https://kenney.nl/assets/casino-audio (`chipsHandle3.ogg`) | chip cascade |
 | jackpot-heavy.wav | Kenney | CC0 | https://kenney.nl/assets/casino-audio (`chipsStack3.ogg`) | heavy chip dump |
-| correct-clown.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/cartoon/ (sfx 528) | clown nose hit |
-| correct-melody.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/cartoon/ (sfx 2881) | funny melody hit |
-| correct-scream.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/scream/ (sfx 2768) | fighter scream hit |
-| correct-cheer.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/crowd/ (sfx 518) | small cheer hit |
-| incorrect-piano.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/fail/ (sfx 473) | failure piano miss |
-| incorrect-fail.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/fail/ (sfx 2876) | low-tone fail miss |
-| incorrect-trombone.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/trombone/ (sfx 744) | sad trombone miss |
+| correct.wav | Epidemic Sound | Epidemic Sound license | User Interface, Alert, Delayed, High Pitched, Correct, Positive | hit sting |
+| incorrect.wav | Epidemic Sound | Epidemic Sound license | Voices, Male, In Peril, Says No 01 | miss sting |
 | idle-snore.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/snore/ (sfx 2478) | idle snore |
 | idle-yawn.wav | Mixkit | Mixkit License | https://mixkit.co/free-sound-effects/yawn/ (sfx 2278) | idle yawn |
 | arrive.wav | Kenney | CC0 | https://kenney.nl/assets/interface-sounds (`confirmation_001.ogg`) | node arrival |
