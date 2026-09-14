@@ -38,13 +38,8 @@ export type SfxName =
   | 'chipPickup'
   | 'call'
   | 'raise'
-  | 'correctClown'
-  | 'correctMelody'
-  | 'correctScream'
-  | 'correctCheer'
-  | 'incorrectPiano'
-  | 'incorrectFail'
-  | 'incorrectTrombone'
+  | 'correct'
+  | 'incorrect'
   | 'idleSnore'
   | 'idleYawn'
   | 'jackpot'
@@ -90,13 +85,8 @@ const sfxSources: Record<SfxName, number> = {
   chipPickup: require('../../assets/audio/chip-pickup.wav'),
   call: require('../../assets/audio/call.wav'),
   raise: require('../../assets/audio/raise.wav'),
-  correctClown: require('../../assets/audio/correct-clown.wav'),
-  correctMelody: require('../../assets/audio/correct-melody.wav'),
-  correctScream: require('../../assets/audio/correct-scream.wav'),
-  correctCheer: require('../../assets/audio/correct-cheer.wav'),
-  incorrectPiano: require('../../assets/audio/incorrect-piano.wav'),
-  incorrectFail: require('../../assets/audio/incorrect-fail.wav'),
-  incorrectTrombone: require('../../assets/audio/incorrect-trombone.wav'),
+  correct: require('../../assets/audio/correct.wav'),
+  incorrect: require('../../assets/audio/incorrect.wav'),
   idleSnore: require('../../assets/audio/idle-snore.wav'),
   idleYawn: require('../../assets/audio/idle-yawn.wav'),
   jackpot: require('../../assets/audio/jackpot.wav'),
