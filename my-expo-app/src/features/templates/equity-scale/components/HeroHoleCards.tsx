@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { describeHoleCards, parseCard, type HoleCardCodes } from '@/lib/cards';
 
@@ -7,46 +7,56 @@ import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
 
 type Props = {
   cards: HoleCardCodes;
-  bottom: number;
+  cardWidth?: number;
 };
 
-const CARD_WIDTH = 46;
+const CARD_WIDTH = 56;
 
-/** Hero hole cards sit under the Fold button in the lower-right. */
-export function HeroHoleCards({ cards, bottom }: Props) {
+export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
   const parsed = [parseCard(cards[0]), parseCard(cards[1])] as const;
+  const overlap = Math.round(cardWidth * 0.33);
 
   return (
     <View
       pointerEvents="none"
       accessibilityRole="text"
-      accessibilityLabel={`Your hand, ${describeHoleCards(parsed)}`}
-      style={[styles.root, { bottom }]}>
-      {parsed.map((card, index) => (
-        <View
-          key={`${card.rank}${card.suit}-${index}`}
-          style={[
-            styles.card,
-            {
-              marginLeft: index === 0 ? 0 : -16,
-              transform: [{ rotate: index === 0 ? '-8deg' : '9deg' }],
-              zIndex: index + 1,
-            },
-          ]}>
-          <CardFace card={card} width={CARD_WIDTH} />
-        </View>
-      ))}
+      accessibilityLabel={`Your hand, ${describeHoleCards([parsed[0], parsed[1]])}`}
+      style={styles.root}>
+      <Text style={styles.caption}>YOU</Text>
+      <View style={styles.row}>
+        {parsed.map((card, index) => (
+          <View
+            key={`${card.rank}${card.suit}-${index}`}
+            style={[
+              styles.card,
+              {
+                marginLeft: index === 0 ? 0 : -overlap,
+                transform: [{ rotate: index === 0 ? '-7deg' : '8deg' }],
+                zIndex: index + 1,
+              },
+            ]}>
+            <CardFace card={card} width={cardWidth} />
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    position: 'absolute',
-    right: 12,
+    alignItems: 'center',
+  },
+  caption: {
+    color: artStyle.colors.goldBright,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    marginBottom: 2,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    zIndex: 48,
   },
   card: {
     shadowColor: artStyle.colors.projectorBlack,

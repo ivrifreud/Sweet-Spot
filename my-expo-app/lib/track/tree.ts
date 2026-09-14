@@ -282,3 +282,9 @@ export function nodeByNumber(
 export function worldBackdrop(placement: Placement): 'garden' | 'casino' {
   return placement === 1 ? 'garden' : 'casino';
 }
+
+export function equityWorldSkin(placement: Placement): 'garden' | 'casino' | 'vip' {
+  if (placement === 1) return 'garden';
+  if (placement === 2) return 'casino';
+  return 'vip';
+}

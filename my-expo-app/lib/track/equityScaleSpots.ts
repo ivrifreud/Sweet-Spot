@@ -37,6 +37,7 @@ const authored: EquityScaleDemoSpot[] = [
       correctOuts: 9,
       correctDecision: 'call',
       takeaway: 'Nine hearts give about 20% equity. You need 17%, so the call earns chips.',
+      textureLine: 'Flush draw on a two-heart board',
     },
   },
   {
@@ -70,6 +71,7 @@ const authored: EquityScaleDemoSpot[] = [
       correctDecision: 'call',
       takeaway:
         'Eight straight outs hit by the river about 31%. The price needs 31%, making this barely profitable.',
+      textureLine: 'Open-ender on a dry king-high flop',
     },
   },
   {
@@ -101,6 +103,7 @@ const authored: EquityScaleDemoSpot[] = [
       correctOuts: 9,
       correctDecision: 'fold',
       takeaway: 'Nine hearts give about 20% equity, but this price demands 36%. Fold the draw.',
+      textureLine: 'Flush draw on a two-heart board',
     },
   },
   {
@@ -132,6 +135,7 @@ const authored: EquityScaleDemoSpot[] = [
       correctOuts: 8,
       correctDecision: 'call',
       takeaway: 'Eight straight outs give 17% equity. The small price asks for only 14%.',
+      textureLine: 'Open-ender on a dry king-high turn',
     },
   },
   {
@@ -164,6 +168,7 @@ const authored: EquityScaleDemoSpot[] = [
       correctDecision: 'fold',
       takeaway:
         'Nine diamond outs hit by the river about 35%. This price needs 40%, above the draw.',
+      textureLine: 'Flush draw on a two-diamond flop',
     },
   },
 ];

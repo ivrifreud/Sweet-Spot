@@ -1,32 +1,40 @@
 /* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
-import { DEFAULT_EQUITY_SPOT, OUTCOME_ANIMATION_MS, REDUCED_OUTCOME_MS } from './config';
+import {
+  DEFAULT_EQUITY_SPOT,
+  EQUITY_DIAL_MAX,
+  EQUITY_DIAL_MIN,
+  EQUITY_INITIAL_EQUITY,
+  EQUITY_INITIAL_OUTS,
+  EQUITY_OUTS_MAX,
+  EQUITY_OUTS_MIN,
+  OUTCOME_ANIMATION_MS,
+  REDUCED_OUTCOME_MS,
+} from './config';
 import { scaleTilt } from './dialMath';
 import { percent, requiredEquity } from './equityMath';
-import { equityScaleArt } from './equityScaleArt';
+import { ambienceForSkin, equityScaleArt } from './equityScaleArt';
 import { EQUITY_STRINGS } from './strings';
+import { ArtButton } from './components/ArtButton';
+import { BoardCards } from './components/BoardCards';
+import { EstimateDial } from './components/EstimateDial';
 import { HeroHoleCards } from './components/HeroHoleCards';
-import { OutsDial } from './components/OutsDial';
 import { ScaleScene } from './components/ScaleScene';
+import { StageResultsReveal } from './components/StageResultsReveal';
+import { TableBackdrop } from './components/TableBackdrop';
+import { equityTableLayout } from './tableLayout';
 import type {
   EquityDecision,
+  EquityGrade,
   EquityScalePhase,
   EquityScaleSpot,
   EquityScaleSubmission,
@@ -37,6 +45,7 @@ export type EquityScaleTemplateProps = {
   disabled?: boolean;
   resetKey?: number;
   outcome?: DecisionOutcome | null;
+  grade?: EquityGrade | null;
   onSubmit?: (submission: EquityScaleSubmission) => void;
   onOutcomeAnimationComplete?: () => void;
 };
@@ -46,13 +55,16 @@ export function EquityScaleTemplate({
   disabled = false,
   resetKey = 0,
   outcome = null,
+  grade = null,
   onSubmit,
   onOutcomeAnimationComplete,
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const [selectedOuts, setSelectedOuts] = useState(8);
+  const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
+  const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
+  const [lockedOuts, setLockedOuts] = useState<number | null>(null);
   const [phase, setPhase] = useState<EquityScalePhase>('entering');
   const submittedRef = useRef(false);
   const animatedOutcomeRef = useRef<DecisionOutcome | null>(null);
@@ -63,27 +75,28 @@ export function EquityScaleTemplate({
   }, [onOutcomeAnimationComplete]);
 
   useEffect(() => {
-    setSelectedOuts(8);
+    setSelectedOuts(EQUITY_INITIAL_OUTS);
+    setSelectedEquity(EQUITY_INITIAL_EQUITY);
+    setLockedOuts(null);
     setPhase('entering');
     submittedRef.current = false;
     animatedOutcomeRef.current = null;
-    const timer = setTimeout(() => setPhase('deciding'), reducedMotion ? 80 : 360);
+    const timer = setTimeout(() => setPhase('stage1'), 280);
     return () => clearTimeout(timer);
-  }, [reducedMotion, resetKey, spot.id]);
+  }, [resetKey, spot.id]);
 
   useEffect(() => {
-    if (spot.skin !== 'garden') return;
-    startAmbience('bennys-garden', 'night');
+    startAmbience(ambienceForSkin(spot.skin), 'night');
     return () => stopAmbience();
   }, [spot.skin]);
 
   useEffect(() => {
     if (!outcome || !submittedRef.current || animatedOutcomeRef.current === outcome) return;
     animatedOutcomeRef.current = outcome;
-    setPhase(outcome);
+    setPhase('revealing');
     const timer = setTimeout(
       () => {
-        setPhase('resolved');
+        setPhase(outcome);
         onOutcomeCompleteRef.current?.();
       },
       reducedMotion ? REDUCED_OUTCOME_MS : OUTCOME_ANIMATION_MS
@@ -91,103 +104,183 @@ export function EquityScaleTemplate({
     return () => clearTimeout(timer);
   }, [outcome, reducedMotion]);
 
+  const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
+  const showingOuts = phase === 'entering' || phase === 'stage1';
   const tilt = useMemo(
     () =>
-      scaleTilt({
-        selectedOuts,
-        street: spot.street,
-        potBeforeCall: spot.potBeforeCall,
-        priceToCall: spot.priceToCall,
-      }),
-    [selectedOuts, spot.potBeforeCall, spot.priceToCall, spot.street]
+      showingOuts || lockedOuts === null
+        ? 0
+        : scaleTilt({
+            selectedEquity,
+            potBeforeCall: spot.potBeforeCall,
+            priceToCall: spot.priceToCall,
+          }),
+    [lockedOuts, selectedEquity, showingOuts, spot.potBeforeCall, spot.priceToCall]
   );
-  const needed = percent(requiredEquity(spot.potBeforeCall, spot.priceToCall));
-  const display = fontsLoaded ? styles.displayLoaded : null;
-  const live = !disabled && (phase === 'deciding' || phase === 'dialing');
+  const stage1Live = !disabled && phase === 'stage1';
+  const stage2Live = !disabled && phase === 'stage2';
+  const revealing = phase === 'revealing' || phase === 'correct' || phase === 'incorrect' || phase === 'resolved';
+
+  const lockOuts = useCallback(() => {
+    if (!stage1Live) return;
+    setLockedOuts(selectedOuts);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setPhase('stage2');
+  }, [selectedOuts, stage1Live]);
 
   const submit = useCallback(
     (decision: EquityDecision) => {
-      if (!live || submittedRef.current) return;
+      if (!stage2Live || submittedRef.current) return;
       submittedRef.current = true;
       setPhase('submitting');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      onSubmit?.({ decision, selectedOuts });
+      onSubmit?.({
+        decision,
+        selectedOuts: lockedOuts ?? selectedOuts,
+        selectedEquity,
+      });
     },
-    [live, onSubmit, selectedOuts]
+    [lockedOuts, onSubmit, selectedEquity, selectedOuts, stage2Live]
   );
 
   const activeOutcome =
-    phase === 'correct' || phase === 'incorrect' || phase === 'resolved' ? outcome : null;
+    phase === 'correct' || phase === 'incorrect' || phase === 'revealing' || phase === 'resolved'
+      ? outcome
+      : null;
+
+  const table = equityTableLayout({
+    width: windowWidth,
+    height: windowHeight,
+    topInset: insets.top,
+    bottomInset: insets.bottom,
+    showingOuts,
+    boardCount: spot.board.length,
+  });
+  const { scaleTop, cardsTop, valueTop } = table;
 
   return (
-    <ImageBackground
-      source={equityScaleArt.background}
-      style={styles.root}
-      resizeMode="cover"
-      accessibilityRole="image"
-      accessibilityLabel="Benny at the casino table">
-      <View style={[styles.header, { top: insets.top + 64 }]}>
-        <View>
-          <Text style={[styles.title, display]}>{EQUITY_STRINGS.title}</Text>
-          <Text style={styles.action}>
+    <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
+      <TableBackdrop skin={spot.skin} />
+
+      <View style={[styles.scaleWrap, { top: scaleTop }]}>
+        <ScaleScene
+          tilt={tilt}
+          outcome={activeOutcome}
+          stagesCorrect={grade?.stagesCorrect ?? null}
+          width={table.scaleWidth}
+          height={table.scaleHeight}
+        />
+      </View>
+
+      {showingOuts ? null : (
+        <View style={[styles.valueRow, { top: valueTop }]}>
+          <ValuePlate label={EQUITY_STRINGS.potLabel} value={`${spot.potBeforeCall}bb`} />
+          <ValuePlate label={EQUITY_STRINGS.oddsLabel} value={percent(potOdds)} />
+          <ValuePlate label={EQUITY_STRINGS.callLabel} value={`${spot.priceToCall}bb`} />
+          {lockedOuts !== null ? (
+            <ValuePlate label={EQUITY_STRINGS.lockedOuts} value={String(lockedOuts)} />
+          ) : null}
+        </View>
+      )}
+
+      <View style={[styles.spotBlock, { top: cardsTop }]}>
+        <View style={styles.actionCue}>
+          <Text numberOfLines={1} style={styles.actionCueText}>
             {spot.position} · {spot.actionLine}
           </Text>
         </View>
-        <Text style={styles.progress}>{spot.progressLabel}</Text>
+        <View style={styles.spotRow}>
+          <HeroHoleCards cards={spot.heroCards} cardWidth={table.heroCardWidth} />
+          <BoardCards
+            board={spot.board}
+            textureLine={spot.textureLine}
+            cardWidth={table.boardCardWidth}
+            gap={table.boardGap}
+          />
+        </View>
+        <Text style={styles.instruction}>
+          {showingOuts ? EQUITY_STRINGS.stage1Instruction : EQUITY_STRINGS.stage2Instruction}
+        </Text>
       </View>
 
-      <View style={[styles.valueRow, { top: insets.top + 116 }]}>
-        <ValuePlate label={EQUITY_STRINGS.potLabel} value={`${spot.potBeforeCall}bb`} />
-        <ValuePlate label="Equity needed" value={needed} />
-        <ValuePlate label={EQUITY_STRINGS.callLabel} value={`${spot.priceToCall}bb`} />
+      <View
+        style={[
+          styles.dialWrap,
+          showingOuts
+            ? { bottom: insets.bottom + 10, alignItems: 'flex-start', paddingLeft: 16 }
+            : { bottom: insets.bottom + 10 },
+        ]}>
+        {showingOuts ? (
+          <EstimateDial
+            key={`outs-${resetKey}-${spot.id}`}
+            value={selectedOuts}
+            min={EQUITY_OUTS_MIN}
+            max={EQUITY_OUTS_MAX}
+            unit={EQUITY_STRINGS.outsUnit}
+            label={EQUITY_STRINGS.outsDialLabel}
+            accessibilityLabel="Outs dial"
+            enabled={stage1Live}
+            onChange={setSelectedOuts}
+            onAdjustStart={() => {}}
+            onAdjustEnd={() => {}}
+          />
+        ) : (
+          <EstimateDial
+            key={`equity-${resetKey}-${spot.id}`}
+            value={selectedEquity}
+            min={EQUITY_DIAL_MIN}
+            max={EQUITY_DIAL_MAX}
+            unit={EQUITY_STRINGS.equityUnit}
+            label={EQUITY_STRINGS.equityDialLabel}
+            accessibilityLabel="Equity dial"
+            enabled={stage2Live}
+            onChange={setSelectedEquity}
+            onAdjustStart={() => {}}
+            onAdjustEnd={() => {}}
+          />
+        )}
       </View>
 
-      <View style={[styles.scaleWrap, { top: insets.top + 108 }]}>
-        <ScaleScene tilt={tilt} outcome={activeOutcome} />
-      </View>
-
-      <HeroHoleCards cards={spot.heroCards} bottom={insets.bottom + 8} />
-
-      <View style={[styles.dialWrap, { bottom: insets.bottom + 52 }]}>
-        <Text style={styles.instruction}>{EQUITY_STRINGS.instruction}</Text>
-        <OutsDial
-          value={selectedOuts}
-          enabled={live}
-          onChange={setSelectedOuts}
-          onAdjustStart={() => setPhase('dialing')}
-          onAdjustEnd={() => setPhase((current) => (current === 'dialing' ? 'deciding' : current))}
-        />
-      </View>
-
-      <View style={[styles.actions, { bottom: insets.bottom + 116 }]}>
-        <DecisionButton
-          label={EQUITY_STRINGS.call}
-          decision="call"
-          enabled={live}
-          onPress={submit}
-          display={display}
-        />
-        <View pointerEvents="none" style={styles.dialClearance} />
-        <DecisionButton
-          label={EQUITY_STRINGS.fold}
-          decision="fold"
-          enabled={live}
-          onPress={submit}
-          display={display}
-        />
-      </View>
+      {showingOuts ? (
+        <View style={[styles.actions, { bottom: insets.bottom + 28 }]}>
+          <View pointerEvents="none" style={styles.dialClearance} />
+          <ArtButton
+            source={equityScaleArt.buttons.lockIn}
+            label={EQUITY_STRINGS.lockIn}
+            enabled={stage1Live}
+            size={120}
+            round={false}
+            onPress={lockOuts}
+          />
+        </View>
+      ) : (
+        <View style={[styles.actions, { bottom: insets.bottom + 28 }]}>
+          <ArtButton
+            source={equityScaleArt.buttons.fold}
+            label={EQUITY_STRINGS.fold}
+            enabled={stage2Live}
+            size={125}
+            onPress={() => submit('fold')}
+          />
+          <View pointerEvents="none" style={styles.dialClearance} />
+          <ArtButton
+            source={equityScaleArt.buttons.call}
+            label={EQUITY_STRINGS.call}
+            enabled={stage2Live}
+            size={118}
+            onPress={() => submit('call')}
+          />
+        </View>
+      )}
 
       {phase === 'submitting' ? (
         <Text accessibilityLiveRegion="polite" style={styles.status}>
           {EQUITY_STRINGS.submitting}
         </Text>
       ) : null}
-      {activeOutcome ? (
-        <Text accessibilityLiveRegion="polite" style={styles.outcomeText}>
-          {activeOutcome === 'correct' ? EQUITY_STRINGS.correct : EQUITY_STRINGS.incorrect}
-        </Text>
-      ) : null}
-    </ImageBackground>
+
+      {revealing ? <StageResultsReveal grade={grade} /> : null}
+    </View>
   );
 }
 
@@ -200,96 +293,46 @@ function ValuePlate({ label, value }: { label: string; value: string }) {
   );
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function DecisionButton({
-  label,
-  decision,
-  enabled,
-  onPress,
-  display,
-}: {
-  label: string;
-  decision: EquityDecision;
-  enabled: boolean;
-  onPress: (decision: EquityDecision) => void;
-  display: object | null;
-}) {
-  const reducedMotion = useReducedMotion();
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const pressIn = () => {
-    if (!enabled) return;
-    scale.value = reducedMotion ? 0.96 : withTiming(0.96, { duration: 100 });
-  };
-
-  const pressOut = () => {
-    scale.value = reducedMotion
-      ? 1
-      : withSequence(
-          withTiming(1.04, { duration: 90 }),
-          withTiming(1, { duration: 110, easing: Easing.out(Easing.cubic) })
-        );
-  };
-
-  return (
-    <AnimatedPressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label.toLowerCase()} and lock in`}
-      disabled={!enabled}
-      onPress={() => onPress(decision)}
-      onPressIn={pressIn}
-      onPressOut={pressOut}
-      style={[
-        styles.actionButton,
-        decision === 'call' ? styles.callButton : styles.foldButton,
-        !enabled && styles.actionDisabled,
-        pressStyle,
-      ]}>
-      <Text style={[styles.actionText, display]}>{label}</Text>
-    </AnimatedPressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     overflow: 'hidden',
     backgroundColor: artStyle.colors.projectorBlack,
   },
-  header: {
+  spotBlock: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    minHeight: 44,
+    left: 12,
+    right: 12,
+    zIndex: 34,
+  },
+  actionCue: {
+    alignSelf: 'center',
+    minHeight: 18,
+    maxWidth: '88%',
+    marginBottom: 4,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: 'rgba(17,23,20,0.82)',
+  },
+  actionCueText: {
+    color: artStyle.colors.cream,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  spotRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    zIndex: 30,
+    alignItems: 'flex-end',
   },
-  title: {
-    color: artStyle.colors.goldBright,
-    fontSize: 25,
-    letterSpacing: 1.8,
-    fontWeight: '900',
-  },
-  displayLoaded: {
-    fontFamily: 'BebasNeue_400Regular',
-  },
-  action: {
+  texture: {
+    marginTop: 6,
     color: artStyle.colors.cream,
     fontSize: 12,
     fontWeight: '700',
-    marginTop: -2,
-  },
-  progress: {
-    color: artStyle.colors.cream,
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 7,
+    textAlign: 'center',
   },
   valueRow: {
     position: 'absolute',
@@ -322,6 +365,33 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
   },
+  lockedPlate: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 36,
+  },
+  lockedInner: {
+    width: 96,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: artStyle.colors.goldBright,
+    backgroundColor: 'rgba(17,23,20,0.92)',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  lockedLabel: {
+    color: 'rgba(232,215,167,0.78)',
+    fontSize: 8,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  lockedValue: {
+    color: artStyle.colors.goldBright,
+    fontSize: 18,
+    fontWeight: '900',
+  },
   scaleWrap: {
     position: 'absolute',
     left: 0,
@@ -339,14 +409,12 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   instruction: {
+    marginTop: 8,
     color: artStyle.colors.cream,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
     textAlign: 'center',
-    width: 290,
-    marginBottom: 4,
-    zIndex: 6,
   },
   actions: {
     position: 'absolute',
@@ -356,45 +424,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 50,
+    pointerEvents: 'box-none',
   },
   dialClearance: {
     flex: 1,
     minWidth: 132,
     height: 1,
-  },
-  actionButton: {
-    width: 104,
-    minHeight: 64,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: artStyle.colors.projectorBlack,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.78,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  callButton: {
-    backgroundColor: artStyle.colors.feltGreen,
-    shadowColor: artStyle.colors.feltGreen,
-  },
-  foldButton: {
-    backgroundColor: artStyle.colors.oxblood,
-    shadowColor: artStyle.colors.oxblood,
-  },
-  actionDisabled: {
-    opacity: 0.48,
-  },
-  actionText: {
-    color: artStyle.colors.cream,
-    fontSize: 32,
-    letterSpacing: 2.2,
-    fontWeight: '900',
-    textShadowColor: artStyle.colors.projectorBlack,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 0,
   },
   status: {
     position: 'absolute',
@@ -403,18 +438,5 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontWeight: '800',
     zIndex: 60,
-  },
-  outcomeText: {
-    position: 'absolute',
-    left: 40,
-    right: 40,
-    top: 244,
-    color: artStyle.colors.cream,
-    fontSize: 14,
-    fontWeight: '900',
-    textAlign: 'center',
-    zIndex: 56,
-    textShadowColor: '#171713',
-    textShadowRadius: 4,
   },
 });

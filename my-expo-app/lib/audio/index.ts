@@ -52,7 +52,8 @@ export type SfxName =
   | 'step'
   | 'arrive'
   | 'clouds'
-  | 'uiClick';
+  | 'uiClick'
+  | 'dial';
 
 type Settings = {
   muted: boolean;
@@ -78,6 +79,7 @@ let lastIncorrect: (typeof INCORRECT_POOL)[number] | undefined;
 let lastIdle: IdleCue | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let walking = false;
+let dialing = false;
 const lastPlayed: Partial<Record<SfxName | AmbienceName, number>> = {};
 
 const sfxSources: Record<SfxName, number> = {
@@ -103,6 +105,7 @@ const sfxSources: Record<SfxName, number> = {
   arrive: require('../../assets/audio/arrive.wav'),
   clouds: require('../../assets/audio/clouds.wav'),
   uiClick: require('../../assets/audio/ui-click.wav'),
+  dial: require('../../assets/audio/dial.wav'),
 };
 
 /** World 1 beds only. Metro resolves every `require` at bundle time; later-world WAVs stay on disk until those skins ship. */
@@ -296,6 +299,38 @@ export function stopWalkSfx(): void {
   pauseWalkPlayer();
 }
 
+export function startDialSfx(): void {
+  dialing = true;
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  const player = sfxPlayers.dial;
+  if (!player) return;
+  try {
+    player.loop = true;
+    player.volume = settings.sfxVolume;
+    player.seekTo?.(0);
+    player.play();
+  } catch {
+    // Ignore playback errors.
+  }
+}
+
+function pauseDialPlayer(): void {
+  const player = sfxPlayers.dial;
+  if (!player) return;
+  try {
+    player.loop = false;
+    player.pause();
+    player.seekTo?.(0);
+  } catch {
+    // Ignore.
+  }
+}
+
+export function stopDialSfx(): void {
+  dialing = false;
+  pauseDialPlayer();
+}
+
 function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): AmbienceName {
   const next = worldId ? selectAmbience(worldId, lighting) : activeBed;
   if (next !== 'garden-night-ambience' && next !== 'garden-night-forest') {
@@ -338,10 +373,12 @@ export async function setMuted(muted: boolean): Promise<void> {
   if (muted) {
     stopAmbience();
     pauseWalkPlayer();
+    pauseDialPlayer();
     return;
   }
   startAmbience();
   if (walking) startWalkSfx();
+  if (dialing) startDialSfx();
 }
 
 export function isMuted(): boolean {
