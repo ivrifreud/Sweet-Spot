@@ -1,25 +1,12 @@
-export type CorrectCue =
-  | 'correctClown'
-  | 'correctMelody'
-  | 'correctScream'
-  | 'correctCheer';
+export type CorrectCue = 'correct';
 
-export type IncorrectCue = 'incorrectPiano' | 'incorrectFail' | 'incorrectTrombone';
+export type IncorrectCue = 'incorrect';
 
 export type IdleCue = 'idleSnore' | 'idleYawn';
 
-export const CORRECT_POOL: readonly CorrectCue[] = [
-  'correctClown',
-  'correctMelody',
-  'correctScream',
-  'correctCheer',
-];
+export const CORRECT_POOL: readonly CorrectCue[] = ['correct'];
 
-export const INCORRECT_POOL: readonly IncorrectCue[] = [
-  'incorrectPiano',
-  'incorrectFail',
-  'incorrectTrombone',
-];
+export const INCORRECT_POOL: readonly IncorrectCue[] = ['incorrect'];
 
 export const IDLE_POOL: readonly IdleCue[] = ['idleSnore', 'idleYawn'];
 
