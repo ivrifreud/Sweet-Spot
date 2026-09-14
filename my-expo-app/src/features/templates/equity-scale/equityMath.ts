@@ -1,4 +1,17 @@
-import type { EquityDecision, EquityScaleSpot, EquityStreet } from './types';
+import {
+  DECISION_WEIGHT,
+  EQUITY_TOLERANCE_PP,
+  EQUITY_WEIGHT,
+  OUTS_TOLERANCE,
+  OUTS_WEIGHT,
+} from './config';
+import type {
+  EquityDecision,
+  EquityGrade,
+  EquityScaleSpot,
+  EquityScaleSubmission,
+  EquityStreet,
+} from './types';
 
 export function clampOuts(outs: number): number {
   if (!Number.isFinite(outs)) return 0;
@@ -61,4 +74,34 @@ export function validateEquitySpot(spot: EquityScaleSpot): void {
 
 export function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+export function trueEquityPercent(spot: EquityScaleSpot): number {
+  return Math.round(hitChance(spot.correctOuts, spot.street) * 100);
+}
+
+export function gradeEquitySubmission(
+  spot: EquityScaleSpot,
+  submission: Pick<EquityScaleSubmission, 'decision' | 'selectedOuts' | 'selectedEquity'>
+): EquityGrade {
+  const truePct = trueEquityPercent(spot);
+  const potOddsPercent = Math.round(requiredEquity(spot.potBeforeCall, spot.priceToCall) * 100);
+  const outsCorrect = Math.abs(submission.selectedOuts - spot.correctOuts) <= OUTS_TOLERANCE;
+  const equityCorrect = Math.abs(submission.selectedEquity - truePct) <= EQUITY_TOLERANCE_PP;
+  const decisionCorrect = submission.decision === spot.correctDecision;
+  const stagesCorrect = ([outsCorrect, equityCorrect, decisionCorrect].filter(Boolean).length ??
+    0) as 0 | 1 | 2 | 3;
+  const score =
+    (decisionCorrect ? DECISION_WEIGHT : 0) +
+    (outsCorrect ? OUTS_WEIGHT : 0) +
+    (equityCorrect ? EQUITY_WEIGHT : 0);
+  return {
+    outsCorrect,
+    equityCorrect,
+    decisionCorrect,
+    stagesCorrect,
+    score,
+    trueEquityPercent: truePct,
+    potOddsPercent,
+  };
 }

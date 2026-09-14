@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import type { StageTemplateSpot } from '../../../lib/track/stageSpot';
 import type { DecisionOutcome } from '../decision-feedback/types';
 import { EquityScaleTemplate } from './equity-scale';
-import type { EquityScaleSubmission } from './equity-scale/types';
+import type { EquityGrade, EquityScaleSubmission } from './equity-scale/types';
 import { PeekAndPitchTemplate } from './peek-and-pitch';
 import type { SpotDecision } from './peek-and-pitch/types';
 
@@ -12,6 +12,7 @@ type Props = {
   disabled: boolean;
   resetKey: number;
   outcome: DecisionOutcome | null;
+  grade?: EquityGrade | null;
   onPeekDecision: (decision: SpotDecision) => void;
   onEquitySubmit: (submission: EquityScaleSubmission) => void;
   onOutcomeAnimationComplete: () => void;
@@ -33,12 +34,13 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
       />
     );
   },
-  2: ({ item, disabled, resetKey, outcome, onEquitySubmit, onOutcomeAnimationComplete }) => {
+  2: ({ item, disabled, resetKey, outcome, grade, onEquitySubmit, onOutcomeAnimationComplete }) => {
     if (item.templateId !== 2) throw new Error('Equity renderer received the wrong spot');
     return (
       <EquityScaleTemplate
         spot={item.table}
         outcome={outcome}
+        grade={grade}
         onSubmit={onEquitySubmit}
         onOutcomeAnimationComplete={onOutcomeAnimationComplete}
         disabled={disabled}

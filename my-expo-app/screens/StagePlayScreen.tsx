@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { TrackHud } from '../components/track/TrackHud';
-import { StreakModal } from '../components/track/StreakModal';
+import { LifeChips } from '../components/track/LifeChips';
 import { formatRegenCountdown, submitStageAnswer, type ChipCount } from '../lib/chip-stack';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
@@ -19,8 +18,13 @@ import {
   type DecisionFeedbackCopy,
   type FeedbackTempo,
 } from '../src/features/decision-feedback';
+import {
+  buildEquityFeedbackCopy,
+  gradeEquitySubmission,
+} from '../src/features/templates/equity-scale';
 import type {
   EquityDecision,
+  EquityGrade,
   EquityScaleSubmission,
 } from '../src/features/templates/equity-scale/types';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
@@ -67,9 +71,6 @@ export function StagePlayScreen({
   reveal,
   stageNumber,
   remainingChips,
-  goldBars,
-  streakDays,
-  streakBestDays,
   initialSpotsCompleted = 0,
   stageProgressId = null,
   onResolved,
@@ -89,6 +90,7 @@ export function StagePlayScreen({
   const [feedback, setFeedback] = useState<Pending | null>(null);
   const [pendingFeedback, setPendingFeedback] = useState<Pending | null>(null);
   const [equityOutcome, setEquityOutcome] = useState<'correct' | 'incorrect' | null>(null);
+  const [equityGrade, setEquityGrade] = useState<EquityGrade | null>(null);
   const [settled, setSettled] = useState<boolean | null>(null);
   const [stageComplete, setStageComplete] = useState(
     () => initialSpotsCompleted >= SPOTS_PER_STAGE
@@ -98,7 +100,6 @@ export function StagePlayScreen({
   const [regenAt, setRegenAt] = useState<string | null>(null);
   const [lockedOut, setLockedOut] = useState(remainingChips === 0);
   const [now, setNow] = useState(() => new Date());
-  const [showStreak, setShowStreak] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror authoritative parent state
@@ -127,6 +128,11 @@ export function StagePlayScreen({
         setPlayError(null);
         try {
           let correct = isAnswerCorrect(calibration, chosen);
+          let grade: EquityGrade | null = null;
+          if (equity && item.templateId === 2) {
+            grade = gradeEquitySubmission(item.table, equity);
+            correct = grade.decisionCorrect;
+          }
           let nextChips: ChipCount = remainingChips;
           let nextLockedOut = remainingChips === 0;
           let nextRegenAt = regenAt;
@@ -139,7 +145,9 @@ export function StagePlayScreen({
               stageProgressId,
               spotId: calibration.id,
               chosenAnswer: chosen,
-              answerMetadata: equity ? { selectedOuts: equity.selectedOuts } : undefined,
+              answerMetadata: equity
+                ? { selectedOuts: equity.selectedOuts, selectedEquity: equity.selectedEquity }
+                : undefined,
             });
             correct = result.isCorrect;
             nextChips = result.chips;
@@ -192,24 +200,29 @@ export function StagePlayScreen({
           setStageComplete(progress.stageComplete);
 
           const lastHand = progress.stageComplete || nextLockedOut;
-          const selectedOutsLesson = equity
-            ? `${calibration.prompt} You dialed ${equity.selectedOuts} outs.`
-            : calibration.prompt;
           const nextFeedback = {
-            copy: buildDecisionFeedbackCopy({
-              correct,
-              chosen,
-              correctAnswer: calibration.correctAnswer,
-              lesson: selectedOutsLesson,
-              continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
-            }),
+            copy:
+              grade && item.templateId === 2
+                ? buildEquityFeedbackCopy({
+                    spot: item.table,
+                    grade,
+                    continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
+                  })
+                : buildDecisionFeedbackCopy({
+                    correct,
+                    chosen,
+                    correctAnswer: calibration.correctAnswer,
+                    lesson: calibration.prompt,
+                    continueLabel: lastHand ? 'Back to the tree' : 'Deal me the next hand',
+                  }),
             key: `${calibration.id}-${chosen}-${Date.now()}`,
             tempo: tempoForDecision(decision),
           };
           setSettled(correct);
           if (item.templateId === 2) {
             setPendingFeedback(nextFeedback);
-            setEquityOutcome(correct ? 'correct' : 'incorrect');
+            setEquityGrade(grade);
+            setEquityOutcome(grade && grade.stagesCorrect >= 2 ? 'correct' : 'incorrect');
           } else {
             setFeedback(nextFeedback);
           }
@@ -225,7 +238,7 @@ export function StagePlayScreen({
       busy,
       calibration,
       feedback,
-      item.templateId,
+      item,
       onResolved,
       pendingFeedback,
       remainingChips,
@@ -241,6 +254,7 @@ export function StagePlayScreen({
     setFeedback(null);
     setPendingFeedback(null);
     setEquityOutcome(null);
+    setEquityGrade(null);
     setSettled(null);
     if (stageComplete || lockedOut) {
       onBack();
@@ -259,6 +273,7 @@ export function StagePlayScreen({
       <StageTemplateRenderer
         item={item}
         outcome={equityOutcome}
+        grade={equityGrade}
         onPeekDecision={(decision) => handleDecision(decision)}
         onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
         onOutcomeAnimationComplete={() => {
@@ -267,20 +282,13 @@ export function StagePlayScreen({
         }}
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
-        suppressTableActors={Boolean(feedback)}
       />
 
-      <View pointerEvents="box-none" style={[styles.hud, { paddingTop: insets.top + 10 }]}>
-        <TrackHud
-          remainingChips={hudChips}
-          goldBars={goldBars}
-          streakDays={streakDays}
-          onPressStreak={() => setShowStreak(true)}
-          onPressBack={() => {
-            setResetKey((value) => value + 1);
-            onBack();
-          }}
-        />
+      <View
+        pointerEvents="none"
+        style={[styles.chipHud, { top: insets.top + 10 }]}
+        accessibilityLabel="Chip lives">
+        <LifeChips remaining={hudChips} size={22} />
       </View>
 
       <DecisionFeedbackOverlay
@@ -299,7 +307,7 @@ export function StagePlayScreen({
         feedbackKey={feedback?.key}
         tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}
-        celebrateJackpot={feedback?.copy.outcome === 'correct'}
+        celebrateJackpot={feedback?.copy.title === 'SWEET SPOT!'}
         onContinue={continueAfterFeedback}
       />
 
@@ -310,12 +318,6 @@ export function StagePlayScreen({
         </View>
       ) : null}
 
-      <StreakModal
-        visible={showStreak}
-        currentStreak={streakDays}
-        bestStreak={streakBestDays}
-        onClose={() => setShowStreak(false)}
-      />
     </ScreenShakeHost>
   );
 }
@@ -325,12 +327,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: artStyle.colors.projectorBlack,
   },
-  hud: {
+  chipHud: {
     position: 'absolute',
-    left: 8,
-    right: 8,
+    right: 12,
     zIndex: 90,
     elevation: 90,
+    minHeight: 38,
+    paddingHorizontal: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: artStyle.colors.gold,
+    backgroundColor: 'rgba(17,23,20,0.88)',
   },
   errorBanner: {
     position: 'absolute',

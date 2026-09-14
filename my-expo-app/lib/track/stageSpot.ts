@@ -4,7 +4,7 @@ import type { CalibrationSpot, Placement } from '../calibration/types';
 import type { EquityScaleSpot } from '../../src/features/templates/equity-scale';
 import type { PeekAndPitchSpot } from '../../src/features/templates/peek-and-pitch/types';
 import { EQUITY_SCALE_DEMO_SPOTS } from './equityScaleSpots';
-import { SPOTS_PER_STAGE, nextSpotIndex, worldBackdrop } from './tree';
+import { SPOTS_PER_STAGE, nextSpotIndex, equityWorldSkin, worldBackdrop } from './tree';
 
 export type StageTemplateSpot =
   | { templateId: 1; grading: CalibrationSpot; table: PeekAndPitchSpot }
@@ -50,7 +50,7 @@ export function stageSpots(
     if (item.templateId === 2) {
       return {
         ...item,
-        table: { ...item.table, skin, progressLabel },
+        table: { ...item.table, skin: equityWorldSkin(placement), progressLabel },
       };
     }
     return {

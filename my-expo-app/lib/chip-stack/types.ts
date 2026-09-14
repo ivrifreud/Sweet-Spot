@@ -4,6 +4,7 @@ export type StageStatus = 'in_progress' | 'completed' | 'locked_out';
 
 export type StageAnswerMetadata = {
   selectedOuts?: number;
+  selectedEquity?: number;
 };
 
 export type ChipStackState = {
