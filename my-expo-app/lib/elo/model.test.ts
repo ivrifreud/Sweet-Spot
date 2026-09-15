@@ -67,4 +67,28 @@ describe('hidden Elo delta', () => {
     expect(applyEloDelta(10, -16)).toBe(0);
     expect(applyEloDelta(300, 8)).toBe(308);
   });
+
+  it('awards a fractional score when two of three equity stages land', () => {
+    expect(
+      eloDelta({
+        currentElo: 300,
+        spotElo: LEVEL1_STAGE1_SPOT_ELO,
+        score: 0.75,
+        decisionCorrect: true,
+        catastrophicIfWrong: true,
+      })
+    ).toBe(4);
+  });
+
+  it('doubles only when the call or fold itself is wrong', () => {
+    expect(
+      eloDelta({
+        currentElo: 300,
+        spotElo: LEVEL1_STAGE1_SPOT_ELO,
+        score: 0.25,
+        decisionCorrect: false,
+        catastrophicIfWrong: true,
+      })
+    ).toBe(-8);
+  });
 });

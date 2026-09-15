@@ -1,6 +1,13 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +25,8 @@ import {
   createBennysGardenWorld,
   type WorldMapTemplate,
 } from '../components/track/worldMapTemplates';
-import { playSfx, startAmbience, stopAmbience } from '../lib/audio';
+import { agentDebugLog } from '../lib/agentDebugLog';
+import { playSfx, startAmbience, startIdleWatch, stopAmbience, stopIdleWatch } from '../lib/audio';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { initialFogPhase, reduceFog, type FogPhase } from '../lib/track/fogCycle';
 import type { Point } from '../lib/track/mapPath';
@@ -85,6 +93,7 @@ export function TrackMapScreen({
   const [sessionWorld] = useState(() => currentWorld ?? createBennysGardenWorld());
   const world = currentWorld ?? sessionWorld;
   const [area, setArea] = useState({ width: 0, height: 0 });
+  const [nativeMap, setNativeMap] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() =>
     initialStanding(completedCount, world.nodes.length)
   );
@@ -203,7 +212,7 @@ export function TrackMapScreen({
     });
     applyFog(next);
     fogPendingRef.current = true;
-    playSfx('clouds');
+    if (worldRef.current.id !== 'bennys-garden') playSfx('clouds');
     const afterPart = () => {
       fogTimerRef.current = null;
       climbThenWalk(stageNumber);
@@ -254,7 +263,7 @@ export function TrackMapScreen({
         reducedMotion: Boolean(reducedMotionRef.current),
       })
     );
-    playSfx('clouds');
+    if (worldRef.current.id !== 'bennys-garden') playSfx('clouds');
     const afterPart = () => {
       fogTimerRef.current = null;
       applyFog(reduceFog(fogPhaseRef.current, { type: 'parting-finished' }));
@@ -313,8 +322,13 @@ export function TrackMapScreen({
       stopAmbience();
       return;
     }
+    const suppressIdle = world.id === 'bennys-garden';
+    if (suppressIdle) stopIdleWatch();
     startAmbience(world.id, 'light');
-    return () => stopAmbience();
+    return () => {
+      stopAmbience();
+      if (suppressIdle) startIdleWatch();
+    };
   }, [isActive, world.id]);
 
   useEffect(() => {
@@ -356,6 +370,7 @@ export function TrackMapScreen({
       return;
     }
 
+    if (world.id === 'bennys-garden') playSfx('nodePress');
     if (alreadyThere) {
       onPlayStage(stageNumber);
       return;
@@ -366,7 +381,7 @@ export function TrackMapScreen({
   }
 
   function handleArrived() {
-    playSfx('arrive');
+    if (world.id !== 'bennys-garden') playSfx('arrive');
     const dest = destinationRef.current ?? physicalStandingRef.current;
     finishArrival(dest);
   }
@@ -388,28 +403,59 @@ export function TrackMapScreen({
         style={styles.mapArea}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
+          // #region agent log
+          agentDebugLog({
+            hypothesisId: 'A',
+            location: 'TrackMapScreen.tsx:onLayout',
+            message: 'map area laid out',
+            data: {
+              areaW: width,
+              areaH: height,
+              fittedW: width > 0 && height > 0 ? fitMap(width, height).width : 0,
+              fittedH: width > 0 && height > 0 ? fitMap(width, height).height : 0,
+              worldId: world.id,
+            },
+          });
+          // #endregion
           setArea((current) =>
             current.width === width && current.height === height ? current : { width, height }
           );
         }}>
         {map.width > 0 ? (
-          <LevelProgressionMap
-            width={map.width}
-            height={map.height}
-            currentWorld={world}
-            activeChunkIndex={cameraChunkIndex}
-            fogPhase={fogPhase}
-            completedCount={completedCount}
-            spotsByStage={spotsByStage}
-            standing={standing}
-            trail={trail}
-            trailKey={trailKey}
-            walkDuration={walkDuration}
-            avatarSource={avatarSource}
-            onPressNode={handlePress}
-            onArrived={handleArrived}
-            onCameraSettled={handleCameraSettled}
-          />
+          <View
+            collapsable={false}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              // #region agent log
+              agentDebugLog({
+                hypothesisId: 'G',
+                location: 'TrackMapScreen.tsx:nativeMap',
+                message: 'native map wrapper laid out',
+                data: { width, height, fittedW: map.width, fittedH: map.height },
+              });
+              // #endregion
+              setNativeMap((current) =>
+                current.width === width && current.height === height ? current : { width, height }
+              );
+            }}>
+            <LevelProgressionMap
+              width={map.width}
+              height={map.height}
+              currentWorld={world}
+              activeChunkIndex={cameraChunkIndex}
+              fogPhase={fogPhase}
+              completedCount={completedCount}
+              spotsByStage={spotsByStage}
+              standing={standing}
+              trail={trail}
+              trailKey={trailKey}
+              walkDuration={walkDuration}
+              avatarSource={avatarSource}
+              onPressNode={handlePress}
+              onArrived={handleArrived}
+              onCameraSettled={handleCameraSettled}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -428,6 +474,9 @@ export function TrackMapScreen({
         />
         <Text style={[styles.kicker, display]} accessibilityRole="header" numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
+        </Text>
+        <Text style={styles.debugLine} pointerEvents="none">
+          {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
         </Text>
         {!lockMessage && notice ? (
           <View
@@ -504,6 +553,11 @@ const styles = StyleSheet.create({
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  debugLine: {
+    color: artStyle.colors.cream,
+    fontSize: 11,
+    textAlign: 'center',
   },
   notice: {
     borderRadius: 14,

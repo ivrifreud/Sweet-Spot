@@ -12,6 +12,7 @@ import {
   worldMapChunkImageSize,
   WORLD_MAP_LAYER_STACK,
   flattenMapChunks,
+  equityWorldSkin,
   levelMarkers,
   lockReason,
   mapPercentToUnit,
@@ -98,17 +99,16 @@ describe('overworld unlocks', () => {
 });
 
 describe('map coordinates', () => {
-  it('keeps an exact 9:16 ratio inside a phone-like portrait area', () => {
-    const map = fitMap(390, 660);
-    expect(map.width).toBeCloseTo(660 * (9 / 16));
-    expect(map.height).toBe(660);
-    expect(map.width / map.height).toBeCloseTo(9 / 16);
+  it('fills a phone portrait area so each chunk is one screen', () => {
+    const map = fitMap(390, 844);
+    expect(map.width).toBe(390);
+    expect(map.height).toBe(844);
   });
 
-  it('letterboxes when the area is wider than the map', () => {
+  it('fills a wide area instead of letterboxing to 9:16', () => {
     const map = fitMap(900, 800);
+    expect(map.width).toBe(900);
     expect(map.height).toBe(800);
-    expect(map.width).toBeCloseTo(800 * (9 / 16));
   });
 
   it('scales percentage-based node positions into pixels', () => {
@@ -166,6 +166,7 @@ describe('world map paint order', () => {
     expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeGreaterThan(
       WORLD_MAP_LAYER_STACK.vignette.elevation
     );
+    expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeGreaterThan(0);
     expect(WORLD_MAP_LAYER_STACK.fog.elevation).toBeLessThan(12);
   });
 });
@@ -181,5 +182,13 @@ describe('worldMapChunkFrame', () => {
 
   it('sizes the bitmap to the tile instead of the JPEG intrinsic height', () => {
     expect(worldMapChunkImageSize(382, 679)).toEqual({ width: 382, height: 679 });
+  });
+});
+
+describe('equityWorldSkin', () => {
+  it('maps each placement onto the matching Equity Scale backdrop', () => {
+    expect(equityWorldSkin(1)).toBe('garden');
+    expect(equityWorldSkin(2)).toBe('casino');
+    expect(equityWorldSkin(3)).toBe('vip');
   });
 });

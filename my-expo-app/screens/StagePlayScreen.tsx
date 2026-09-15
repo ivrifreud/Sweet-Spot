@@ -222,7 +222,7 @@ export function StagePlayScreen({
           if (item.templateId === 2) {
             setPendingFeedback(nextFeedback);
             setEquityGrade(grade);
-            setEquityOutcome(grade && grade.stagesCorrect >= 2 ? 'correct' : 'incorrect');
+            setEquityOutcome(grade && grade.decisionCorrect ? 'correct' : 'incorrect');
           } else {
             setFeedback(nextFeedback);
           }

@@ -5,6 +5,9 @@ export type AmbienceName =
   | 'garden-ambience'
   | 'garden-night-ambience'
   | 'garden-night-forest'
+  | 'poker-table'
+  | 'local-casino-vip-1'
+  | 'local-casino-vip-2'
   | 'casino-day-ambience'
   | 'casino-night-ambience'
   | 'vip-day-ambience'
@@ -16,17 +19,27 @@ export type JackpotSfx = 'jackpot' | 'jackpotHeavy';
 const BEDS: Record<AudioWorldId, Record<AudioLighting, AmbienceName>> = {
   'bennys-garden': {
     light: 'garden-ambience',
-    night: 'garden-night-ambience',
+    night: 'poker-table',
   },
   'local-casino': {
-    light: 'casino-day-ambience',
-    night: 'casino-night-ambience',
+    light: 'local-casino-vip-1',
+    night: 'local-casino-vip-1',
   },
   'vip-room': {
     light: 'vip-day-ambience',
     night: 'vip-night-ambience',
   },
 };
+
+const LOCAL_CASINO_BEDS = ['local-casino-vip-1', 'local-casino-vip-2'] as const;
+
+export function selectAmbienceCandidates(
+  worldId: AudioWorldId = 'bennys-garden',
+  lighting: AudioLighting = 'light'
+): readonly AmbienceName[] {
+  if (worldId === 'local-casino') return LOCAL_CASINO_BEDS;
+  return [BEDS[worldId][lighting]];
+}
 
 export function selectAmbience(
   worldId: AudioWorldId = 'bennys-garden',
@@ -50,4 +63,13 @@ export function selectJackpotSfx(
 ): JackpotSfx {
   if (lighting === 'night' && worldId !== 'bennys-garden') return 'jackpotHeavy';
   return 'jackpot';
+}
+
+/** Poker-table ingest is hotter than garden birds — keep it under the table talk. */
+export function ambienceBedGain(name: AmbienceName): number {
+  return name === 'poker-table' ? 0.4 : 1;
+}
+
+export function ambiencePlaybackVolume(name: AmbienceName, ambienceVolume: number): number {
+  return ambienceVolume * ambienceBedGain(name);
 }

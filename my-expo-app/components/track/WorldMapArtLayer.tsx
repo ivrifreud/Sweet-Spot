@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, type ReactElement } from 'react';
-import { Image, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { Image, Platform, StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { agentDebugLog } from '../../lib/agentDebugLog';
 import { worldMapChunkFrame, worldMapChunkImageSize } from '../../lib/track/tree';
 import { visibleProgressionLayers } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
@@ -76,18 +77,78 @@ function FilmFlicker({ maxFlicker }: { maxFlicker: number }): ReactElement {
 /** Inaccessible scenery stack: base chunk, unlocked overlays, then optional film. */
 export function WorldMapArtLayer({ width, height, top, chunk, completedCount, film }: Props) {
   const overlays = visibleProgressionLayers(chunk, completedCount);
+  const frame = worldMapChunkFrame(width, height, top);
+  const imageSize = worldMapChunkImageSize(width, height);
+  // #region agent log
+  agentDebugLog({
+    hypothesisId: 'E',
+    location: 'WorldMapArtLayer.tsx:render',
+    message: 'art layer frame',
+    data: {
+      chunkId: chunk.id,
+      frame,
+      imageSize,
+      srcType: typeof chunk.background,
+      overlayCount: overlays.length,
+      hasFilm: Boolean(film),
+    },
+  });
+  // #endregion
+
+  const imageBox = {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    width: imageSize.width,
+    height: imageSize.height,
+  };
 
   return (
     <View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.stack, worldMapChunkFrame(width, height, top)]}>
+      collapsable={false}
+      style={[
+        styles.stack,
+        frame,
+        Platform.OS === 'web' ? null : { overflow: 'visible' as const },
+      ]}>
       <Image
         source={chunk.background}
         resizeMode="cover"
         accessible={false}
-        style={[styles.fill, worldMapChunkImageSize(width, height)]}
+        style={imageBox}
+        onLayout={(event) => {
+          // #region agent log
+          agentDebugLog({
+            hypothesisId: 'E',
+            location: 'WorldMapArtLayer.tsx:image-onLayout',
+            message: 'background image laid out',
+            data: { chunkId: chunk.id, layout: event.nativeEvent.layout },
+          });
+          // #endregion
+        }}
+        onLoad={(event) => {
+          // #region agent log
+          agentDebugLog({
+            hypothesisId: 'B',
+            location: 'WorldMapArtLayer.tsx:image-onLoad',
+            message: 'background image loaded',
+            data: { chunkId: chunk.id, source: event.nativeEvent.source },
+          });
+          // #endregion
+        }}
+        onError={(event) => {
+          // #region agent log
+          agentDebugLog({
+            hypothesisId: 'B',
+            location: 'WorldMapArtLayer.tsx:image-onError',
+            message: 'background image failed',
+            data: { chunkId: chunk.id, error: event.nativeEvent.error },
+          });
+          // #endregion
+        }}
       />
       {overlays.map((layer) => (
         <Image
@@ -95,7 +156,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
           source={layer.source}
           resizeMode="cover"
           accessible={false}
-          style={[styles.fill, worldMapChunkImageSize(width, height)]}
+          style={imageBox}
         />
       ))}
       {film ? (
@@ -105,8 +166,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
             resizeMode="cover"
             accessible={false}
             style={[
-              styles.fill,
-              worldMapChunkImageSize(width, height),
+              imageBox,
               { opacity: localCasinoMapTheme.film.grainOpacity },
             ]}
           />

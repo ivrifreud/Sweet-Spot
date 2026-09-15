@@ -11,13 +11,16 @@ export function expectedScore(playerElo: number, spotElo: number): number {
 export function eloDelta(input: {
   currentElo: number;
   spotElo: number;
-  correct: boolean;
+  correct?: boolean;
+  score?: number;
+  decisionCorrect?: boolean;
   catastrophicIfWrong: boolean;
 }): number {
-  const score = input.correct ? 1 : 0;
+  const score = Math.min(1, Math.max(0, input.score ?? (input.correct ? 1 : 0)));
+  const decisionCorrect = input.decisionCorrect ?? Boolean(input.correct);
   const expected = expectedScore(input.currentElo, input.spotElo);
   let delta = Math.round(ELO_K * (score - expected));
-  if (!input.correct && input.catastrophicIfWrong) {
+  if (!decisionCorrect && input.catastrophicIfWrong) {
     delta *= 2;
   }
   return delta;

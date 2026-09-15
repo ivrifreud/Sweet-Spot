@@ -1,18 +1,23 @@
-export type CorrectCue = 'correct';
+export type CorrectCue = 'correct' | 'correctCasinoCoins';
 
 export type IncorrectCue = 'incorrect';
 
-export type IdleCue = 'idleSnore' | 'idleYawn';
+export type IdleCue = never;
 
-export const CORRECT_POOL: readonly CorrectCue[] = ['correct'];
+export const CORRECT_POOL: readonly CorrectCue[] = ['correct', 'correctCasinoCoins'];
 
 export const INCORRECT_POOL: readonly IncorrectCue[] = ['incorrect'];
 
-export const IDLE_POOL: readonly IdleCue[] = ['idleSnore', 'idleYawn'];
+export const IDLE_POOL: readonly IdleCue[] = [];
 
-export const GARDEN_NIGHT_POOL = ['garden-night-ambience', 'garden-night-forest'] as const;
-
-export type GardenNightBed = (typeof GARDEN_NIGHT_POOL)[number];
+/** One decision overlay remount must not queue the miss sting again. */
+export function shouldReplayDecisionSting(
+  key: string | undefined,
+  lastKey: string | undefined
+): boolean {
+  if (!key) return true;
+  return key !== lastKey;
+}
 
 /** Avoid playing the same sting twice in a row when a pool has more than one cue. */
 export function pickQueued<T>(

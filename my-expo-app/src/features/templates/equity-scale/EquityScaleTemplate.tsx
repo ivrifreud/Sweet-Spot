@@ -3,10 +3,10 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { startAmbience, stopAmbience } from '../../../../lib/audio';
+import { playSfx, startAmbience, stopAmbience } from '../../../../lib/audio';
+import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
 import {
@@ -17,8 +17,6 @@ import {
   EQUITY_INITIAL_OUTS,
   EQUITY_OUTS_MAX,
   EQUITY_OUTS_MIN,
-  OUTCOME_ANIMATION_MS,
-  REDUCED_OUTCOME_MS,
 } from './config';
 import { scaleTilt } from './dialMath';
 import { percent, requiredEquity } from './equityMath';
@@ -61,13 +59,13 @@ export function EquityScaleTemplate({
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const reducedMotion = useReducedMotion();
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
   const [lockedOuts, setLockedOuts] = useState<number | null>(null);
   const [phase, setPhase] = useState<EquityScalePhase>('entering');
   const submittedRef = useRef(false);
   const animatedOutcomeRef = useRef<DecisionOutcome | null>(null);
+  const revealCompleteRef = useRef(false);
   const onOutcomeCompleteRef = useRef(onOutcomeAnimationComplete);
 
   useEffect(() => {
@@ -81,6 +79,8 @@ export function EquityScaleTemplate({
     setPhase('entering');
     submittedRef.current = false;
     animatedOutcomeRef.current = null;
+    revealCompleteRef.current = false;
+    playSfx('shuffle');
     const timer = setTimeout(() => setPhase('stage1'), 280);
     return () => clearTimeout(timer);
   }, [resetKey, spot.id]);
@@ -90,19 +90,18 @@ export function EquityScaleTemplate({
     return () => stopAmbience();
   }, [spot.skin]);
 
+  const onRevealComplete = useCallback(() => {
+    if (!outcome || revealCompleteRef.current) return;
+    revealCompleteRef.current = true;
+    setPhase(outcome);
+    onOutcomeCompleteRef.current?.();
+  }, [outcome]);
+
   useEffect(() => {
     if (!outcome || !submittedRef.current || animatedOutcomeRef.current === outcome) return;
     animatedOutcomeRef.current = outcome;
     setPhase('revealing');
-    const timer = setTimeout(
-      () => {
-        setPhase(outcome);
-        onOutcomeCompleteRef.current?.();
-      },
-      reducedMotion ? REDUCED_OUTCOME_MS : OUTCOME_ANIMATION_MS
-    );
-    return () => clearTimeout(timer);
-  }, [outcome, reducedMotion]);
+  }, [outcome]);
 
   const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
   const showingOuts = phase === 'entering' || phase === 'stage1';
@@ -119,10 +118,13 @@ export function EquityScaleTemplate({
   );
   const stage1Live = !disabled && phase === 'stage1';
   const stage2Live = !disabled && phase === 'stage2';
-  const revealing = phase === 'revealing' || phase === 'correct' || phase === 'incorrect' || phase === 'resolved';
+  const revealing =
+    phase === 'revealing' || phase === 'correct' || phase === 'incorrect' || phase === 'resolved';
+  const holdForResultClip = resultClipKind(grade) !== null;
 
   const lockOuts = useCallback(() => {
     if (!stage1Live) return;
+    playSfx('scaleButton');
     setLockedOuts(selectedOuts);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setPhase('stage2');
@@ -131,6 +133,7 @@ export function EquityScaleTemplate({
   const submit = useCallback(
     (decision: EquityDecision) => {
       if (!stage2Live || submittedRef.current) return;
+      playSfx('scaleButton');
       submittedRef.current = true;
       setPhase('submitting');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -273,13 +276,15 @@ export function EquityScaleTemplate({
         </View>
       )}
 
-      {phase === 'submitting' ? (
+      {phase === 'submitting' && !holdForResultClip ? (
         <Text accessibilityLiveRegion="polite" style={styles.status}>
           {EQUITY_STRINGS.submitting}
         </Text>
       ) : null}
 
-      {revealing ? <StageResultsReveal grade={grade} /> : null}
+      {revealing || holdForResultClip ? (
+        <StageResultsReveal grade={grade} onComplete={onRevealComplete} />
+      ) : null}
     </View>
   );
 }

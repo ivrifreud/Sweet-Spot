@@ -1,6 +1,8 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useEventListener } from 'expo';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useState } from 'react';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -39,6 +41,10 @@ export { tempoScale } from './tempo';
 const INK = '#171713';
 const CREAM = artStyle.colors.cream;
 const CONTINUE_MIN_HEIGHT = Platform.select({ ios: 44, android: 48, default: 48 }) ?? 48;
+const MISS_EMOTE = require('../../../assets/brand/artstyle/coach-wave-miss.mp4');
+const MISS_POSTER = require('../../../assets/brand/artstyle/coach-wave-miss.png');
+const CORRECT_EMOTE = require('../../../assets/brand/artstyle/coach-wave-correct.mp4');
+const CORRECT_POSTER = require('../../../assets/brand/artstyle/coach-wave-correct.png');
 
 export type DecisionFeedbackOverlayProps = {
   visible: boolean;
@@ -130,7 +136,7 @@ export function DecisionFeedbackOverlay({
               kicker={kicker}
               explanation={explanation}
               reducedMotion={reducedMotion}
-              pace={pace}
+              restartKey={feedbackKey}
             />
 
             <ContinueInbox
@@ -273,44 +279,21 @@ function CoachCard({
   kicker,
   explanation,
   reducedMotion,
-  pace,
+  restartKey,
 }: {
   outcome: DecisionOutcome;
   kicker: string;
   explanation: string;
   reducedMotion: boolean | undefined;
-  pace: number;
+  restartKey?: string;
 }) {
-  const wave = useSharedValue(0);
-
-  useEffect(() => {
-    cancelAnimation(wave);
-    if (reducedMotion) {
-      wave.value = 0;
-      return;
-    }
-
-    wave.value = withSequence(
-      withTiming(1, { duration: 280 * pace, easing: Easing.out(Easing.cubic) }),
-      withTiming(0, { duration: 320 * pace, easing: Easing.inOut(Easing.quad) }),
-      withTiming(0.7, { duration: 260 * pace }),
-      withTiming(0, { duration: 280 * pace })
-    );
-  }, [outcome, pace, reducedMotion, wave]);
-
-  const portraitStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${interpolate(wave.value, [0, 1], [-4, 10])}deg` },
-      { translateY: interpolate(wave.value, [0, 1], [0, -8]) },
-    ],
-  }));
-
+  const playEmoteVideo = !reducedMotion;
   const portrait =
     outcome === 'correct' ? artStyle.characters.coachCorrect : artStyle.characters.coachMiss;
   const borderColor = outcome === 'correct' ? artStyle.colors.gold : artStyle.colors.oxblood;
 
   return (
-    <Animated.View style={[styles.card, { borderColor }]}>
+    <View style={[styles.card, { borderColor }]}>
       <View style={styles.cardCopy}>
         <Text style={styles.kicker}>{kicker}</Text>
         <ScrollView
@@ -321,16 +304,135 @@ function CoachCard({
         </ScrollView>
       </View>
 
-      <Animated.View style={[styles.portraitWrap, portraitStyle]}>
+      <View style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
+        {playEmoteVideo ? (
+          outcome === 'incorrect' ? (
+            <MissCoachVideo key={`${restartKey ?? 'emote'}-incorrect`} />
+          ) : (
+            <CoachEmoteVideo
+              key={`${restartKey ?? 'emote'}-correct`}
+              source={CORRECT_EMOTE}
+              poster={CORRECT_POSTER}
+            />
+          )
+        ) : (
+          <Image
+            source={portrait}
+            style={styles.portrait}
+            resizeMode={outcome === 'incorrect' ? 'contain' : 'cover'}
+            accessibilityIgnoresInvertColors
+            accessible={false}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+function MissCoachVideo() {
+  const [ready, setReady] = useState(false);
+  const soughtMidpoint = useRef(false);
+  const player = useVideoPlayer(MISS_EMOTE, (nextPlayer) => {
+    nextPlayer.loop = true;
+    nextPlayer.muted = true;
+  });
+
+  const beginPlayback = useCallback(
+    (loadedDuration?: number) => {
+      const duration = loadedDuration && loadedDuration > 0 ? loadedDuration : player.duration;
+      if (!soughtMidpoint.current) {
+        if (!(duration > 0)) return;
+        player.currentTime = duration / 2;
+        soughtMidpoint.current = true;
+        player.play();
+        return;
+      }
+      if (!player.playing) player.play();
+    },
+    [player]
+  );
+
+  useEventListener(player, 'sourceLoad', (event) => {
+    if (event.duration > 0) beginPlayback(event.duration);
+  });
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status !== 'readyToPlay') return;
+    beginPlayback();
+  });
+
+  useEffect(() => {
+    beginPlayback();
+    return () => {
+      player.pause();
+    };
+  }, [beginPlayback, player]);
+
+  return (
+    <View style={styles.portraitFill}>
+      {ready ? null : (
         <Image
-          source={portrait}
-          style={styles.portrait}
+          source={MISS_POSTER}
+          style={styles.portraitFill}
           resizeMode="cover"
           accessibilityIgnoresInvertColors
           accessible={false}
         />
-      </Animated.View>
-    </Animated.View>
+      )}
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        playsInline
+        surfaceType="textureView"
+        onFirstFrameRender={() => setReady(true)}
+        style={styles.portraitFill}
+      />
+    </View>
+  );
+}
+
+function CoachEmoteVideo({
+  source,
+  poster,
+}: {
+  source: number;
+  poster: number;
+}) {
+  const [ready, setReady] = useState(false);
+  const player = useVideoPlayer(source, (nextPlayer) => {
+    nextPlayer.loop = true;
+    nextPlayer.muted = true;
+  });
+
+  useEffect(() => {
+    player.currentTime = 0;
+    player.play();
+    return () => {
+      player.pause();
+    };
+  }, [player]);
+
+  return (
+    <View style={styles.portraitFill}>
+      {ready ? null : (
+        <Image
+          source={poster}
+          style={styles.portraitFill}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+          accessible={false}
+        />
+      )}
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        playsInline
+        surfaceType="textureView"
+        onFirstFrameRender={() => setReady(true)}
+        style={styles.portraitFill}
+      />
+    </View>
   );
 }
 
@@ -376,7 +478,7 @@ function FlashWash({
         ? Haptics.NotificationFeedbackType.Success
         : Haptics.NotificationFeedbackType.Warning;
     Haptics.notificationAsync(type).catch(() => {});
-    playDecisionSfx(outcome);
+    playDecisionSfx(outcome, restartKey);
   }, [outcome, restartKey]);
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value }));
@@ -728,11 +830,26 @@ const styles = StyleSheet.create({
     borderColor: INK,
     backgroundColor: CREAM,
   },
+  portraitWrapMiss: {
+    width: 176,
+    height: 99,
+    marginTop: -12,
+    alignSelf: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: INK,
+    backgroundColor: CREAM,
+  },
   portrait: {
     width: '130%',
     height: '130%',
     marginLeft: '-12%',
     marginTop: '-4%',
+  },
+  portraitFill: {
+    width: '100%',
+    height: '100%',
   },
   continueInbox: {
     borderRadius: 16,

@@ -5,7 +5,7 @@ export default ({ config }) => {
   return {
     ...config,
     scheme: isProd ? "sweetspot" : "sweetspot-preprod",
-    plugins: [...(config.plugins ?? []), "expo-asset"],
+    plugins: [...(config.plugins ?? []), "expo-asset", "expo-video"],
     android: {
       ...config.android,
       package: isProd

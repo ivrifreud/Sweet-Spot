@@ -12,7 +12,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { playSfx } from '../../lib/audio';
+import { startWalkSfx, stopWalkSfx } from '../../lib/audio';
 import { WALK_FRAME_COUNT, walkFrameIndex } from '../../lib/track/avatarAnimation';
 import type { Point } from '../../lib/track/mapPath';
 
@@ -35,6 +35,7 @@ type Props = {
   trailKey?: string | number;
   duration?: number;
   source?: ImageSourcePropType;
+  walkSoundEnabled?: boolean;
   onArrived?: () => void;
 };
 
@@ -117,6 +118,7 @@ export function MapAvatar({
   trailKey,
   duration = 560,
   source = IDLE_SPRITE,
+  walkSoundEnabled = true,
   onArrived,
 }: Props) {
   const reducedMotion = useReducedMotion();
@@ -148,6 +150,7 @@ export function MapAvatar({
     const usingTrail = Boolean(currentTrail && currentTrail.length >= 2);
 
     const notify = () => {
+      if (walkSoundEnabled) stopWalkSfx();
       arrivedRef.current?.();
     };
 
@@ -179,8 +182,7 @@ export function MapAvatar({
     usePath.value = 1;
     travelFrames.value = Math.max(WALK_FRAME_COUNT, Math.round(duration / 95));
     progress.value = 0;
-    playSfx('step');
-    const stepTimer = setInterval(() => playSfx('step'), 240);
+    if (walkSoundEnabled) startWalkSfx();
     const rush = Math.max(1, Math.round(duration * 0.86));
     const settle = Math.max(1, duration - rush);
     progress.value = withSequence(
@@ -194,8 +196,22 @@ export function MapAvatar({
         runOnJS(notify)();
       })
     );
-    return () => clearInterval(stepTimer);
-  }, [duration, left, progress, reducedMotion, top, trailKey, travelFrames, usePath, xs, ys]);
+    return () => {
+      if (walkSoundEnabled) stopWalkSfx();
+    };
+  }, [
+    duration,
+    left,
+    progress,
+    reducedMotion,
+    top,
+    trailKey,
+    travelFrames,
+    usePath,
+    walkSoundEnabled,
+    xs,
+    ys,
+  ]);
 
   const positionStyle = useAnimatedStyle(() => {
     if (usePath.value === 1 && xs.value.length > 0) {
