@@ -8,6 +8,7 @@ import {
   type AudioWorldId,
 } from './beds';
 import {
+  CORRECT_LAYER_CUES,
   CORRECT_POOL,
   IDLE_POOL,
   INCORRECT_POOL,
@@ -18,7 +19,7 @@ import {
 
 export type { AmbienceName, AudioLighting, AudioWorldId } from './beds';
 export { selectAmbience, selectJackpotSfx, selectMistakeSfx } from './beds';
-export { CORRECT_POOL, IDLE_POOL, INCORRECT_POOL, pickQueued } from './cues';
+export { CORRECT_LAYER_CUES, CORRECT_POOL, IDLE_POOL, INCORRECT_POOL, pickQueued } from './cues';
 
 export type SfxName =
   | 'deal'
@@ -30,6 +31,7 @@ export type SfxName =
   | 'raise'
   | 'correct'
   | 'correctCasinoCoins'
+  | 'confetti'
   | 'incorrect'
   | 'jackpot'
   | 'jackpotHeavy'
@@ -51,7 +53,13 @@ type Settings = {
 const STORAGE_KEY = 'sweet-spot-audio';
 const DEFAULTS: Settings = { muted: false, sfxVolume: 1, ambienceVolume: 0.28 };
 const IDLE_GAP_MS = 22000;
-const DRY_SFX: ReadonlySet<SfxName> = new Set([...CORRECT_POOL, ...INCORRECT_POOL, ...IDLE_POOL]);
+const DRY_SFX: ReadonlySet<SfxName> = new Set([
+  ...CORRECT_POOL,
+  ...CORRECT_LAYER_CUES,
+  ...INCORRECT_POOL,
+  ...IDLE_POOL,
+]);
+const OVERLAP_SFX: ReadonlySet<SfxName> = new Set([...CORRECT_LAYER_CUES, 'correctCasinoCoins']);
 
 let settings: Settings = { ...DEFAULTS };
 let loaded = false;
@@ -76,6 +84,7 @@ const sfxSources: Record<SfxName, number> = {
   raise: require('../../assets/audio/raise.wav'),
   correct: require('../../assets/audio/correct.wav'),
   correctCasinoCoins: require('../../assets/audio/correct-casino-coins.wav'),
+  confetti: require('../../assets/audio/confetti.wav'),
   incorrect: require('../../assets/audio/incorrect.wav'),
   jackpot: require('../../assets/audio/jackpot.wav'),
   jackpotHeavy: require('../../assets/audio/jackpot-heavy.wav'),
@@ -192,6 +201,7 @@ function pauseAllBeds(): void {
 function pauseOneShotSfx(except?: SfxName): void {
   (Object.entries(sfxPlayers) as [SfxName, Player | undefined][]).forEach(([name, player]) => {
     if (!player || name === except || name === 'step' || name === 'dial') return;
+    if (except && OVERLAP_SFX.has(except) && OVERLAP_SFX.has(name)) return;
     try {
       player.loop = false;
       player.pause();
@@ -209,7 +219,7 @@ export function playSfx(name: SfxName): void {
   try {
     pauseOneShotSfx(name);
     player.loop = false;
-    player.volume = settings.sfxVolume;
+    player.volume = settings.sfxVolume * (name === 'confetti' ? 0.55 : 1);
     player.seekTo?.(0);
     player.play();
     const ambience = ambiencePlayers[activeBed];
@@ -234,9 +244,8 @@ export function playDecisionSfx(outcome: 'correct' | 'incorrect', key?: string):
   if (!shouldReplayDecisionSting(key, lastDecisionKey)) return;
   if (key) lastDecisionKey = key;
   if (outcome === 'correct') {
-    const cue = pickQueued(CORRECT_POOL, lastCorrect);
-    lastCorrect = cue;
-    playSfx(cue);
+    lastCorrect = 'correct';
+    CORRECT_LAYER_CUES.forEach((cue) => playSfx(cue));
     return;
   }
   const cue = pickQueued(INCORRECT_POOL, lastIncorrect);

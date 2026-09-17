@@ -1,11 +1,12 @@
 /* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
+import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { playSfx, startAmbience, stopAmbience } from '../../../../lib/audio';
+import { playSfx } from '../../../../lib/audio';
 import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
@@ -18,10 +19,10 @@ import {
   EQUITY_OUTS_MAX,
   EQUITY_OUTS_MIN,
 } from './config';
-import { scaleTilt } from './dialMath';
+import { dialValueToTilt } from './components/scaleArmLayout';
 import { percent, requiredEquity } from './equityMath';
-import { ambienceForSkin, equityScaleArt } from './equityScaleArt';
-import { EQUITY_STRINGS } from './strings';
+import { equityScaleArt } from './equityScaleArt';
+import { EQUITY_STRINGS, equityStreetTitle } from './strings';
 import { ArtButton } from './components/ArtButton';
 import { BoardCards } from './components/BoardCards';
 import { EstimateDial } from './components/EstimateDial';
@@ -59,6 +60,8 @@ export function EquityScaleTemplate({
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
   const [lockedOuts, setLockedOuts] = useState<number | null>(null);
@@ -80,15 +83,9 @@ export function EquityScaleTemplate({
     submittedRef.current = false;
     animatedOutcomeRef.current = null;
     revealCompleteRef.current = false;
-    playSfx('shuffle');
     const timer = setTimeout(() => setPhase('stage1'), 280);
     return () => clearTimeout(timer);
   }, [resetKey, spot.id]);
-
-  useEffect(() => {
-    startAmbience(ambienceForSkin(spot.skin), 'night');
-    return () => stopAmbience();
-  }, [spot.skin]);
 
   const onRevealComplete = useCallback(() => {
     if (!outcome || revealCompleteRef.current) return;
@@ -107,14 +104,10 @@ export function EquityScaleTemplate({
   const showingOuts = phase === 'entering' || phase === 'stage1';
   const tilt = useMemo(
     () =>
-      showingOuts || lockedOuts === null
-        ? 0
-        : scaleTilt({
-            selectedEquity,
-            potBeforeCall: spot.potBeforeCall,
-            priceToCall: spot.priceToCall,
-          }),
-    [lockedOuts, selectedEquity, showingOuts, spot.potBeforeCall, spot.priceToCall]
+      showingOuts
+        ? dialValueToTilt(selectedOuts, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
+        : dialValueToTilt(selectedEquity, EQUITY_DIAL_MIN, EQUITY_DIAL_MAX),
+    [selectedEquity, selectedOuts, showingOuts]
   );
   const stage1Live = !disabled && phase === 'stage1';
   const stage2Live = !disabled && phase === 'stage2';
@@ -159,11 +152,24 @@ export function EquityScaleTemplate({
     showingOuts,
     boardCount: spot.board.length,
   });
-  const { scaleTop, cardsTop, valueTop } = table;
+  const { scaleTop, cardsTop, valueTop, streetTop, actionBottom, dialSize, buttonSize, sideInset } =
+    table;
 
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
       <TableBackdrop skin={spot.skin} />
+
+      <View style={[styles.streetBand, { top: streetTop }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.streetTitle, display]}
+          maxFontSizeMultiplier={1.2}>
+          {equityStreetTitle(spot.street)}
+        </Text>
+        <Text numberOfLines={1} style={styles.streetCue}>
+          {spot.position} · {spot.actionLine}
+        </Text>
+      </View>
 
       <View style={[styles.scaleWrap, { top: scaleTop }]}>
         <ScaleScene
@@ -176,43 +182,25 @@ export function EquityScaleTemplate({
       </View>
 
       {showingOuts ? null : (
-        <View style={[styles.valueRow, { top: valueTop }]}>
+        <View style={[styles.valueGrid, { top: valueTop }]}>
           <ValuePlate label={EQUITY_STRINGS.potLabel} value={`${spot.potBeforeCall}bb`} />
           <ValuePlate label={EQUITY_STRINGS.oddsLabel} value={percent(potOdds)} />
           <ValuePlate label={EQUITY_STRINGS.callLabel} value={`${spot.priceToCall}bb`} />
-          {lockedOuts !== null ? (
-            <ValuePlate label={EQUITY_STRINGS.lockedOuts} value={String(lockedOuts)} />
-          ) : null}
+          <ValuePlate
+            label={EQUITY_STRINGS.lockedOuts}
+            value={lockedOuts !== null ? String(lockedOuts) : '—'}
+          />
         </View>
       )}
 
       <View style={[styles.spotBlock, { top: cardsTop }]}>
-        <View style={styles.actionCue}>
-          <Text numberOfLines={1} style={styles.actionCueText}>
-            {spot.position} · {spot.actionLine}
-          </Text>
-        </View>
         <View style={styles.spotRow}>
           <HeroHoleCards cards={spot.heroCards} cardWidth={table.heroCardWidth} />
-          <BoardCards
-            board={spot.board}
-            textureLine={spot.textureLine}
-            cardWidth={table.boardCardWidth}
-            gap={table.boardGap}
-          />
+          <BoardCards board={spot.board} cardWidth={table.boardCardWidth} gap={table.boardGap} />
         </View>
-        <Text style={styles.instruction}>
-          {showingOuts ? EQUITY_STRINGS.stage1Instruction : EQUITY_STRINGS.stage2Instruction}
-        </Text>
       </View>
 
-      <View
-        style={[
-          styles.dialWrap,
-          showingOuts
-            ? { bottom: insets.bottom + 10, alignItems: 'flex-start', paddingLeft: 16 }
-            : { bottom: insets.bottom + 10 },
-        ]}>
+      <View style={[styles.dialWrap, { bottom: actionBottom }]}>
         {showingOuts ? (
           <EstimateDial
             key={`outs-${resetKey}-${spot.id}`}
@@ -223,6 +211,7 @@ export function EquityScaleTemplate({
             label={EQUITY_STRINGS.outsDialLabel}
             accessibilityLabel="Outs dial"
             enabled={stage1Live}
+            size={dialSize}
             onChange={setSelectedOuts}
             onAdjustStart={() => {}}
             onAdjustEnd={() => {}}
@@ -237,6 +226,7 @@ export function EquityScaleTemplate({
             label={EQUITY_STRINGS.equityDialLabel}
             accessibilityLabel="Equity dial"
             enabled={stage2Live}
+            size={dialSize}
             onChange={setSelectedEquity}
             onAdjustStart={() => {}}
             onAdjustEnd={() => {}}
@@ -245,32 +235,33 @@ export function EquityScaleTemplate({
       </View>
 
       {showingOuts ? (
-        <View style={[styles.actions, { bottom: insets.bottom + 28 }]}>
-          <View pointerEvents="none" style={styles.dialClearance} />
+        <View style={[styles.actions, { bottom: actionBottom, paddingHorizontal: sideInset }]}>
+          <View pointerEvents="none" style={[styles.sideSlot, { width: buttonSize }]} />
+          <View pointerEvents="none" style={[styles.dialClearance, { minWidth: dialSize }]} />
           <ArtButton
             source={equityScaleArt.buttons.lockIn}
             label={EQUITY_STRINGS.lockIn}
             enabled={stage1Live}
-            size={120}
+            size={buttonSize}
             round={false}
             onPress={lockOuts}
           />
         </View>
       ) : (
-        <View style={[styles.actions, { bottom: insets.bottom + 28 }]}>
+        <View style={[styles.actions, { bottom: actionBottom, paddingHorizontal: sideInset }]}>
           <ArtButton
             source={equityScaleArt.buttons.fold}
             label={EQUITY_STRINGS.fold}
             enabled={stage2Live}
-            size={125}
+            size={buttonSize}
             onPress={() => submit('fold')}
           />
-          <View pointerEvents="none" style={styles.dialClearance} />
+          <View pointerEvents="none" style={[styles.dialClearance, { minWidth: dialSize }]} />
           <ArtButton
             source={equityScaleArt.buttons.call}
             label={EQUITY_STRINGS.call}
             enabled={stage2Live}
-            size={118}
+            size={buttonSize}
             onPress={() => submit('call')}
           />
         </View>
@@ -301,8 +292,32 @@ function ValuePlate({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: artStyle.colors.projectorBlack,
+  },
+  streetBand: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    alignItems: 'center',
+    zIndex: 40,
+  },
+  streetTitle: {
+    color: artStyle.colors.goldBright,
+    fontSize: 34,
+    lineHeight: 36,
+    letterSpacing: 2.2,
+    textAlign: 'center',
+    textShadowColor: 'rgba(17,23,20,0.65)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  streetCue: {
+    marginTop: 2,
+    color: 'rgba(232,215,167,0.82)',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   spotBlock: {
     position: 'absolute',
@@ -310,91 +325,43 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 34,
   },
-  actionCue: {
-    alignSelf: 'center',
-    minHeight: 18,
-    maxWidth: '88%',
-    marginBottom: 4,
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-    borderRadius: 9,
-    backgroundColor: 'rgba(17,23,20,0.82)',
-  },
-  actionCueText: {
-    color: artStyle.colors.cream,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
   spotRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
-  texture: {
-    marginTop: 6,
-    color: artStyle.colors.cream,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  valueRow: {
+  valueGrid: {
     position: 'absolute',
     left: 12,
     right: 12,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 6,
-    zIndex: 32,
+    rowGap: 8,
+    columnGap: 8,
+    zIndex: 36,
   },
   valuePlate: {
-    flex: 1,
-    minHeight: 48,
+    width: '48%',
+    minHeight: 46,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: artStyle.colors.gold,
     backgroundColor: 'rgba(17,23,20,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   valueLabel: {
     color: 'rgba(232,215,167,0.78)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   valueText: {
     color: artStyle.colors.goldBright,
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  lockedPlate: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 36,
-  },
-  lockedInner: {
-    width: 96,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: artStyle.colors.goldBright,
-    backgroundColor: 'rgba(17,23,20,0.92)',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  lockedLabel: {
-    color: 'rgba(232,215,167,0.78)',
-    fontSize: 8,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  lockedValue: {
-    color: artStyle.colors.goldBright,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
   },
   scaleWrap: {
@@ -402,7 +369,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 32,
     overflow: 'visible',
   },
   dialWrap: {
@@ -413,27 +380,23 @@ const styles = StyleSheet.create({
     zIndex: 45,
     overflow: 'visible',
   },
-  instruction: {
-    marginTop: 8,
-    color: artStyle.colors.cream,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
   actions: {
     position: 'absolute',
-    left: 10,
-    right: 10,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     zIndex: 50,
     pointerEvents: 'box-none',
   },
+  sideSlot: {
+    width: 84,
+    height: 1,
+  },
   dialClearance: {
     flex: 1,
-    minWidth: 132,
+    minWidth: 148,
     height: 1,
   },
   status: {

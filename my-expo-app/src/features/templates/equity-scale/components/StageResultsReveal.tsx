@@ -1,5 +1,6 @@
+import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -36,8 +37,12 @@ const STAMPS = [
   { key: 'decision', label: EQUITY_STRINGS.stampDecision },
 ] as const;
 
+const STAMP_HIT = require('../../../../../assets/brand/artstyle/stamp-hit.png');
+const STAMP_MISS = require('../../../../../assets/brand/artstyle/stamp-miss.png');
+
 export function StageResultsReveal({ grade, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
+  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const [celebrationFinished, setCelebrationFinished] = useState(false);
   const clipKind = resultClipKind(grade);
   const showCelebration = clipKind !== null;
@@ -58,12 +63,10 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
   return (
     <View pointerEvents="none" style={styles.overlay} accessibilityLiveRegion="polite">
       {showCelebration && !celebrationFinished ? <View style={styles.videoBackdrop} /> : null}
-      {showCelebration && clipKind && !celebrationFinished ? (
-        <View style={styles.clipLayer}>
-          <ScaleResultClip variant={clipKind} onFinished={() => setCelebrationFinished(true)} />
-        </View>
-      ) : null}
       <View style={styles.stack}>
+        {showCelebration && clipKind && !celebrationFinished ? (
+          <ScaleResultClip variant={clipKind} onFinished={() => setCelebrationFinished(true)} />
+        ) : null}
         {showResults ? (
           <>
             <View style={styles.row}>
@@ -74,6 +77,7 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
                   correct={hits[index]!}
                   delay={index * REVEAL_STAMP_MS}
                   reducedMotion={Boolean(reducedMotion)}
+                  fontsLoaded={fontsLoaded}
                   cue={index === 2 ? stampFinaleSfx(grade) : null}
                 />
               ))}
@@ -100,20 +104,22 @@ function Stamp({
   correct,
   delay,
   reducedMotion,
+  fontsLoaded,
   cue,
 }: {
   label: string;
   correct: boolean;
   delay: number;
   reducedMotion: boolean;
-  cue: 'jackpot' | null;
+  fontsLoaded: boolean;
+  cue: 'correctCasinoCoins' | null;
 }) {
   const progress = useSharedValue(reducedMotion ? 1 : 0);
 
   useEffect(() => {
     const fire = () => {
       if (correct) playSfx('uiClick');
-      if (cue === 'jackpot') playSfx('jackpot');
+      if (cue === 'correctCasinoCoins') playSfx('correctCasinoCoins');
     };
     if (reducedMotion) {
       progress.value = 1;
@@ -140,9 +146,20 @@ function Stamp({
   }));
 
   return (
-    <Animated.View style={[styles.stamp, correct ? styles.stampHit : styles.stampMiss, style]}>
-      <Text style={styles.stampLabel}>{label}</Text>
-      <Text style={styles.stampMark}>{correct ? '✓' : '✕'}</Text>
+    <Animated.View style={[styles.stamp, style]}>
+      <Image
+        source={correct ? STAMP_HIT : STAMP_MISS}
+        style={styles.stampArt}
+        resizeMode="contain"
+        accessibilityElementsHidden
+      />
+      <Text
+        style={[
+          styles.stampLabel,
+          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+        ]}>
+        {label}
+      </Text>
     </Animated.View>
   );
 }
@@ -154,23 +171,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 80,
   },
+  videoBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: artStyle.colors.projectorBlack,
+    opacity: 0.78,
+    zIndex: 1,
+  },
   stack: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     zIndex: 2,
-  },
-  clipLayer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  videoBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: artStyle.colors.projectorBlack,
-    opacity: 0.78,
+    paddingHorizontal: 12,
   },
   row: {
     flexDirection: 'row',
@@ -178,33 +191,26 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   stamp: {
-    minWidth: 88,
-    minHeight: 88,
-    borderRadius: 12,
-    borderWidth: 3,
+    width: 104,
+    height: 104,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
   },
-  stampHit: {
-    backgroundColor: artStyle.colors.feltGreen,
-    borderColor: artStyle.colors.goldBright,
-  },
-  stampMiss: {
-    backgroundColor: artStyle.colors.oxblood,
-    borderColor: artStyle.colors.cream,
+  stampArt: {
+    width: 104,
+    height: 104,
   },
   stampLabel: {
+    position: 'absolute',
+    top: 10,
+    left: 8,
+    right: 8,
     color: artStyle.colors.cream,
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-  },
-  stampMark: {
-    color: artStyle.colors.goldBright,
-    fontSize: 28,
-    fontWeight: '900',
-    marginTop: 2,
+    fontSize: 16,
+    letterSpacing: 1.4,
+    textAlign: 'center',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   caption: {
     marginTop: 14,

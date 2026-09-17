@@ -1,5 +1,9 @@
+import type { EquityStreet } from './types';
+
 export const EQUITY_STRINGS = {
   title: 'THE EQUITY SCALE',
+  streetFlop: 'ON THE FLOP',
+  streetTurn: 'ON THE TURN',
   stage1Instruction: 'Turn the dial to the number of outs, then lock it in.',
   stage2Instruction: 'Dial the equity, then lock in Call or Fold.',
   outsDialLabel: 'Outs dial',
@@ -21,3 +25,7 @@ export const EQUITY_STRINGS = {
   revealClose: '2/3 — the decision still paid.',
   revealMiss: 'The price tipped against that line.',
 } as const;
+
+export function equityStreetTitle(street: EquityStreet): string {
+  return street === 'flop' ? EQUITY_STRINGS.streetFlop : EQUITY_STRINGS.streetTurn;
+}

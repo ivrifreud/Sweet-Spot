@@ -13,7 +13,7 @@ export type AmbienceName =
   | 'vip-day-ambience'
   | 'vip-night-ambience';
 
-export type MistakeSfx = 'incorrect' | 'incorrectBass';
+export type MistakeSfx = 'incorrect';
 export type JackpotSfx = 'jackpot' | 'jackpotHeavy';
 
 const BEDS: Record<AudioWorldId, Record<AudioLighting, AmbienceName>> = {
@@ -53,7 +53,8 @@ export function selectMistakeSfx(
   worldId: AudioWorldId = 'bennys-garden',
   lighting: AudioLighting = 'light'
 ): MistakeSfx {
-  if (worldId === 'vip-room' && lighting === 'night') return 'incorrectBass';
+  void worldId;
+  void lighting;
   return 'incorrect';
 }
 

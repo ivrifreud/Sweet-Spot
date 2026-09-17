@@ -2,7 +2,7 @@ import { clampOuts, requiredEquity } from './equityMath';
 
 export const DIAL_MIN_DEG = -135;
 export const DIAL_MAX_DEG = 135;
-export const SCALE_MAX_TILT_DEG = 13;
+export const SCALE_MAX_TILT_DEG = 28;
 export const DIAL_CENTER_DEADZONE_PX = 12;
 export const DIAL_SPIN_SOUND_DEG = 0.65;
 

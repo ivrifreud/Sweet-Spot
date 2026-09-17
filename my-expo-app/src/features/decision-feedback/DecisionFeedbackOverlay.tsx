@@ -5,7 +5,6 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,12 +24,17 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 
 import { playDecisionSfx } from '../../../lib/audio';
+import { safePauseVideoPlayer } from '../../../lib/video/safePause';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
-import { CHIP_3Q_ASPECT, chipArt } from '../../../theme/chipArt';
+import {
+  CHIP_3Q_ASPECT,
+  CHIP_FACE_ASPECT,
+  CHIP_FELT_SQUASH,
+  chipArt,
+} from '../../../theme/chipArt';
 import { ScreenShakeHost } from './ScreenShakeHost';
 import { tempoScale, type FeedbackTempo } from './tempo';
 import type { DecisionOutcome } from './types';
@@ -40,11 +44,12 @@ export { tempoScale } from './tempo';
 
 const INK = '#171713';
 const CREAM = artStyle.colors.cream;
-const CONTINUE_MIN_HEIGHT = Platform.select({ ios: 44, android: 48, default: 48 }) ?? 48;
 const MISS_EMOTE = require('../../../assets/brand/artstyle/coach-wave-miss.mp4');
 const MISS_POSTER = require('../../../assets/brand/artstyle/coach-wave-miss.png');
 const CORRECT_EMOTE = require('../../../assets/brand/artstyle/coach-wave-correct.mp4');
 const CORRECT_POSTER = require('../../../assets/brand/artstyle/coach-wave-correct.png');
+const POINT_CORRECT = require('../../../assets/brand/artstyle/point-correct.png');
+const POINT_MISS = require('../../../assets/brand/artstyle/point-miss.png');
 
 export type DecisionFeedbackOverlayProps = {
   visible: boolean;
@@ -88,6 +93,7 @@ export function DecisionFeedbackOverlay({
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const pace = tempoScale(tempo);
+  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
 
   if (!visible) {
     return null;
@@ -104,7 +110,7 @@ export function DecisionFeedbackOverlay({
         testID="decision-feedback-overlay"
         accessibilityViewIsModal
         accessibilityRole="button"
-        accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to ${continueLabel.toLowerCase()}.`}
+        accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to continue.`}
         accessibilityHint="Tap anywhere on the screen to continue"
         onPress={onContinue}
         style={StyleSheet.absoluteFill}>
@@ -120,7 +126,7 @@ export function DecisionFeedbackOverlay({
           pointerEvents="none"
           style={[
             styles.stage,
-            { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) + 8 },
+            { paddingTop: insets.top + 48, paddingBottom: Math.max(insets.bottom, 16) + 8 },
           ]}>
           <View style={styles.column}>
             <OutcomeMark
@@ -140,11 +146,11 @@ export function DecisionFeedbackOverlay({
             />
 
             <ContinueInbox
-              label={continueLabel}
-              outcome={outcome}
-              fontsLoaded={fontsLoaded}
               reducedMotion={reducedMotion}
               pace={pace}
+              display={display}
+              continueLabel={continueLabel}
+              outcome={outcome}
             />
           </View>
         </View>
@@ -159,19 +165,18 @@ export function DecisionFeedbackOverlay({
   );
 }
 
-/** Non-button hint box — the whole overlay is the tap target. */
 function ContinueInbox({
-  label,
-  outcome,
-  fontsLoaded,
   reducedMotion,
   pace,
+  display,
+  continueLabel,
+  outcome,
 }: {
-  label: string;
-  outcome: DecisionOutcome;
-  fontsLoaded: boolean;
   reducedMotion: boolean | undefined;
   pace: number;
+  display: { fontFamily: string } | null;
+  continueLabel: string;
+  outcome: DecisionOutcome;
 }) {
   const pulse = useSharedValue(1);
 
@@ -183,8 +188,8 @@ function ContinueInbox({
     }
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1.04, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) }),
-        withTiming(1, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) })
+        withTiming(1.12, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.92, { duration: 520 * pace, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       false
@@ -193,27 +198,43 @@ function ContinueInbox({
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
-    opacity: interpolate(pulse.value, [1, 1.04], [0.92, 1]),
   }));
 
   return (
-    <Animated.View
+    <View
       testID="decision-feedback-continue"
       style={[
-        styles.continueInbox,
-        outcome === 'correct' ? styles.continueInboxCorrect : styles.continueInboxMiss,
-        { minHeight: CONTINUE_MIN_HEIGHT },
-        pulseStyle,
+        styles.continueBox,
+        {
+          borderColor: outcome === 'correct' ? artStyle.colors.gold : artStyle.colors.tobacco,
+          backgroundColor: outcome === 'correct' ? artStyle.colors.teal : artStyle.colors.tealFaded,
+        },
       ]}>
-      <Text style={styles.continueHint}>Tap anywhere</Text>
-      <Text
-        style={[
-          styles.continueText,
-          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
-        ]}>
-        {label}
+      <Image
+        source={chipArt.threeQuarter}
+        style={styles.chipToss}
+        resizeMode="contain"
+        accessibilityElementsHidden
+      />
+      <Image
+        source={chipArt.face}
+        style={styles.chipFelt}
+        resizeMode="contain"
+        accessibilityElementsHidden
+      />
+      <Image
+        source={chipArt.threeQuarter}
+        style={styles.chipLean}
+        resizeMode="contain"
+        accessibilityElementsHidden
+      />
+      <Animated.Text style={[styles.tapCue, display, pulseStyle]} maxFontSizeMultiplier={1.2}>
+        TAP ANYWHERE
+      </Animated.Text>
+      <Text style={[styles.dealCue, display]} maxFontSizeMultiplier={1.1} numberOfLines={2}>
+        {continueLabel.toUpperCase()}
       </Text>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -255,13 +276,12 @@ function OutcomeMark({
 
   return (
     <Animated.View style={[styles.markWrap, popStyle]}>
-      <View
-        style={[
-          styles.markRing,
-          outcome === 'correct' ? styles.markRingCorrect : styles.markRingMiss,
-        ]}>
-        {outcome === 'correct' ? <CheckIcon /> : <NudgeIcon />}
-      </View>
+      <Image
+        source={outcome === 'correct' ? POINT_CORRECT : POINT_MISS}
+        style={styles.markArt}
+        resizeMode="contain"
+        accessibilityElementsHidden
+      />
       <Text
         style={[
           styles.title,
@@ -290,10 +310,16 @@ function CoachCard({
   const playEmoteVideo = !reducedMotion;
   const portrait =
     outcome === 'correct' ? artStyle.characters.coachCorrect : artStyle.characters.coachMiss;
-  const borderColor = outcome === 'correct' ? artStyle.colors.gold : artStyle.colors.oxblood;
 
   return (
-    <View style={[styles.card, { borderColor }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: outcome === 'correct' ? artStyle.colors.gold : artStyle.colors.oxblood,
+          backgroundColor: CREAM,
+        },
+      ]}>
       <View style={styles.cardCopy}>
         <Text style={styles.kicker}>{kicker}</Text>
         <ScrollView
@@ -363,7 +389,7 @@ function MissCoachVideo() {
   useEffect(() => {
     beginPlayback();
     return () => {
-      player.pause();
+      safePauseVideoPlayer(player);
     };
   }, [beginPlayback, player]);
 
@@ -391,13 +417,7 @@ function MissCoachVideo() {
   );
 }
 
-function CoachEmoteVideo({
-  source,
-  poster,
-}: {
-  source: number;
-  poster: number;
-}) {
+function CoachEmoteVideo({ source, poster }: { source: number; poster: number }) {
   const [ready, setReady] = useState(false);
   const player = useVideoPlayer(source, (nextPlayer) => {
     nextPlayer.loop = true;
@@ -408,7 +428,7 @@ function CoachEmoteVideo({
     player.currentTime = 0;
     player.play();
     return () => {
-      player.pause();
+      safePauseVideoPlayer(player);
     };
   }, [player]);
 
@@ -690,36 +710,6 @@ function ConfettiShape({ particle }: { particle: Particle }) {
   );
 }
 
-function CheckIcon() {
-  return (
-    <Svg width={36} height={36} viewBox="0 0 36 36" accessibilityElementsHidden>
-      <Path
-        d="M8 18.5 15 25.5 28 11"
-        stroke={INK}
-        strokeWidth={4.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Svg>
-  );
-}
-
-function NudgeIcon() {
-  return (
-    <Svg width={36} height={36} viewBox="0 0 36 36" accessibilityElementsHidden>
-      <Path
-        d="M10 18h16M22 12l6 6-6 6"
-        stroke={CREAM}
-        strokeWidth={3.6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Svg>
-  );
-}
-
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
@@ -755,40 +745,29 @@ const styles = StyleSheet.create({
   column: {
     width: '100%',
     maxWidth: 430,
-    gap: 14,
+    gap: 12,
   },
   markWrap: {
     alignItems: 'center',
-    marginBottom: 4,
+    backgroundColor: 'transparent',
+    marginBottom: 2,
   },
-  markRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: INK,
-  },
-  markRingCorrect: {
-    backgroundColor: artStyle.colors.feltGreen,
-  },
-  markRingMiss: {
-    backgroundColor: artStyle.colors.oxblood,
+  markArt: {
+    width: 58,
+    height: 58,
   },
   title: {
-    marginTop: 8,
-    fontSize: 42,
+    marginTop: 2,
+    fontSize: 34,
     letterSpacing: 2.4,
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowColor: 'rgba(17,23,20,0.72)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    textShadowRadius: 0,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: CREAM,
     borderWidth: 3,
     borderRadius: 22,
     paddingVertical: 14,
@@ -809,7 +788,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   explanationScroll: {
-    maxHeight: 92,
+    maxHeight: 72,
   },
   explanationContent: {
     paddingBottom: 2,
@@ -851,34 +830,70 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  continueInbox: {
-    borderRadius: 16,
+  continueBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: INK,
+    minHeight: 84,
+    paddingTop: 12,
+    paddingBottom: 14,
     paddingHorizontal: 18,
-    paddingVertical: 8,
-    gap: 2,
+    borderWidth: 3,
+    borderRadius: 20,
+    overflow: 'visible',
   },
-  continueInboxCorrect: {
-    backgroundColor: brand.goldBright,
+  tapCue: {
+    color: CREAM,
+    fontSize: 16,
+    letterSpacing: 2.6,
+    textAlign: 'center',
   },
-  continueInboxMiss: {
-    backgroundColor: artStyle.colors.gold,
+  dealCueWrap: {
+    marginTop: 4,
+    width: '100%',
+    paddingHorizontal: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  continueHint: {
-    color: 'rgba(23, 23, 19, 0.72)',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  continueText: {
-    color: INK,
+  dealCue: {
+    width: '100%',
+    color: artStyle.colors.goldBright,
     fontSize: 24,
-    letterSpacing: 1.8,
-    paddingVertical: 2,
+    lineHeight: 28,
+    letterSpacing: 1,
+    textAlign: 'center',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 1.25,
+    // Hairline ink outline on web (Expo preview + RN web).
+    ...({
+      WebkitTextStrokeWidth: 0.9,
+      WebkitTextStrokeColor: artStyle.colors.projectorBlack,
+      paintOrder: 'stroke fill',
+    } as Record<string, unknown>),
+  },
+  chipToss: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
+    width: 42,
+    height: 42 * CHIP_3Q_ASPECT,
+    transform: [{ rotate: '-22deg' }],
+  },
+  chipFelt: {
+    position: 'absolute',
+    right: 16,
+    top: 8,
+    width: 30,
+    height: 30 * CHIP_FACE_ASPECT * CHIP_FELT_SQUASH,
+    transform: [{ rotate: '12deg' }],
+  },
+  chipLean: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 36,
+    height: 36 * CHIP_3Q_ASPECT,
+    transform: [{ rotate: '28deg' }],
   },
   confettiInk: {
     borderWidth: 1.5,

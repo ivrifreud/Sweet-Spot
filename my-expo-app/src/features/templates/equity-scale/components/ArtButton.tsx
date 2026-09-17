@@ -8,6 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { artStyle } from '../../../../../theme/artStyle';
+
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Props = {
@@ -23,19 +25,19 @@ export function ArtButton({ source, label, enabled, size = 108, round = true, on
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ translateY: (1 - scale.value) * 10 }, { scale: scale.value }],
   }));
 
   const pressIn = () => {
     if (!enabled) return;
-    scale.value = reducedMotion ? 0.96 : withTiming(0.96, { duration: 100 });
+    scale.value = reducedMotion ? 0.9 : withTiming(0.9, { duration: 90 });
   };
 
   const pressOut = () => {
     scale.value = reducedMotion
       ? 1
       : withSequence(
-          withTiming(1.06, { duration: 90 }),
+          withTiming(1.04, { duration: 90 }),
           withTiming(1, { duration: 110, easing: Easing.out(Easing.cubic) })
         );
   };
@@ -70,6 +72,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: artStyle.colors.projectorBlack,
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   art: {
     width: '100%',

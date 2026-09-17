@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { isMuted } from '../../../../../lib/audio';
+import { safePauseVideoPlayer } from '../../../../../lib/video/safePause';
 import {
   resultClipMuted,
   resultClipStartTime,
@@ -53,7 +54,7 @@ export function ScaleResultClip({ variant, onFinished }: Props) {
   const finish = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    player.pause();
+    safePauseVideoPlayer(player);
     onFinishedRef.current();
   }, [player]);
 
@@ -87,7 +88,7 @@ export function ScaleResultClip({ variant, onFinished }: Props) {
     const fallback = setTimeout(finish, PLAYBACK_FALLBACK_MS);
     return () => {
       clearTimeout(fallback);
-      player.pause();
+      safePauseVideoPlayer(player);
     };
   }, [finish, player]);
 

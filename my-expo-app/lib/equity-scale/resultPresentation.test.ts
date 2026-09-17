@@ -55,7 +55,7 @@ describe('shouldShowResultStamps', () => {
     expect(shouldShowResultStamps({ stagesCorrect: 3 }, true)).toBe(true);
   });
 
-  it('shows stamps with a total miss even while the sad-scale video is playing', () => {
+  it('shows the three miss stamps while the sad-scale clip is playing', () => {
     expect(shouldShowResultStamps({ stagesCorrect: 0 }, false)).toBe(true);
     expect(shouldShowResultStamps({ stagesCorrect: 0 }, true)).toBe(true);
   });
@@ -111,8 +111,8 @@ describe('stampFinaleSfx', () => {
     expect(stampFinaleSfx({ stagesCorrect: 2 })).toBeNull();
   });
 
-  it('plays jackpot only after a perfect 3/3', () => {
-    expect(stampFinaleSfx({ stagesCorrect: 3 })).toBe('jackpot');
+  it('plays casino coins only after a perfect 3/3 on the scale', () => {
+    expect(stampFinaleSfx({ stagesCorrect: 3 })).toBe('correctCasinoCoins');
   });
 });
 

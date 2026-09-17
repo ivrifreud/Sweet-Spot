@@ -43,7 +43,7 @@ describe('selectMistakeSfx', () => {
     expect(selectMistakeSfx('bennys-garden', 'night')).toBe('incorrect');
     expect(selectMistakeSfx('local-casino', 'night')).toBe('incorrect');
     expect(selectMistakeSfx('vip-room', 'light')).toBe('incorrect');
-    expect(selectMistakeSfx('vip-room', 'night')).toBe('incorrectBass');
+    expect(selectMistakeSfx('vip-room', 'night')).toBe('incorrect');
   });
 });
 

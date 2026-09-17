@@ -44,7 +44,6 @@ CUES: list[tuple[str, str, str, str, str, str, str]] = [
     ("casino-night-ambience.wav", f"{MIXKIT}/511/511.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/fan/", "fan / ventilation hum", "bed"),
     ("vip-day-ambience.wav", f"{MIXKIT}/447/447.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/office/", "quiet room tone", "bed"),
     ("vip-night-ambience.wav", f"{MIXKIT}/1055/1055.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/clock/", "clock ticking", "bed"),
-    ("incorrect-bass.wav", f"{MIXKIT}/2295/2295.wav", "Mixkit License", "Mixkit", "https://mixkit.co/free-sound-effects/bass/", "muted bass hit", "bass"),
 ]
 
 

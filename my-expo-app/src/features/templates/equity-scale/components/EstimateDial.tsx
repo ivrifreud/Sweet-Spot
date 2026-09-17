@@ -1,14 +1,7 @@
 /* eslint-disable react-hooks/immutability -- Gesture worklets update Reanimated SharedValues. */
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-  type AccessibilityActionEvent,
-} from 'react-native';
+import { Image, StyleSheet, Text, View, type AccessibilityActionEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -31,23 +24,13 @@ import {
   valueToDialAngle,
 } from '../dialMath';
 import { equityScaleArt } from '../equityScaleArt';
-import {
-  DIAL_GLOVE_SLEEVE,
-  SLEEVE_ANCHOR_X_FROM_CENTER,
-  dialGlovePose,
-  gripAngleForRotation,
-  rimPoint,
-} from './dialGloveLayout';
+import { EQUITY_PHONE_LAYOUT } from '../tableLayout';
+import { DIAL_GLOVE_CONTACT, DIAL_PIVOT_ORIGIN, dialHandPose } from './dialGloveLayout';
 
 const REST = require('../../../../../assets/tables/hero-glove-rest.png');
 const REST_SHADOW = require('../../../../../assets/tables/hero-glove-rest-shadow.png');
-
-const DIAL_SIZE = 168;
-const DIAL_CENTER = DIAL_SIZE / 2;
-const RIM_RADIUS = DIAL_SIZE * 0.47;
-const ANCHOR_Y_PAST_BOTTOM = 17;
-const GLOVE_SCALE = 0.85;
 const FLICK_DEG_PER_SEC = 80;
+const PIVOT = `${DIAL_PIVOT_ORIGIN.x * 100}% ${DIAL_PIVOT_ORIGIN.y * 100}%`;
 
 type Props = {
   value: number;
@@ -57,6 +40,7 @@ type Props = {
   label: string;
   accessibilityLabel: string;
   enabled: boolean;
+  size?: number;
   onChange: (value: number) => void;
   onAdjustStart: () => void;
   onAdjustEnd: () => void;
@@ -74,36 +58,23 @@ export function EstimateDial({
   label,
   accessibilityLabel,
   enabled,
+  size = EQUITY_PHONE_LAYOUT.dialSize,
   onChange,
   onAdjustStart,
   onAdjustEnd,
 }: Props) {
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
-  const stackRef = useRef<View>(null);
   const rotation = useSharedValue(valueToDialAngle(value, min, max));
-  const lastX = useSharedValue(DIAL_CENTER);
+  const lastX = useSharedValue(size / 2);
   const lastY = useSharedValue(0);
   const lastEmitted = useSharedValue(value);
   const dragging = useSharedValue(0);
-  const originX = useSharedValue(0);
-  const originY = useSharedValue(0);
-  const ready = useSharedValue(0);
-  const screenH = useSharedValue(viewportHeight);
   const minValue = useSharedValue(min);
   const maxValue = useSharedValue(max);
-
-  const measureDial = () => {
-    stackRef.current?.measureInWindow((x, y) => {
-      originX.value = x;
-      originY.value = y;
-      ready.value = 1;
-    });
-  };
+  const dialSize = useSharedValue(size);
 
   useEffect(() => {
-    screenH.value = viewportHeight;
-    requestAnimationFrame(measureDial);
-  }, [viewportHeight, viewportWidth]);
+    dialSize.value = size;
+  }, [dialSize, size]);
 
   useEffect(() => {
     minValue.value = min;
@@ -123,11 +94,14 @@ export function EstimateDial({
   onAdjustStartRef.current = onAdjustStart;
   onAdjustEndRef.current = onAdjustEnd;
 
-  const emitValue = useCallback((next: number) => {
-    if (!enabled) return;
-    onChangeRef.current(next);
-    tickHaptic();
-  }, [enabled]);
+  const emitValue = useCallback(
+    (next: number) => {
+      if (!enabled) return;
+      onChangeRef.current(next);
+      tickHaptic();
+    },
+    [enabled]
+  );
 
   const finishAdjust = useCallback((next: number) => {
     onChangeRef.current(next);
@@ -183,14 +157,15 @@ export function EstimateDial({
           runOnJS(beginAdjust)();
         })
         .onUpdate((event) => {
+          const hub = dialSize.value / 2;
           const next = rotationAfterFingerMove({
             rotation: rotation.value,
             lastX: lastX.value,
             lastY: lastY.value,
             x: event.x,
             y: event.y,
-            centerX: DIAL_CENTER,
-            centerY: DIAL_CENTER,
+            centerX: hub,
+            centerY: hub,
           });
           lastX.value = event.x;
           lastY.value = event.y;
@@ -204,8 +179,9 @@ export function EstimateDial({
         })
         .onEnd((event) => {
           runOnJS(haltDialSound)();
-          const rx = event.x - DIAL_CENTER;
-          const ry = event.y - DIAL_CENTER;
+          const hub = dialSize.value / 2;
+          const rx = event.x - hub;
+          const ry = event.y - hub;
           const radiusSq = rx * rx + ry * ry;
           const omegaDeg =
             radiusSq < DIAL_CENTER_DEADZONE_PX * DIAL_CENTER_DEADZONE_PX
@@ -244,6 +220,7 @@ export function EstimateDial({
         }),
     [
       beginAdjust,
+      dialSize,
       dragging,
       emitValue,
       enabled,
@@ -260,28 +237,17 @@ export function EstimateDial({
     ]
   );
 
-  const dialStyle = useAnimatedStyle(() => ({
-    transformOrigin: '50% 50%',
+  const spinStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  const gloveStyle = useAnimatedStyle(() => {
-    const centerX = originX.value + DIAL_SIZE / 2;
-    const centerY = originY.value + DIAL_SIZE / 2;
-    const pose = dialGlovePose({
-      anchor: {
-        x: centerX + SLEEVE_ANCHOR_X_FROM_CENTER,
-        y: screenH.value + ANCHOR_Y_PAST_BOTTOM,
-      },
-      contact: rimPoint(centerX, centerY, RIM_RADIUS, gripAngleForRotation(rotation.value)),
-      scale: GLOVE_SCALE,
-    });
+  const handStyle = useAnimatedStyle(() => {
+    const pose = dialHandPose(rotation.value, dialSize.value);
     return {
-      opacity: ready.value,
-      left: pose.left - originX.value,
-      top: pose.top - originY.value,
       width: pose.width,
       height: pose.height,
+      left: pose.left,
+      top: pose.top,
       transform: [{ rotate: `${pose.rotateDeg}deg` }],
     };
   });
@@ -298,7 +264,6 @@ export function EstimateDial({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
       <GestureDetector gesture={gesture}>
         <Animated.View
           collapsable={false}
@@ -311,21 +276,33 @@ export function EstimateDial({
             { name: 'decrement', label: 'Decrease' },
           ]}
           onAccessibilityAction={onAccessibilityAction}
-          style={styles.hitTarget}>
-          <View ref={stackRef} collapsable={false} onLayout={measureDial} style={styles.dialStack}>
-            <Animated.View style={[styles.dialPivot, dialStyle]}>
+          style={[styles.hitTarget, { width: size, height: size }]}>
+          <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
+            <Animated.View
+              style={[
+                styles.spinLayer,
+                { width: size, height: size, transformOrigin: PIVOT },
+                spinStyle,
+              ]}>
               <Image
                 source={equityScaleArt.dial}
-                resizeMode="contain"
-                style={styles.dialArt}
+                resizeMode="cover"
+                style={{ width: size, height: size }}
+                accessibilityLabel={label}
               />
             </Animated.View>
             <Animated.View
               pointerEvents="none"
               accessibilityElementsHidden
-              style={[styles.glove, gloveStyle]}>
-              <Image source={REST_SHADOW} resizeMode="contain" style={styles.gloveLayer} />
-              <Image source={REST} resizeMode="contain" style={styles.gloveLayer} />
+              style={[
+                styles.handDock,
+                {
+                  transformOrigin: `${DIAL_GLOVE_CONTACT.x * 100}% ${DIAL_GLOVE_CONTACT.y * 100}%`,
+                },
+                handStyle,
+              ]}>
+              <Image source={REST_SHADOW} resizeMode="contain" style={styles.handArt} />
+              <Image source={REST} resizeMode="contain" style={styles.handArt} />
             </Animated.View>
             <View pointerEvents="none" style={styles.valuePlate}>
               <Text style={styles.value}>{value}</Text>
@@ -343,49 +320,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'visible',
   },
-  label: {
-    color: artStyle.colors.cream,
-    fontWeight: '800',
-    fontSize: 13,
-    letterSpacing: 0.8,
-    marginBottom: 3,
-    textTransform: 'uppercase',
-    zIndex: 6,
-  },
   hitTarget: {
-    width: DIAL_SIZE,
-    height: DIAL_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
   },
   dialStack: {
-    width: DIAL_SIZE,
-    height: DIAL_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
   },
-  dialPivot: {
-    width: DIAL_SIZE,
-    height: DIAL_SIZE,
-    transformOrigin: '50% 50%',
+  spinLayer: {
+    transformOrigin: PIVOT,
     zIndex: 1,
   },
-  dialArt: {
-    width: DIAL_SIZE,
-    height: DIAL_SIZE,
-  },
-  glove: {
+  handDock: {
     position: 'absolute',
-    zIndex: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'visible',
-    transformOrigin: `${DIAL_GLOVE_SLEEVE.x * 100}% ${DIAL_GLOVE_SLEEVE.y * 100}%`,
+    zIndex: 2,
   },
-  gloveLayer: {
-    ...StyleSheet.absoluteFill,
+  handArt: {
     width: '100%',
     height: '100%',
+    position: 'absolute',
+    overflow: 'visible',
   },
   valuePlate: {
     position: 'absolute',

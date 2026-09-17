@@ -4,6 +4,7 @@ import { describeHoleCards, parseCard, type HoleCardCodes } from '@/lib/cards';
 
 import { artStyle } from '../../../../../theme/artStyle';
 import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
+import { CardFeltMat } from './CardFeltMat';
 
 type Props = {
   cards: HoleCardCodes;
@@ -23,22 +24,24 @@ export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
       accessibilityLabel={`Your hand, ${describeHoleCards([parsed[0], parsed[1]])}`}
       style={styles.root}>
       <Text style={styles.caption}>YOU</Text>
-      <View style={styles.row}>
-        {parsed.map((card, index) => (
-          <View
-            key={`${card.rank}${card.suit}-${index}`}
-            style={[
-              styles.card,
-              {
-                marginLeft: index === 0 ? 0 : -overlap,
-                transform: [{ rotate: index === 0 ? '-7deg' : '8deg' }],
-                zIndex: index + 1,
-              },
-            ]}>
-            <CardFace card={card} width={cardWidth} />
-          </View>
-        ))}
-      </View>
+      <CardFeltMat variant="hero">
+        <View style={styles.row}>
+          {parsed.map((card, index) => (
+            <View
+              key={`${card.rank}${card.suit}-${index}`}
+              style={[
+                styles.card,
+                {
+                  marginLeft: index === 0 ? 0 : -overlap,
+                  transform: [{ rotate: index === 0 ? '-7deg' : '8deg' }],
+                  zIndex: index + 1,
+                },
+              ]}>
+              <CardFace card={card} width={cardWidth} />
+            </View>
+          ))}
+        </View>
+      </CardFeltMat>
     </View>
   );
 }

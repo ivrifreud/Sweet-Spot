@@ -1,10 +1,12 @@
-export type CorrectCue = 'correct' | 'correctCasinoCoins';
+export type CorrectCue = 'correct';
 
 export type IncorrectCue = 'incorrect';
 
 export type IdleCue = never;
 
-export const CORRECT_POOL: readonly CorrectCue[] = ['correct', 'correctCasinoCoins'];
+export const CORRECT_POOL: readonly CorrectCue[] = ['correct'];
+
+export const CORRECT_LAYER_CUES = ['correct', 'confetti'] as const;
 
 export const INCORRECT_POOL: readonly IncorrectCue[] = ['incorrect'];
 

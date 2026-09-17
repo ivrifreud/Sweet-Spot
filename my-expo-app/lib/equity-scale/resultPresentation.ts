@@ -15,11 +15,9 @@ export function resultClipKind(grade: { stagesCorrect: number } | null): ResultC
 }
 
 export function shouldShowResultStamps(
-  grade: { stagesCorrect: number },
-  celebrationFinished: boolean
+  _grade: { stagesCorrect: number },
+  _celebrationFinished: boolean
 ): boolean {
-  void grade;
-  void celebrationFinished;
   return true;
 }
 
@@ -65,6 +63,6 @@ export function finaleCue(grade: {
   return grade.decisionCorrect ? 'correct' : 'incorrect';
 }
 
-export function stampFinaleSfx(grade: { stagesCorrect: number }): 'jackpot' | null {
-  return grade.stagesCorrect === 3 ? 'jackpot' : null;
+export function stampFinaleSfx(grade: { stagesCorrect: number }): 'correctCasinoCoins' | null {
+  return grade.stagesCorrect === 3 ? 'correctCasinoCoins' : null;
 }

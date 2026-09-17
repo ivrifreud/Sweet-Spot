@@ -4,6 +4,7 @@ import { parseCard, type CardCode } from '@/lib/cards';
 
 import { artStyle } from '../../../../../theme/artStyle';
 import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
+import { CardFeltMat } from './CardFeltMat';
 
 type Props = {
   board: CardCode[];
@@ -26,13 +27,15 @@ export function BoardCards({ board, textureLine, cardWidth = CARD_WIDTH, gap = 5
       accessibilityRole="text"
       accessibilityLabel={`Board ${label}${textureLine ? `. ${textureLine}` : ''}`}
       style={styles.root}>
-      <View style={[styles.row, { gap }]}>
-        {parsed.map((card, index) => (
-          <View key={`${card.rank}${card.suit}-${index}`} style={styles.card}>
-            <CardFace card={card} width={cardWidth} />
-          </View>
-        ))}
-      </View>
+      <CardFeltMat variant="board">
+        <View style={[styles.row, { gap }]}>
+          {parsed.map((card, index) => (
+            <View key={`${card.rank}${card.suit}-${index}`} style={styles.card}>
+              <CardFace card={card} width={cardWidth} />
+            </View>
+          ))}
+        </View>
+      </CardFeltMat>
       {textureLine ? <Text style={styles.texture}>{textureLine}</Text> : null}
     </View>
   );

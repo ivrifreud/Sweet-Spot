@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { safePauseVideoPlayer } from '../../lib/video/safePause';
 import { artStyle } from '../../theme/artStyle';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -48,7 +49,7 @@ function LockoutEmoteVideo() {
     player.currentTime = 0;
     player.play();
     return () => {
-      player.pause();
+      safePauseVideoPlayer(player);
     };
   }, [player]);
 

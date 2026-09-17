@@ -1,31 +1,57 @@
 /** Kenney card art is 140×190. */
 const CARD_ASPECT = 190 / 140;
 
-/** Native scale PNG box. Rendered size is fitted per screen in equityTableLayout. */
-export const SCALE_ART = { width: 348, height: 268 };
-const PLAYFIELD_TOP_RATIO = 0.25;
-const CHIPS_CLEARANCE = 72;
-const DIAL_CLUSTER = 192;
-const VALUE_ROW_H = 52;
-const SIDE_PAD = 28;
+/** Native scale PNG box (1069×698). Rendered size is fitted per screen. */
+export const SCALE_ART = { width: 1069, height: 698 };
+
+/**
+ * Phone placement knobs for the Equity Scale.
+ * Edit these if a layer sits too high, too low, or too close to another control.
+ *
+ * EQUITY_PHONE_LAYOUT.stage1ScaleMaxH — stage 1 scale size (felt, not the rim)
+ * EQUITY_PHONE_LAYOUT.stage2ScaleMaxH — stage 2 scale size
+ * EQUITY_PHONE_LAYOUT.stage2ScaleCenterRatio — 0.5 = vertical middle of the phone
+ * EQUITY_PHONE_LAYOUT.titleH — ON THE FLOP / ON THE TURN band
+ * EQUITY_PHONE_LAYOUT.valueRowH — pot / odds / price / locked-outs block
+ * EQUITY_PHONE_LAYOUT.dialSize — center wheel
+ * EQUITY_PHONE_LAYOUT.buttonSize — Fold / Call / Lock In
+ * EQUITY_PHONE_LAYOUT.controlGap — air between a side button and the dial
+ * EQUITY_PHONE_LAYOUT.sideInset — Fold/Call distance from the screen edge
+ * EQUITY_PHONE_LAYOUT.tableLift — how far the controls sit above the home indicator
+ */
+export const EQUITY_PHONE_LAYOUT = {
+  titleH: 56,
+  valueRowH: 100,
+  gap: 8,
+  dialSize: 148,
+  buttonSize: 84,
+  controlGap: 12,
+  sideInset: 8,
+  tableLift: 40,
+  stage1ScaleMaxH: 300,
+  stage2ScaleMaxH: 320,
+  stage2ScaleCenterRatio: 0.5,
+  minHero: 36,
+  maxHero: 56,
+} as const;
+
 const BOARD_GAP = 5;
 const HERO_OVERLAP = 0.33;
 const BOARD_TO_HERO = 0.88;
-const ACTION_CUE = 22;
-const CARD_CAPTION = 16;
-const TEXTURE = 18;
-const INSTRUCTION = 26;
-const GAP = 10;
-const MIN_HERO = 40;
-const MAX_HERO = 64;
-const SCALE_MAX_H = 176;
+const CARD_CAPTION = 14;
 
 export type EquityTableLayout = {
+  streetTop: number;
   scaleTop: number;
   scaleWidth: number;
   scaleHeight: number;
   cardsTop: number;
   valueTop: number;
+  dialTop: number;
+  dialSize: number;
+  buttonSize: number;
+  sideInset: number;
+  actionBottom: number;
   heroCardWidth: number;
   boardCardWidth: number;
   boardGap: number;
@@ -47,38 +73,63 @@ export function equityTableLayout({
   boardCount: number;
 }): EquityTableLayout {
   const n = Math.max(boardCount, 3);
-  const available = Math.max(220, width - SIDE_PAD);
+  const available = Math.max(200, width - EQUITY_PHONE_LAYOUT.sideInset * 2);
   const heroWidth = clamp(
     (available - (n - 1) * BOARD_GAP) / (2 - HERO_OVERLAP + n * BOARD_TO_HERO),
-    MIN_HERO,
-    MAX_HERO
+    EQUITY_PHONE_LAYOUT.minHero,
+    EQUITY_PHONE_LAYOUT.maxHero
   );
-  const boardWidth = clamp(heroWidth * BOARD_TO_HERO, MIN_HERO - 6, MAX_HERO - 6);
-  const cardRowH = Math.max(
-    CARD_CAPTION + heroWidth * CARD_ASPECT,
-    boardWidth * CARD_ASPECT + TEXTURE
+  const boardWidth = clamp(
+    heroWidth * BOARD_TO_HERO,
+    EQUITY_PHONE_LAYOUT.minHero - 4,
+    EQUITY_PHONE_LAYOUT.maxHero - 4
   );
-  const spotH = ACTION_CUE + cardRowH + INSTRUCTION;
+  const cardRowH = Math.max(CARD_CAPTION + heroWidth * CARD_ASPECT, boardWidth * CARD_ASPECT);
+  const streetTop = topInset + 4;
+  const valueTop = showingOuts ? 0 : streetTop + EQUITY_PHONE_LAYOUT.titleH + EQUITY_PHONE_LAYOUT.gap;
+  const cardsTop = showingOuts
+    ? streetTop + EQUITY_PHONE_LAYOUT.titleH + EQUITY_PHONE_LAYOUT.gap
+    : valueTop + EQUITY_PHONE_LAYOUT.valueRowH + EQUITY_PHONE_LAYOUT.gap;
+  const cardsBottom = cardsTop + cardRowH;
 
-  const dialTop = height - bottomInset - DIAL_CLUSTER;
-  const cardsTop = dialTop - GAP - spotH;
-  const valueH = showingOuts ? 0 : VALUE_ROW_H;
-  const valueTop = showingOuts ? 0 : cardsTop - GAP - valueH;
+  const dialSize = EQUITY_PHONE_LAYOUT.dialSize;
+  const actionBottom = bottomInset + EQUITY_PHONE_LAYOUT.tableLift;
+  const dialTop = height - actionBottom - dialSize;
+  const buttonBudget =
+    (width - EQUITY_PHONE_LAYOUT.sideInset * 2 - dialSize - EQUITY_PHONE_LAYOUT.controlGap * 2) / 2;
+  const buttonSize = clamp(Math.floor(buttonBudget), 44, EQUITY_PHONE_LAYOUT.buttonSize);
 
-  const minScaleTop = Math.max(height * PLAYFIELD_TOP_RATIO, topInset + CHIPS_CLEARANCE);
-  const scaleBottomLimit = (showingOuts ? cardsTop : valueTop) - GAP;
-  const scaleBudget = Math.max(0, scaleBottomLimit - minScaleTop);
-  const scaleHeight = Math.min(SCALE_MAX_H, scaleBudget);
-  const extra = Math.max(0, scaleBudget - scaleHeight);
-  const scaleTop = minScaleTop + extra / 2;
-  const scaleWidth = (SCALE_ART.width / SCALE_ART.height) * scaleHeight;
+  const maxScaleH = showingOuts
+    ? EQUITY_PHONE_LAYOUT.stage1ScaleMaxH
+    : EQUITY_PHONE_LAYOUT.stage2ScaleMaxH;
+  const scaleCeiling = dialTop - EQUITY_PHONE_LAYOUT.gap;
+  const scaleFloor = cardsBottom + EQUITY_PHONE_LAYOUT.gap;
+  const scaleBudget = Math.max(0, scaleCeiling - scaleFloor);
+  const artAspect = SCALE_ART.width / SCALE_ART.height;
+  const heightFromWidth = width / artAspect;
+  const scaleHeight = Math.min(maxScaleH, scaleBudget, heightFromWidth);
+  const scaleWidth = artAspect * scaleHeight;
+
+  let scaleTop: number;
+  if (showingOuts) {
+    scaleTop = scaleCeiling - scaleHeight;
+  } else {
+    const center = height * EQUITY_PHONE_LAYOUT.stage2ScaleCenterRatio;
+    scaleTop = clamp(center - scaleHeight / 2, scaleFloor, scaleCeiling - scaleHeight);
+  }
 
   return {
+    streetTop,
     scaleTop,
     scaleWidth,
     scaleHeight,
     cardsTop,
     valueTop,
+    dialTop,
+    dialSize,
+    buttonSize,
+    sideInset: EQUITY_PHONE_LAYOUT.sideInset,
+    actionBottom,
     heroCardWidth: Math.round(heroWidth),
     boardCardWidth: Math.round(boardWidth),
     boardGap: BOARD_GAP,
