@@ -19,7 +19,7 @@ import {
   type HoleCards as HoleCardsTuple,
 } from '@/lib/cards';
 
-import { startAmbience, stopAmbience } from '../../../../lib/audio';
+import { playSfx, startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
 import { CHIP_EDGE_RATIO } from '../../../../theme/chipArt';
 import { ActionBanner } from './components/ActionBanner';
@@ -254,6 +254,7 @@ export function PeekAndPitchTemplate({
       }
       setPhase('dealing');
       resolvedRef.current = false;
+      playSfx('shuffle');
 
       peek.value = 0;
       muck.value = 0;
@@ -278,8 +279,7 @@ export function PeekAndPitchTemplate({
   }, [dealHand, resetKey, spot]);
 
   useEffect(() => {
-    if (activeSpot.skin !== 'garden') return;
-    startAmbience('bennys-garden', 'night');
+    startAmbience(activeSpot.skin === 'casino' ? 'local-casino' : 'bennys-garden', 'night');
     return () => stopAmbience();
   }, [activeSpot.skin]);
 
@@ -351,6 +351,7 @@ export function PeekAndPitchTemplate({
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      playSfx(nextDecision);
       pendingChipRef.current = nextDecision;
       setPitching(true);
 

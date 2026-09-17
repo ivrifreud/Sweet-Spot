@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -18,7 +18,8 @@ import {
   fogPartDrift,
   fogPartTremble,
 } from '../../lib/track/fogCycle';
-import { CAMERA_CLIMB_MS, FOG_PART_MS, MAP_ASPECT, WORLD_MAP_LAYER_STACK } from '../../lib/track/tree';
+import { agentDebugLog } from '../../lib/agentDebugLog';
+import { CAMERA_CLIMB_MS, FOG_PART_MS, WORLD_MAP_LAYER_STACK } from '../../lib/track/tree';
 import { shouldApplyFilmTreatment } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
 import { WorldMapArtLayer } from './WorldMapArtLayer';
@@ -99,38 +100,65 @@ function FogOfWarClouds({ width, height, worldId, leftAsset, rightAsset, phase }
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      needsOffscreenAlphaCompositing
       style={styles.fog}>
-      <Animated.View collapsable={false} style={[styles.cloudLayer, leftStyle]}>
+      <Animated.View
+        collapsable={false}
+        style={[
+          leftStyle,
+          styles.cloudBox,
+          {
+            left: leftBox.left,
+            top: leftBox.top,
+            width: leftBox.width,
+            height: leftBox.height,
+            elevation: WORLD_MAP_LAYER_STACK.fog.elevation,
+          },
+        ]}>
         <Image
           source={leftAsset.source}
           resizeMode="contain"
           accessible={false}
-          style={[
-            styles.cloud,
-            {
-              left: leftBox.left,
-              top: leftBox.top,
-              width: leftBox.width,
-              height: leftBox.height,
-            },
-          ]}
+          style={{ width: leftBox.width, height: leftBox.height }}
+          onLoad={() => {
+            // #region agent log
+            agentDebugLog({
+              hypothesisId: 'D',
+              location: 'WorldMap.tsx:fog-onLoad',
+              message: 'fog image loaded',
+              data: { worldId, phase, box: leftBox },
+            });
+            // #endregion
+          }}
+          onError={(event) => {
+            // #region agent log
+            agentDebugLog({
+              hypothesisId: 'D',
+              location: 'WorldMap.tsx:fog-onError',
+              message: 'fog image failed',
+              data: { worldId, phase, error: event.nativeEvent.error },
+            });
+            // #endregion
+          }}
         />
       </Animated.View>
-      <Animated.View collapsable={false} style={[styles.cloudLayer, rightStyle]}>
+      <Animated.View
+        collapsable={false}
+        style={[
+          rightStyle,
+          styles.cloudBox,
+          {
+            right: rightBox.right,
+            top: rightBox.top,
+            width: rightBox.width,
+            height: rightBox.height,
+            elevation: WORLD_MAP_LAYER_STACK.fog.elevation,
+          },
+        ]}>
         <Image
           source={rightAsset.source}
           resizeMode="contain"
           accessible={false}
-          style={[
-            styles.cloud,
-            {
-              right: rightBox.right,
-              top: rightBox.top,
-              width: rightBox.width,
-              height: rightBox.height,
-            },
-          ]}
+          style={{ width: rightBox.width, height: rightBox.height }}
         />
       </Animated.View>
     </View>
@@ -192,17 +220,51 @@ export function WorldMap({
   }, [cameraDuration, cameraY, reducedMotion, safeChunkIndex, targetY]);
 
   const cameraStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: cameraY.value }],
+    top: cameraY.value,
   }));
   const contentHeight = height * world.chunks.length;
   const film = shouldApplyFilmTreatment(world.id) && world.filmGrain
     ? { grain: world.filmGrain }
     : undefined;
+  // #region agent log
+  agentDebugLog({
+    hypothesisId: 'C',
+    location: 'WorldMap.tsx:render',
+    message: 'world camera frame',
+    data: {
+      worldId: world.id,
+      width,
+      height,
+      contentHeight,
+      safeChunkIndex,
+      targetY,
+      chunkCount: world.chunks.length,
+      fogPhase,
+      film: Boolean(film),
+      cameraAnim: 'top',
+      fogOverflow: Platform.OS === 'web' ? 'hidden' : 'visible',
+      fogElevationTarget: 'cloud-boxes',
+    },
+  });
+  // #endregion
 
   return (
-    <View style={[styles.frame, { width, height }]}>
+    <View
+      style={[styles.frame, { width, height }]}
+      onLayout={(event) => {
+        // #region agent log
+        agentDebugLog({
+          hypothesisId: 'G',
+          location: 'WorldMap.tsx:frame-onLayout',
+          message: 'world frame laid out',
+          data: { worldId: world.id, props: { width, height }, layout: event.nativeEvent.layout },
+        });
+        // #endregion
+      }}>
       <View collapsable={false} style={styles.cameraClip}>
-        <Animated.View style={[styles.worldContent, { width, height: contentHeight }, cameraStyle]}>
+        <Animated.View
+          collapsable={false}
+          style={[styles.worldContent, { width, height: contentHeight }, cameraStyle]}>
           {world.chunks.map((chunk) => {
             const top = (world.chunks.length - 1 - chunk.index) * height;
             return (
@@ -222,14 +284,6 @@ export function WorldMap({
           </View>
         </Animated.View>
       </View>
-      <FogOfWarClouds
-        width={width}
-        height={height}
-        worldId={world.id}
-        leftAsset={world.fogAssets.left}
-        rightAsset={world.fogAssets.right}
-        phase={fogPhase}
-      />
       {film ? null : (
         <LinearGradient
           colors={[
@@ -242,19 +296,26 @@ export function WorldMap({
           style={styles.vignette}
         />
       )}
+      <FogOfWarClouds
+        width={width}
+        height={height}
+        worldId={world.id}
+        leftAsset={world.fogAssets.left}
+        rightAsset={world.fogAssets.right}
+        phase={fogPhase}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   frame: {
-    aspectRatio: MAP_ASPECT,
-    overflow: 'hidden',
+    overflow: Platform.OS === 'web' ? 'hidden' : 'visible',
     backgroundColor: artStyle.colors.projectorBlack,
   },
   cameraClip: {
     ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
+    overflow: Platform.OS === 'web' ? 'hidden' : 'visible',
     zIndex: WORLD_MAP_LAYER_STACK.camera.zIndex,
     elevation: WORLD_MAP_LAYER_STACK.camera.elevation,
   },
@@ -269,19 +330,17 @@ const styles = StyleSheet.create({
   },
   fog: {
     ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
+    overflow: Platform.OS === 'web' ? 'hidden' : 'visible',
     zIndex: WORLD_MAP_LAYER_STACK.fog.zIndex,
-    elevation: WORLD_MAP_LAYER_STACK.fog.elevation,
+    backgroundColor: 'transparent',
   },
-  cloudLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cloud: {
+  cloudBox: {
     position: 'absolute',
+    backgroundColor: 'transparent',
   },
   vignette: {
     ...StyleSheet.absoluteFillObject,
     zIndex: WORLD_MAP_LAYER_STACK.vignette.zIndex,
-    elevation: WORLD_MAP_LAYER_STACK.vignette.elevation,
+    backgroundColor: 'transparent',
   },
 });

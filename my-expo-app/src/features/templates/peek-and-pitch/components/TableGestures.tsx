@@ -108,11 +108,7 @@ function shouldArmPeekPanLocal(translationY: number, startedOnStack: boolean) {
   return !startedOnStack && translationY > 0;
 }
 
-function shouldArmMuckPanLocal(
-  translationY: number,
-  startedLow: boolean,
-  startedOnStack: boolean
-) {
+function shouldArmMuckPanLocal(translationY: number, startedLow: boolean, startedOnStack: boolean) {
   'worklet';
   return !startedOnStack && startedLow && translationY < 0;
 }
@@ -165,6 +161,7 @@ export function TableGestures({
   onIllegalCheckRef.current = onIllegalCheck;
 
   const firePeekHold = useCallback(() => {
+    playSfx('peek');
     onPeekHoldRef.current?.();
   }, []);
   const firePeeked = useCallback(() => {

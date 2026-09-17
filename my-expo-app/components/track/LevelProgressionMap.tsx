@@ -169,6 +169,7 @@ export function LevelProgressionMap({
           trailKey={trailKey}
           duration={walkDuration}
           source={avatarSource}
+          walkSoundEnabled={currentWorld.id === 'bennys-garden'}
           onArrived={onArrived}
         />
       </View>

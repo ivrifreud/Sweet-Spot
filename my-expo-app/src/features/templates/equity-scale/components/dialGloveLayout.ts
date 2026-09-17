@@ -1,5 +1,31 @@
 import { DIAL_MAX_DEG, DIAL_MIN_DEG } from '../dialMath';
 
+/** Shared hub for the housing and numbered ring. */
+export const DIAL_PIVOT_ORIGIN = { x: 0.5, y: 0.5 } as const;
+
+/** Wrist rock while turning — never a full spin with the wheel. */
+export const DIAL_HAND_TILT_MAX_DEG = 26;
+
+const ASPECT = 760 / 900;
+
+/**
+ * Fixed-size glove parked on the right rim. It rocks with the wheel
+ * instead of orbiting or tumbling 360°.
+ */
+export function dialHandPose(rotationDeg: number, dialSize: number) {
+  'worklet';
+  const width = dialSize * 1.45;
+  const height = width * ASPECT;
+  const t = DIAL_MAX_DEG === 0 ? 0 : rotationDeg / DIAL_MAX_DEG;
+  return {
+    width,
+    height,
+    left: dialSize * 0.5,
+    top: dialSize * 0.16,
+    rotateDeg: t * DIAL_HAND_TILT_MAX_DEG,
+  };
+}
+
 /**
  * Open rest pose on the aligned 900×760 canvas.
  * Fingertips sit on the rim; the sleeve plants at the screen edge.
@@ -17,7 +43,6 @@ export const GRIP_END_DEG = 38;
  */
 export const SLEEVE_ANCHOR_X_FROM_CENTER = 120;
 
-const ASPECT = 760 / 900;
 const ROT_MIN = DIAL_MIN_DEG;
 const ROT_MAX = DIAL_MAX_DEG;
 

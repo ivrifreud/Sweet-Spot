@@ -1,34 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
-  selectAmbience,
+  ambiencePlaybackVolume,
+  selectAmbienceCandidates,
   type AmbienceName,
   type AudioLighting,
   type AudioWorldId,
 } from './beds';
 import {
+  CORRECT_LAYER_CUES,
   CORRECT_POOL,
-  GARDEN_NIGHT_POOL,
   IDLE_POOL,
   INCORRECT_POOL,
   pickQueued,
-  type GardenNightBed,
+  shouldReplayDecisionSting,
   type IdleCue,
 } from './cues';
 
-export type {
-  AmbienceName,
-  AudioLighting,
-  AudioWorldId,
-} from './beds';
+export type { AmbienceName, AudioLighting, AudioWorldId } from './beds';
 export { selectAmbience, selectJackpotSfx, selectMistakeSfx } from './beds';
-export {
-  CORRECT_POOL,
-  GARDEN_NIGHT_POOL,
-  IDLE_POOL,
-  INCORRECT_POOL,
-  pickQueued,
-} from './cues';
+export { CORRECT_LAYER_CUES, CORRECT_POOL, IDLE_POOL, INCORRECT_POOL, pickQueued } from './cues';
 
 export type SfxName =
   | 'deal'
@@ -39,15 +30,18 @@ export type SfxName =
   | 'call'
   | 'raise'
   | 'correct'
+  | 'correctCasinoCoins'
+  | 'confetti'
   | 'incorrect'
-  | 'idleSnore'
-  | 'idleYawn'
   | 'jackpot'
   | 'jackpotHeavy'
   | 'step'
   | 'arrive'
   | 'clouds'
   | 'uiClick'
+  | 'nodePress'
+  | 'scaleButton'
+  | 'shuffle'
   | 'dial';
 
 type Settings = {
@@ -61,17 +55,20 @@ const DEFAULTS: Settings = { muted: false, sfxVolume: 1, ambienceVolume: 0.28 };
 const IDLE_GAP_MS = 22000;
 const DRY_SFX: ReadonlySet<SfxName> = new Set([
   ...CORRECT_POOL,
+  ...CORRECT_LAYER_CUES,
   ...INCORRECT_POOL,
   ...IDLE_POOL,
 ]);
+const OVERLAP_SFX: ReadonlySet<SfxName> = new Set([...CORRECT_LAYER_CUES, 'correctCasinoCoins']);
 
 let settings: Settings = { ...DEFAULTS };
 let loaded = false;
 let activeBed: AmbienceName = 'garden-ambience';
-let lastNightBed: GardenNightBed | undefined;
+let lastAmbience: AmbienceName | undefined;
 let lastCorrect: (typeof CORRECT_POOL)[number] | undefined;
 let lastIncorrect: (typeof INCORRECT_POOL)[number] | undefined;
 let lastIdle: IdleCue | undefined;
+let lastDecisionKey: string | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let walking = false;
 let dialing = false;
@@ -86,29 +83,34 @@ const sfxSources: Record<SfxName, number> = {
   call: require('../../assets/audio/call.wav'),
   raise: require('../../assets/audio/raise.wav'),
   correct: require('../../assets/audio/correct.wav'),
+  correctCasinoCoins: require('../../assets/audio/correct-casino-coins.wav'),
+  confetti: require('../../assets/audio/confetti.wav'),
   incorrect: require('../../assets/audio/incorrect.wav'),
-  idleSnore: require('../../assets/audio/idle-snore.wav'),
-  idleYawn: require('../../assets/audio/idle-yawn.wav'),
   jackpot: require('../../assets/audio/jackpot.wav'),
   jackpotHeavy: require('../../assets/audio/jackpot-heavy.wav'),
   step: require('../../assets/audio/step.wav'),
   arrive: require('../../assets/audio/arrive.wav'),
   clouds: require('../../assets/audio/clouds.wav'),
   uiClick: require('../../assets/audio/ui-click.wav'),
+  nodePress: require('../../assets/audio/node-press.wav'),
+  scaleButton: require('../../assets/audio/scale-button.wav'),
+  shuffle: require('../../assets/audio/shuffle.wav'),
   dial: require('../../assets/audio/dial.wav'),
 };
 
-/** World 1 beds only. Metro resolves every `require` at bundle time; later-world WAVs stay on disk until those skins ship. */
+/** World 1 beds only. Metro resolves every `require` at bundle time; later-world WAVs stay on disk until those skins ship. Night garden uses poker-table.wav. */
 const ambienceSources: Partial<Record<AmbienceName, number>> = {
   'garden-ambience': require('../../assets/audio/garden-ambience.wav'),
-  'garden-night-ambience': require('../../assets/audio/garden-night-ambience.wav'),
-  'garden-night-forest': require('../../assets/audio/garden-night-forest.wav'),
+  'poker-table': require('../../assets/audio/poker-table.wav'),
+  'local-casino-vip-1': require('../../assets/audio/local-casino-vip-1.wav'),
+  'local-casino-vip-2': require('../../assets/audio/local-casino-vip-2.wav'),
 };
 
 type Player = {
   play: () => void;
   pause: () => void;
   seekTo?: (value: number) => void;
+  duration?: number;
   loop?: boolean;
   volume?: number;
 };
@@ -159,7 +161,10 @@ export async function preloadAudio(): Promise<Settings> {
   }
   for (const [name, source] of Object.entries(sfxSources) as [SfxName, number][]) {
     try {
-      sfxPlayers[name] = audio.createAudioPlayer(source) as Player;
+      const player = audio.createAudioPlayer(source) as Player;
+      player.loop = false;
+      player.pause();
+      sfxPlayers[name] = player;
     } catch {
       // Missing native player is a silent fallback.
     }
@@ -193,22 +198,40 @@ function pauseAllBeds(): void {
   });
 }
 
+function pauseOneShotSfx(except?: SfxName): void {
+  (Object.entries(sfxPlayers) as [SfxName, Player | undefined][]).forEach(([name, player]) => {
+    if (!player || name === except || name === 'step' || name === 'dial') return;
+    if (except && OVERLAP_SFX.has(except) && OVERLAP_SFX.has(name)) return;
+    try {
+      player.loop = false;
+      player.pause();
+    } catch {
+      // Ignore.
+    }
+  });
+}
+
 export function playSfx(name: SfxName): void {
   if (settings.muted || settings.sfxVolume <= 0) return;
   if (!guarded(name, name === 'fold' ? 400 : 80)) return;
   const player = sfxPlayers[name];
   if (!player) return;
   try {
+    pauseOneShotSfx(name);
     player.loop = false;
-    player.volume = settings.sfxVolume;
+    player.volume = settings.sfxVolume * (name === 'confetti' ? 0.55 : 1);
     player.seekTo?.(0);
     player.play();
     const ambience = ambiencePlayers[activeBed];
     if (ambience && !DRY_SFX.has(name) && name !== 'step') {
-      ambience.volume = settings.ambienceVolume * 0.32;
+      const bedVolume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
+      ambience.volume = bedVolume * 0.32;
       setTimeout(() => {
         if (ambiencePlayers[activeBed] && !settings.muted) {
-          ambiencePlayers[activeBed]!.volume = settings.ambienceVolume;
+          ambiencePlayers[activeBed]!.volume = ambiencePlaybackVolume(
+            activeBed,
+            settings.ambienceVolume
+          );
         }
       }, 220);
     }
@@ -217,11 +240,12 @@ export function playSfx(name: SfxName): void {
   }
 }
 
-export function playDecisionSfx(outcome: 'correct' | 'incorrect'): void {
+export function playDecisionSfx(outcome: 'correct' | 'incorrect', key?: string): void {
+  if (!shouldReplayDecisionSting(key, lastDecisionKey)) return;
+  if (key) lastDecisionKey = key;
   if (outcome === 'correct') {
-    const cue = pickQueued(CORRECT_POOL, lastCorrect);
-    lastCorrect = cue;
-    playSfx(cue);
+    lastCorrect = 'correct';
+    CORRECT_LAYER_CUES.forEach((cue) => playSfx(cue));
     return;
   }
   const cue = pickQueued(INCORRECT_POOL, lastIncorrect);
@@ -230,6 +254,7 @@ export function playDecisionSfx(outcome: 'correct' | 'incorrect'): void {
 }
 
 export function playIdleSfx(): void {
+  if (IDLE_POOL.length === 0) return;
   const cue = pickQueued(IDLE_POOL, lastIdle);
   lastIdle = cue;
   playSfx(cue);
@@ -237,17 +262,20 @@ export function playIdleSfx(): void {
 
 function fireIdle(): void {
   playIdleSfx();
+  if (IDLE_POOL.length === 0) return;
   idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
 }
 
 export function noteActivity(): void {
   if (!idleTimer) return;
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
+  idleTimer = IDLE_POOL.length === 0 ? null : setTimeout(fireIdle, IDLE_GAP_MS);
 }
 
 export function startIdleWatch(): void {
   if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = null;
+  if (IDLE_POOL.length === 0) return;
   idleTimer = setTimeout(fireIdle, IDLE_GAP_MS);
 }
 
@@ -322,13 +350,10 @@ export function stopDialSfx(): void {
 }
 
 function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): AmbienceName {
-  const next = worldId ? selectAmbience(worldId, lighting) : activeBed;
-  if (next !== 'garden-night-ambience' && next !== 'garden-night-forest') {
-    return next;
-  }
-  const bed = pickQueued(GARDEN_NIGHT_POOL, lastNightBed);
-  lastNightBed = bed;
-  return bed;
+  const candidates = worldId ? selectAmbienceCandidates(worldId, lighting) : [activeBed];
+  const next = pickQueued(candidates, lastAmbience);
+  lastAmbience = next;
+  return next;
 }
 
 export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): void {
@@ -342,7 +367,16 @@ export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 
   if (!player) return;
   try {
     player.loop = true;
-    player.volume = settings.ambienceVolume;
+    player.volume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
+    if (
+      (activeBed === 'garden-ambience' ||
+        activeBed === 'poker-table' ||
+        activeBed.startsWith('local-casino-vip-')) &&
+      player.duration &&
+      player.duration > 1
+    ) {
+      player.seekTo?.(Math.random() * player.duration);
+    }
     player.play();
   } catch {
     // Ignore.

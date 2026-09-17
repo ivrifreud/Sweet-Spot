@@ -2,17 +2,16 @@ import { useEffect } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 
 import type { DecisionOutcome } from '../../../decision-feedback/types';
 import { equityScaleArt } from '../equityScaleArt';
 import { SCALE_ART } from '../tableLayout';
+import { SCALE_ARM_PIVOTS, rotateAroundPivot, scaleArmPose } from './scaleArmLayout';
 
 type Props = {
   tilt: number;
@@ -24,78 +23,44 @@ type Props = {
 
 export const SCALE_SCENE = SCALE_ART;
 
-export function ScaleScene({
-  tilt,
-  outcome,
-  stagesCorrect = null,
-  width = SCALE_ART.width,
-  height = SCALE_ART.height,
-}: Props) {
+export function ScaleScene({ tilt, width = SCALE_ART.width, height = SCALE_ART.height }: Props) {
   const reducedMotion = useReducedMotion();
-  const beamAngle = useSharedValue(tilt);
-  const outcomeProgress = useSharedValue(0);
+  const pose = scaleArmPose(tilt);
+  const leftAngle = useSharedValue(pose.leftRotateDeg);
+  const rightAngle = useSharedValue(pose.rightRotateDeg);
 
   useEffect(() => {
-    if (stagesCorrect === 2) {
-      beamAngle.value = withTiming(0, {
-        duration: reducedMotion ? 120 : 320,
-        easing: Easing.out(Easing.cubic),
-      });
-      outcomeProgress.value = withTiming(1, { duration: reducedMotion ? 180 : 500 });
+    if (reducedMotion) {
+      leftAngle.value = pose.leftRotateDeg;
+      rightAngle.value = pose.rightRotateDeg;
       return;
     }
-    if (outcome === 'correct' || stagesCorrect === 3) {
-      beamAngle.value = reducedMotion
-        ? 0
-        : withSequence(
-            withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic) }),
-            withTiming(-6, { duration: 150 }),
-            withTiming(4, { duration: 150 }),
-            withTiming(0, { duration: 210 })
-          );
-      outcomeProgress.value = withTiming(1, { duration: reducedMotion ? 180 : 700 });
-      return;
-    }
-    if (outcome === 'incorrect' || stagesCorrect === 0 || stagesCorrect === 1) {
-      outcomeProgress.value = withTiming(1, {
-        duration: reducedMotion ? 240 : 1500,
-        easing: Easing.in(Easing.quad),
-      });
-      return;
-    }
-    beamAngle.value = withTiming(tilt, { duration: 100, easing: Easing.out(Easing.quad) });
-    outcomeProgress.value = 0;
-  }, [beamAngle, outcome, outcomeProgress, reducedMotion, stagesCorrect, tilt]);
+    const timing = { duration: 140, easing: Easing.out(Easing.cubic) };
+    leftAngle.value = withTiming(pose.leftRotateDeg, timing);
+    rightAngle.value = withTiming(pose.rightRotateDeg, timing);
+  }, [leftAngle, pose.leftRotateDeg, pose.rightRotateDeg, reducedMotion, rightAngle]);
 
-  const scaleStyle = useAnimatedStyle(() => {
-    const miss = outcome === 'incorrect' || stagesCorrect === 0 || stagesCorrect === 1;
-    if (miss) {
-      if (reducedMotion) {
-        return {
-          transform: [{ rotate: `${beamAngle.value}deg` }],
-          opacity: interpolate(outcomeProgress.value, [0, 0.6, 1], [1, 1, 0.2]),
-        };
-      }
-      const f = Math.max(0, (outcomeProgress.value - 0.12) / 0.88);
-      return {
-        transform: [
-          { translateY: f * f * 160 },
-          { rotate: `${beamAngle.value + f * 10}deg` },
-        ],
-        opacity: interpolate(f, [0, 0.7, 1], [1, 1, 0]),
-      };
-    }
-    return { transform: [{ rotate: `${beamAngle.value}deg` }], opacity: 1 };
-  });
+  const leftStyle = useAnimatedStyle(() => ({
+    transform: rotateAroundPivot(leftAngle.value, SCALE_ARM_PIVOTS.left, width, height),
+  }));
+  const rightStyle = useAnimatedStyle(() => ({
+    transform: rotateAroundPivot(rightAngle.value, SCALE_ARM_PIVOTS.right, width, height),
+  }));
 
   return (
     <View
       style={[styles.scene, { width, height }]}
       pointerEvents="none"
       accessibilityLabel="Equity scale">
-      <Animated.View style={[styles.artWrap, { width, height }, scaleStyle]}>
-        <Image source={equityScaleArt.scale} resizeMode="contain" style={styles.art} />
+      <Animated.View style={[styles.layer, { width, height }, leftStyle]}>
+        <Image source={equityScaleArt.scale.leftArm} resizeMode="contain" style={styles.art} />
       </Animated.View>
+      <Animated.View style={[styles.layer, { width, height }, rightStyle]}>
+        <Image source={equityScaleArt.scale.rightArm} resizeMode="contain" style={styles.art} />
+      </Animated.View>
+      <View style={[styles.layer, { width, height }]}>
+        <Image source={equityScaleArt.scale.body} resizeMode="contain" style={styles.art} />
+      </View>
     </View>
   );
 }
@@ -105,8 +70,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     overflow: 'visible',
   },
-  artWrap: {
-    transformOrigin: '50% 68%',
+  layer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    overflow: 'visible',
   },
   art: {
     width: '100%',

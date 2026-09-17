@@ -23,8 +23,8 @@ INGEST: list[tuple[str, str, str, float | None]] = [
     ("idle-snore.wav", "mixkit-man-strong-snore-2478.wav", "sting", 3.8),
     ("idle-yawn.wav", "mixkit-young-tired-male-yawns-2278.wav", "sting", 3.8),
     ("garden-ambience.wav", "mixkit-morning-birds-2472.wav", "bed", None),
-    ("garden-night-ambience.wav", "mixkit-crickets-and-insects-in-the-wild-ambience-39.wav", "bed", None),
-    ("garden-night-forest.wav", "mixkit-night-forest-with-insects-2414.wav", "bed", None),
+    ("poker-table.wav", "playing poker sound.mp3", "bed", None),
+    ("shuffle.wav", "card shuffle sound.mp3", "sting", 2.4),
     ("step.wav", "mixkit-footsteps-on-tall-grass-532.wav", "walk", None),
 ]
 

@@ -10,7 +10,11 @@ export const equityScaleArt = {
     casino: require('../../../../assets/tables/equity-scale/scene-background-casino.jpeg'),
     vip: require('../../../../assets/tables/equity-scale/scene-background-vip.jpeg'),
   },
-  scale: require('../../../../assets/tables/equity-scale/scale-character.png'),
+  scale: {
+    body: require('../../../../assets/tables/equity-scale/scale-body.png'),
+    leftArm: require('../../../../assets/tables/equity-scale/scale-left-arm.png'),
+    rightArm: require('../../../../assets/tables/equity-scale/scale-right-arm.png'),
+  },
   dial: require('../../../../assets/tables/equity-scale/rotary-dial.png'),
   buttons: {
     lockIn: require('../../../../assets/tables/equity-scale/button-lock-in.png'),

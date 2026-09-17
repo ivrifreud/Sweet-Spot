@@ -1,20 +1,80 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEffect } from 'react';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
+import { safePauseVideoPlayer } from '../../lib/video/safePause';
 import { artStyle } from '../../theme/artStyle';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const LOCKOUT_EMOTE = require('../../assets/brand/artstyle/coach-broke-lockout.mp4');
+const LOCKOUT_POSTER = require('../../assets/brand/artstyle/coach-broke-lockout.png');
 
 function pressPlaceholder() {
   // Premium rebuy and rewarded ads are placeholders this sprint.
+}
+
+function LockoutEmote() {
+  const reducedMotion = useReducedMotion();
+  if (reducedMotion) {
+    return (
+      <Image
+        source={LOCKOUT_POSTER}
+        style={styles.emoteMedia}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+        accessible={false}
+      />
+    );
+  }
+  return <LockoutEmoteVideo />;
+}
+
+function LockoutEmoteVideo() {
+  const [ready, setReady] = useState(false);
+  const player = useVideoPlayer(LOCKOUT_EMOTE, (nextPlayer) => {
+    nextPlayer.loop = true;
+    nextPlayer.muted = true;
+  });
+
+  useEffect(() => {
+    player.currentTime = 0;
+    player.play();
+    return () => {
+      safePauseVideoPlayer(player);
+    };
+  }, [player]);
+
+  return (
+    <>
+      {ready ? null : (
+        <Image
+          source={LOCKOUT_POSTER}
+          style={styles.emotePoster}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+          accessible={false}
+        />
+      )}
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        playsInline
+        surfaceType="textureView"
+        onFirstFrameRender={() => setReady(true)}
+        style={styles.emoteMedia}
+      />
+    </>
+  );
 }
 
 type Props = {
@@ -69,13 +129,9 @@ export function ChipLockoutCard({ countdown }: Props) {
         accessibilityRole="alert"
         accessibilityLiveRegion="polite"
         style={[styles.card, cardStyle]}>
-        <Image
-          source={require('../../assets/brand/artstyle/coach-broke-lockout.png')}
-          style={styles.coach}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        <View style={styles.emoteBox} pointerEvents="none" accessibilityElementsHidden>
+          <LockoutEmote />
+        </View>
         <Text style={[styles.kicker, display]}>THE TRAY IS EMPTY</Text>
         <Text style={[styles.title, display]}>CHIPS ARE SPENT</Text>
         <View style={styles.rule} />
@@ -134,14 +190,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     alignItems: 'center',
   },
-  coach: {
+  emoteBox: {
     position: 'absolute',
     top: -40,
-    left: -45,
-    width: 135,
-    height: 160,
+    left: -28,
+    width: 118,
+    height: 168,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: artStyle.colors.gold,
+    backgroundColor: artStyle.colors.projectorBlack,
     zIndex: 2,
-    pointerEvents: 'none',
+  },
+  emoteMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  emotePoster: {
+    ...StyleSheet.absoluteFillObject,
   },
   kicker: {
     color: artStyle.colors.oxblood,
