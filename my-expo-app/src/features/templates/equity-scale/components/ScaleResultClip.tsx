@@ -15,8 +15,6 @@ import { artStyle } from '../../../../../theme/artStyle';
 
 const CHEERING_VIDEO = require('../../../../../assets/videos/equity-scale-cheering.mp4');
 const SAD_SCALE_VIDEO = require('../../../../../assets/tables/equity-scale/sad scale.mp4');
-const PLAYBACK_FALLBACK_MS = 12_000;
-const MIN_PLAY_MS = 1_200;
 
 const CLIP = {
   perfect: {
@@ -33,30 +31,18 @@ const CLIP = {
 
 type Props = {
   variant: ResultClipKind;
-  onFinished: () => void;
+  onFinished?: () => void;
 };
 
-export function ScaleResultClip({ variant, onFinished }: Props) {
+export function ScaleResultClip({ variant }: Props) {
   const clip = CLIP[variant];
-  const onFinishedRef = useRef(onFinished);
-  onFinishedRef.current = onFinished;
 
-  const sawFrame = useRef(false);
   const sought = useRef(false);
-  const finishedRef = useRef(false);
-  const startedAt = useRef(0);
 
   const player = useVideoPlayer(clip.source, (nextPlayer) => {
-    nextPlayer.loop = false;
+    nextPlayer.loop = true;
     nextPlayer.muted = true;
   });
-
-  const finish = useCallback(() => {
-    if (finishedRef.current) return;
-    finishedRef.current = true;
-    safePauseVideoPlayer(player);
-    onFinishedRef.current();
-  }, [player]);
 
   const startOrResume = useCallback(
     (loadedDuration?: number) => {
@@ -72,25 +58,17 @@ export function ScaleResultClip({ variant, onFinished }: Props) {
     [player, variant]
   );
 
-  useEventListener(player, 'playToEnd', () => {
-    if (!sawFrame.current) return;
-    if (Date.now() - startedAt.current < MIN_PLAY_MS) return;
-    finish();
-  });
   useEventListener(player, 'statusChange', ({ status }) => {
     if (status !== 'readyToPlay') return;
     startOrResume();
   });
 
   useEffect(() => {
-    startedAt.current = Date.now();
-    player.play();
-    const fallback = setTimeout(finish, PLAYBACK_FALLBACK_MS);
+    startOrResume();
     return () => {
-      clearTimeout(fallback);
       safePauseVideoPlayer(player);
     };
-  }, [finish, player]);
+  }, [player, startOrResume]);
 
   return (
     <View accessibilityLabel={clip.label} style={[styles.box, { borderColor: clip.border }]}>
@@ -101,7 +79,6 @@ export function ScaleResultClip({ variant, onFinished }: Props) {
         playsInline
         surfaceType="textureView"
         onFirstFrameRender={() => {
-          sawFrame.current = true;
           startOrResume();
         }}
         style={styles.video}
@@ -112,7 +89,8 @@ export function ScaleResultClip({ variant, onFinished }: Props) {
 
 const styles = StyleSheet.create({
   box: {
-    width: '92%',
+    width: '74%',
+    maxWidth: 320,
     aspectRatio: 16 / 9,
     overflow: 'hidden',
     borderWidth: 4,

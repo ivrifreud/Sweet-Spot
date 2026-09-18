@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { parseCard, type CardCode } from '@/lib/cards';
 
 import { artStyle } from '../../../../../theme/artStyle';
-import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
+import { CARD_ASPECT, CardFace } from '../../peek-and-pitch/components/PlayingCard';
 import { CardFeltMat } from './CardFeltMat';
 
 type Props = {
@@ -20,6 +20,8 @@ export function BoardCards({ board, textureLine, cardWidth = CARD_WIDTH, gap = 5
   const label = parsed
     .map((card) => `${card.rank === 'T' ? '10' : card.rank}${card.suit}`)
     .join(' ');
+  const contentWidth = parsed.length * cardWidth + Math.max(0, parsed.length - 1) * gap;
+  const contentHeight = cardWidth * CARD_ASPECT;
 
   return (
     <View
@@ -27,7 +29,7 @@ export function BoardCards({ board, textureLine, cardWidth = CARD_WIDTH, gap = 5
       accessibilityRole="text"
       accessibilityLabel={`Board ${label}${textureLine ? `. ${textureLine}` : ''}`}
       style={styles.root}>
-      <CardFeltMat variant="board">
+      <CardFeltMat variant="board" contentWidth={contentWidth} contentHeight={contentHeight}>
         <View style={[styles.row, { gap }]}>
           {parsed.map((card, index) => (
             <View key={`${card.rank}${card.suit}-${index}`} style={styles.card}>
@@ -44,6 +46,8 @@ export function BoardCards({ board, textureLine, cardWidth = CARD_WIDTH, gap = 5
 const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
+    flexGrow: 0,
+    flexShrink: 0,
   },
   row: {
     flexDirection: 'row',

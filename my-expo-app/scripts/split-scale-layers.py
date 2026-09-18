@@ -212,8 +212,6 @@ def main() -> None:
     left_layer = copy_masked(src, left_arm)
     right_layer = copy_masked(src, right_arm)
     body_layer = copy_masked(src, body)
-    add_right_chips(src, right_layer)
-    overpaint_shoulders(body_layer, left_layer, right_layer)
 
     for layer in (body_layer, left_layer, right_layer):
         zero_corners(layer)

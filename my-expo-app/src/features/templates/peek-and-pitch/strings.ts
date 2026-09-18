@@ -3,6 +3,7 @@ export const STRINGS = {
   peekHint: 'Hold or swipe down to peek',
   peekHintHeld: 'Release to put them down',
   peekHud: 'Hole cards',
+  // Copy for the L1 tutorial — see docs/tutorial-peek-and-pitch.md. Not shown as ambient hints.
   muckHint: 'Swipe up to fold',
   checkHint: 'Double-tap to check',
   callHint: 'Tap chips to call',

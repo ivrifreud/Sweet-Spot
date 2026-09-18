@@ -254,7 +254,7 @@ export function PeekAndPitchTemplate({
       }
       setPhase('dealing');
       resolvedRef.current = false;
-      playSfx('shuffle');
+      playSfx('deal');
 
       peek.value = 0;
       muck.value = 0;

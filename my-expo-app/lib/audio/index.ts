@@ -38,6 +38,7 @@ export type SfxName =
   | 'step'
   | 'arrive'
   | 'clouds'
+  | 'windSwoosh'
   | 'uiClick'
   | 'nodePress'
   | 'scaleButton'
@@ -72,6 +73,7 @@ let lastDecisionKey: string | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let walking = false;
 let dialing = false;
+let peeking = false;
 const lastPlayed: Partial<Record<SfxName | AmbienceName, number>> = {};
 
 const sfxSources: Record<SfxName, number> = {
@@ -91,6 +93,7 @@ const sfxSources: Record<SfxName, number> = {
   step: require('../../assets/audio/step.wav'),
   arrive: require('../../assets/audio/arrive.wav'),
   clouds: require('../../assets/audio/clouds.wav'),
+  windSwoosh: require('../../assets/audio/wind-swoosh.wav'),
   uiClick: require('../../assets/audio/ui-click.wav'),
   nodePress: require('../../assets/audio/node-press.wav'),
   scaleButton: require('../../assets/audio/scale-button.wav'),
@@ -152,7 +155,7 @@ export async function preloadAudio(): Promise<Settings> {
   if (!audio) return next;
   try {
     await audio.setAudioModeAsync({
-      playsInSilentMode: false,
+      playsInSilentMode: true,
       shouldPlayInBackground: false,
       interruptionMode: 'mixWithOthers',
     });
@@ -200,7 +203,9 @@ function pauseAllBeds(): void {
 
 function pauseOneShotSfx(except?: SfxName): void {
   (Object.entries(sfxPlayers) as [SfxName, Player | undefined][]).forEach(([name, player]) => {
-    if (!player || name === except || name === 'step' || name === 'dial') return;
+    if (!player || name === except || name === 'step' || name === 'dial' || name === 'peek') return;
+    // Correct / incorrect stings own the moment — never clip them for a later cue.
+    if (DRY_SFX.has(name)) return;
     if (except && OVERLAP_SFX.has(except) && OVERLAP_SFX.has(name)) return;
     try {
       player.loop = false;
@@ -220,8 +225,12 @@ export function playSfx(name: SfxName): void {
     pauseOneShotSfx(name);
     player.loop = false;
     player.volume = settings.sfxVolume * (name === 'confetti' ? 0.55 : 1);
-    player.seekTo?.(0);
-    player.play();
+    const seek = player.seekTo?.(0) as unknown as Promise<void> | void;
+    if (seek && typeof (seek as Promise<void>).then === 'function') {
+      (seek as Promise<void>).then(() => player.play()).catch(() => player.play());
+    } else {
+      player.play();
+    }
     const ambience = ambiencePlayers[activeBed];
     if (ambience && !DRY_SFX.has(name) && name !== 'step') {
       const bedVolume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
@@ -241,6 +250,9 @@ export function playSfx(name: SfxName): void {
 }
 
 export function playDecisionSfx(outcome: 'correct' | 'incorrect', key?: string): void {
+  if (__DEV__) {
+    console.log('[sfx] decision', outcome, key, 'player=', Boolean(sfxPlayers.incorrect));
+  }
   if (!shouldReplayDecisionSting(key, lastDecisionKey)) return;
   if (key) lastDecisionKey = key;
   if (outcome === 'correct') {
@@ -349,6 +361,38 @@ export function stopDialSfx(): void {
   pauseDialPlayer();
 }
 
+export function startPeekSfx(): void {
+  peeking = true;
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  const player = sfxPlayers.peek;
+  if (!player) return;
+  try {
+    player.loop = true;
+    player.volume = settings.sfxVolume;
+    player.seekTo?.(0);
+    player.play();
+  } catch {
+    // Ignore playback errors.
+  }
+}
+
+function pausePeekPlayer(): void {
+  const player = sfxPlayers.peek;
+  if (!player) return;
+  try {
+    player.loop = false;
+    player.pause();
+    player.seekTo?.(0);
+  } catch {
+    // Ignore.
+  }
+}
+
+export function stopPeekSfx(): void {
+  peeking = false;
+  pausePeekPlayer();
+}
+
 function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): AmbienceName {
   const candidates = worldId ? selectAmbienceCandidates(worldId, lighting) : [activeBed];
   const next = pickQueued(candidates, lastAmbience);
@@ -398,11 +442,13 @@ export async function setMuted(muted: boolean): Promise<void> {
     stopAmbience();
     pauseWalkPlayer();
     pauseDialPlayer();
+    pausePeekPlayer();
     return;
   }
   startAmbience();
   if (walking) startWalkSfx();
   if (dialing) startDialSfx();
+  if (peeking) startPeekSfx();
 }
 
 export function isMuted(): boolean {

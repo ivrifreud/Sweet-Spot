@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { describeHoleCards, parseCard, type HoleCardCodes } from '@/lib/cards';
 
 import { artStyle } from '../../../../../theme/artStyle';
-import { CardFace } from '../../peek-and-pitch/components/PlayingCard';
+import { CARD_ASPECT, CardFace } from '../../peek-and-pitch/components/PlayingCard';
 import { CardFeltMat } from './CardFeltMat';
 
 type Props = {
@@ -16,6 +16,7 @@ const CARD_WIDTH = 56;
 export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
   const parsed = [parseCard(cards[0]), parseCard(cards[1])] as const;
   const overlap = Math.round(cardWidth * 0.33);
+  const cardHeight = cardWidth * CARD_ASPECT;
 
   return (
     <View
@@ -23,8 +24,7 @@ export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
       accessibilityRole="text"
       accessibilityLabel={`Your hand, ${describeHoleCards([parsed[0], parsed[1]])}`}
       style={styles.root}>
-      <Text style={styles.caption}>YOU</Text>
-      <CardFeltMat variant="hero">
+      <CardFeltMat variant="hero" contentWidth={cardWidth * 2 - overlap} contentHeight={cardHeight}>
         <View style={styles.row}>
           {parsed.map((card, index) => (
             <View
@@ -42,6 +42,7 @@ export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
           ))}
         </View>
       </CardFeltMat>
+      <Text style={styles.caption}>YOU</Text>
     </View>
   );
 }
@@ -49,13 +50,15 @@ export function HeroHoleCards({ cards, cardWidth = CARD_WIDTH }: Props) {
 const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
+    flexGrow: 0,
+    flexShrink: 0,
   },
   caption: {
     color: artStyle.colors.goldBright,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.4,
-    marginBottom: 2,
+    marginTop: 2,
   },
   row: {
     flexDirection: 'row',

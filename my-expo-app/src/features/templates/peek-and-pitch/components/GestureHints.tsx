@@ -34,14 +34,7 @@ export function GestureHints({ peek, peeked, visible, top }: GestureHintsProps) 
 
   return (
     <View style={[styles.root, { top }]} pointerEvents="none">
-          {peeked ? (
-        <View style={styles.postPeek}>
-          <Hint label={STRINGS.muckHint} glyph={'\u2191'} direction={-1} />
-          <Hint label={STRINGS.checkHint} glyph={'\u2022\u2022'} direction={0} />
-          <Hint label={STRINGS.callHint} glyph={'\u25cf'} direction={0} />
-          <Hint label={STRINGS.raiseHint} glyph={'\u2197'} direction={-1} />
-        </View>
-      ) : (
+      {peeked ? null : (
         <Animated.View style={peekStyle}>
           <Hint label={STRINGS.peekHint} glyph={'\u2193'} direction={1} />
         </Animated.View>
@@ -81,10 +74,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 14,
-  },
-  postPeek: {
-    alignItems: 'center',
-    rowGap: 6,
   },
   hint: {
     flexDirection: 'row',

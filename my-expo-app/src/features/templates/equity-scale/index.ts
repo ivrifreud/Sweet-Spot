@@ -12,3 +12,4 @@ export type {
 } from './types';
 export { gradeEquitySubmission, trueEquityPercent } from './equityMath';
 export { buildEquityFeedbackCopy } from './feedbackCopy';
+export { ScaleResultClip } from './components/ScaleResultClip';
