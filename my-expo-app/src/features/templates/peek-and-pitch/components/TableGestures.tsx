@@ -12,6 +12,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
 import { playSfx } from '../../../../../lib/audio';
 import { GESTURES, type StackHitRect } from '../config';
 import {
@@ -49,11 +50,16 @@ type TableGesturesProps = {
   cardHit: StackHitRect;
   peek: SharedValue<number>;
   muck: SharedValue<number>;
+  /** When set, only these actions commit. Live play leaves this undefined. */
+  allowedActions?: GestureTutorialAction[] | null;
+  /** Bump after a tutorial reset so a committed muck can arm again. */
+  gestureEpoch?: number;
   onPeekHold?: () => void;
   onPeeked: () => void;
   onCheck: () => void;
   onMuck: () => void;
   onIllegalCheck: () => void;
+  onRejected?: () => void;
 };
 
 function clampWorklet(value: number, min: number, max: number) {
@@ -124,6 +130,13 @@ function flattenPeek(peek: SharedValue<number>, instant = false) {
  * Felt-wide native gestures. Check stays a double-tap; Call lives on the
  * stack target. Peek is a hold or a downward pull on the hole-card packet.
  */
+function includesAction(
+  allowed: GestureTutorialAction[] | null | undefined,
+  action: GestureTutorialAction
+) {
+  return !allowed || allowed.includes(action);
+}
+
 export function TableGestures({
   live,
   canCheck,
@@ -132,11 +145,14 @@ export function TableGestures({
   cardHit,
   peek,
   muck,
+  allowedActions,
+  gestureEpoch = 0,
   onPeekHold,
   onPeeked,
   onCheck,
   onMuck,
   onIllegalCheck,
+  onRejected,
 }: TableGesturesProps) {
   const liveEnabled = useSharedValue(live ? 1 : 0);
   const gestureMode = useSharedValue(MODE_UNDECIDED);
@@ -146,6 +162,10 @@ export function TableGestures({
   const ignoreFelt = useSharedValue(0);
   const muckLocked = useSharedValue(0);
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
+  const lockEnabled = useSharedValue(allowedActions ? 1 : 0);
+  const allowPeek = useSharedValue(includesAction(allowedActions, 'peek') ? 1 : 0);
+  const allowFold = useSharedValue(includesAction(allowedActions, 'fold') ? 1 : 0);
+  const allowCheck = useSharedValue(includesAction(allowedActions, 'check') ? 1 : 0);
   const stackHitRect = useSharedValue<StackHitRect>(stackHit);
   const cardHitRect = useSharedValue<StackHitRect>(cardHit);
 
@@ -159,6 +179,8 @@ export function TableGestures({
   onMuckRef.current = onMuck;
   const onIllegalCheckRef = useRef(onIllegalCheck);
   onIllegalCheckRef.current = onIllegalCheck;
+  const onRejectedRef = useRef(onRejected);
+  onRejectedRef.current = onRejected;
 
   const firePeekHold = useCallback(() => {
     playSfx('peek');
@@ -179,10 +201,17 @@ export function TableGestures({
   const fireIllegalCheck = useCallback(() => {
     onIllegalCheckRef.current();
   }, []);
+  const fireRejected = useCallback(() => {
+    onRejectedRef.current?.();
+  }, []);
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
     canCheckEnabled.value = canCheck ? 1 : 0;
+    lockEnabled.value = allowedActions ? 1 : 0;
+    allowPeek.value = includesAction(allowedActions, 'peek') ? 1 : 0;
+    allowFold.value = includesAction(allowedActions, 'fold') ? 1 : 0;
+    allowCheck.value = includesAction(allowedActions, 'check') ? 1 : 0;
     stackHitRect.value = stackHit;
     cardHitRect.value = cardHit;
     if (!live) {
@@ -193,6 +222,10 @@ export function TableGestures({
       ignoreFelt.value = 0;
     }
   }, [
+    allowCheck,
+    allowFold,
+    allowPeek,
+    allowedActions,
     canCheck,
     canCheckEnabled,
     cardHit,
@@ -200,6 +233,7 @@ export function TableGestures({
     ignoreFelt,
     live,
     liveEnabled,
+    lockEnabled,
     muckLocked,
     peek,
     peekArmed,
@@ -207,6 +241,16 @@ export function TableGestures({
     stackHit,
     stackHitRect,
   ]);
+
+  useEffect(() => {
+    flattenPeek(peek, true);
+    muck.value = 0;
+    muckLocked.value = 0;
+    peekedThisTouch.value = 0;
+    peekArmed.value = 0;
+    ignoreFelt.value = 0;
+    gestureMode.value = MODE_UNDECIDED;
+  }, [gestureEpoch, ignoreFelt, muck, muckLocked, peek, peekArmed, peekedThisTouch, gestureMode]);
 
   const muckTravel = height * GESTURES.muckTravel;
   const peekTravelPx = Math.max(28, cardHit.height * 0.34);
@@ -223,6 +267,10 @@ export function TableGestures({
           return;
         }
         flattenPeek(peek, true);
+        if (lockEnabled.value === 1 && allowCheck.value !== 1) {
+          runOnJS(fireRejected)();
+          return;
+        }
         if (canCheckEnabled.value === 1) {
           runOnJS(fireCheck)();
         } else {
@@ -235,6 +283,10 @@ export function TableGestures({
       .maxDistance(10_000)
       .onStart((event) => {
         if (liveEnabled.value !== 1 || muckLocked.value === 1) {
+          return;
+        }
+        if (lockEnabled.value === 1 && allowPeek.value !== 1) {
+          runOnJS(fireRejected)();
           return;
         }
         if (
@@ -272,6 +324,11 @@ export function TableGestures({
         peekArmed.value = 0;
         flattenPeek(peek);
         if (peekedThisTouch.value === 1 && revealed) {
+          if (lockEnabled.value === 1 && allowPeek.value !== 1) {
+            peekedThisTouch.value = 0;
+            runOnJS(fireRejected)();
+            return;
+          }
           runOnJS(firePeeked)();
         }
         if (peekedThisTouch.value === 1) {
@@ -301,6 +358,10 @@ export function TableGestures({
             return;
           }
           if (shouldArmPeekPanLocal(event.translationY, ignoreFelt.value === 1)) {
+            if (lockEnabled.value === 1 && allowPeek.value !== 1) {
+              runOnJS(fireRejected)();
+              return;
+            }
             gestureMode.value = MODE_PEEK;
             peekArmed.value = 1;
             if (peekedThisTouch.value !== 1) {
@@ -314,6 +375,10 @@ export function TableGestures({
               ignoreFelt.value === 1
             )
           ) {
+            if (lockEnabled.value === 1 && allowFold.value !== 1) {
+              runOnJS(fireRejected)();
+              return;
+            }
             gestureMode.value = MODE_MUCK;
           }
         }
@@ -342,6 +407,11 @@ export function TableGestures({
           const revealed = peek.value >= PEEK_REVEAL_THRESHOLD;
           peekArmed.value = 0;
           flattenPeek(peek);
+          if (lockEnabled.value === 1 && allowPeek.value !== 1) {
+            peekedThisTouch.value = 0;
+            runOnJS(fireRejected)();
+            return;
+          }
           if (peekedThisTouch.value === 1 && revealed) {
             runOnJS(firePeeked)();
           }
@@ -352,6 +422,12 @@ export function TableGestures({
         if (gestureMode.value === MODE_MUCK) {
           const committed =
             muck.value > GESTURES.muckCommit || event.velocityY < -GESTURES.flickVelocity;
+
+          if (lockEnabled.value === 1 && allowFold.value !== 1) {
+            muck.value = withSpring(0, PEEK_SPRING);
+            runOnJS(fireRejected)();
+            return;
+          }
 
           if (committed) {
             muckLocked.value = 1;
@@ -399,6 +475,11 @@ export function TableGestures({
     fireMuckCue,
     firePeekHold,
     firePeeked,
+    fireRejected,
+    allowCheck,
+    allowFold,
+    allowPeek,
+    lockEnabled,
     gestureMode,
     ignoreFelt,
     liveEnabled,
