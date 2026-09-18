@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { GESTURES } from '../config';
+import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
 
 type ChipStackTargetProps = {
   live: boolean;
@@ -23,6 +24,8 @@ type ChipStackTargetProps = {
   onRaise: () => void;
   onCheck: () => void;
   onIllegalCheck: () => void;
+  allowedActions?: GestureTutorialAction[] | null;
+  onRejected?: () => void;
 };
 
 function clampWorklet(value: number, min: number, max: number) {
@@ -35,6 +38,13 @@ function clampWorklet(value: number, min: number, max: number) {
  * view; Check is a two-tap recognizer on the same view so a double-tap on
  * chips cannot also Call.
  */
+function includesAction(
+  allowed: GestureTutorialAction[] | null | undefined,
+  action: GestureTutorialAction
+) {
+  return !allowed || allowed.includes(action);
+}
+
 export function ChipStackTarget({
   live,
   canCheck,
@@ -48,10 +58,16 @@ export function ChipStackTarget({
   onRaise,
   onCheck,
   onIllegalCheck,
+  allowedActions,
+  onRejected,
 }: ChipStackTargetProps) {
   const liveEnabled = useSharedValue(live ? 1 : 0);
   const canCheckEnabled = useSharedValue(canCheck ? 1 : 0);
   const raiseArmed = useSharedValue(0);
+  const lockEnabled = useSharedValue(allowedActions ? 1 : 0);
+  const allowCall = useSharedValue(includesAction(allowedActions, 'call') ? 1 : 0);
+  const allowRaise = useSharedValue(includesAction(allowedActions, 'raise') ? 1 : 0);
+  const allowCheck = useSharedValue(includesAction(allowedActions, 'check') ? 1 : 0);
 
   const onCallRef = useRef(onCall);
   onCallRef.current = onCall;
@@ -61,6 +77,8 @@ export function ChipStackTarget({
   onCheckRef.current = onCheck;
   const onIllegalCheckRef = useRef(onIllegalCheck);
   onIllegalCheckRef.current = onIllegalCheck;
+  const onRejectedRef = useRef(onRejected);
+  onRejectedRef.current = onRejected;
 
   const fireCall = useCallback(() => {
     onCallRef.current();
@@ -74,17 +92,38 @@ export function ChipStackTarget({
   const fireIllegalCheck = useCallback(() => {
     onIllegalCheckRef.current();
   }, []);
+  const fireRejected = useCallback(() => {
+    onRejectedRef.current?.();
+  }, []);
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
     canCheckEnabled.value = canCheck ? 1 : 0;
+    lockEnabled.value = allowedActions ? 1 : 0;
+    allowCall.value = includesAction(allowedActions, 'call') ? 1 : 0;
+    allowRaise.value = includesAction(allowedActions, 'raise') ? 1 : 0;
+    allowCheck.value = includesAction(allowedActions, 'check') ? 1 : 0;
     if (!live) {
       stackPress.value = 0;
       stackDragX.value = 0;
       stackDragY.value = 0;
       raiseArmed.value = 0;
     }
-  }, [canCheck, canCheckEnabled, live, liveEnabled, raiseArmed, stackDragX, stackDragY, stackPress]);
+  }, [
+    allowCall,
+    allowCheck,
+    allowRaise,
+    allowedActions,
+    canCheck,
+    canCheckEnabled,
+    live,
+    liveEnabled,
+    lockEnabled,
+    raiseArmed,
+    stackDragX,
+    stackDragY,
+    stackPress,
+  ]);
 
   const gesture = useMemo(() => {
     const checkTap = Gesture.Tap()
@@ -97,6 +136,10 @@ export function ChipStackTarget({
           return;
         }
         stackPress.value = 0;
+        if (lockEnabled.value === 1 && allowCheck.value !== 1) {
+          runOnJS(fireRejected)();
+          return;
+        }
         if (canCheckEnabled.value === 1) {
           runOnJS(fireCheck)();
         } else {
@@ -137,6 +180,10 @@ export function ChipStackTarget({
         stackDragX.value = withTiming(0, { duration: 180 });
         stackDragY.value = withTiming(0, { duration: 180 });
         if (committed) {
+          if (lockEnabled.value === 1 && allowRaise.value !== 1) {
+            runOnJS(fireRejected)();
+            return;
+          }
           runOnJS(fireRaise)();
         }
       })
@@ -164,6 +211,10 @@ export function ChipStackTarget({
           return;
         }
         stackPress.value = 0;
+        if (lockEnabled.value === 1 && allowCall.value !== 1) {
+          runOnJS(fireRejected)();
+          return;
+        }
         runOnJS(fireCall)();
       })
       .onFinalize(() => {
@@ -177,7 +228,12 @@ export function ChipStackTarget({
     fireCheck,
     fireIllegalCheck,
     fireRaise,
+    fireRejected,
     liveEnabled,
+    lockEnabled,
+    allowCall,
+    allowCheck,
+    allowRaise,
     potCenter.x,
     potCenter.y,
     stackCenter.x,
