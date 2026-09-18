@@ -5,6 +5,7 @@ import {
   DIAL_HAND_TILT_MAX_DEG,
   DIAL_PIVOT_ORIGIN,
   dialHandPose,
+  dialHandTilt,
   rotateAround,
 } from '../../src/features/templates/equity-scale/components/dialGloveLayout';
 
@@ -39,21 +40,26 @@ describe('dialHandPose', () => {
     expect(max.height).toBe(rest.height);
   });
 
-  it('extends the sleeve past the dial so the arm exits the screen', () => {
+  it('plants the thumb on the right rim and sends the sleeve off the phone', () => {
     const pose = dialHandPose(0, 148);
-    expect(pose.top + pose.height).toBeGreaterThan(148 * 1.35);
-    expect(pose.left + pose.width).toBeGreaterThan(148);
+    const thumbX = pose.left + 0.2 * pose.width;
+    expect(thumbX).toBeGreaterThan(148 * 0.7);
+    expect(thumbX).toBeLessThan(148 * 0.95);
+    expect(pose.left + pose.width).toBeGreaterThan(148 * 1.8);
+    expect(pose.top + pose.height).toBeGreaterThan(148 * 1.5);
   });
 
-  it('rocks the wrist with the wheel instead of spinning a full turn', () => {
+  it('rocks the same pinch a little: up on the left, down on the right', () => {
     const rest = dialHandPose(0, 148);
     const min = dialHandPose(DIAL_MIN_DEG, 148);
     const max = dialHandPose(DIAL_MAX_DEG, 148);
-    expect(Math.abs(rest.rotateDeg)).toBeLessThan(1);
-    expect(min.rotateDeg).toBeCloseTo(-DIAL_HAND_TILT_MAX_DEG);
-    expect(max.rotateDeg).toBeCloseTo(DIAL_HAND_TILT_MAX_DEG);
-    expect(Math.abs(min.rotateDeg)).toBeLessThan(90);
-    expect(Math.abs(max.rotateDeg)).toBeLessThan(90);
-    expect(max.rotateDeg).not.toBe(DIAL_MAX_DEG);
+    expect(dialHandTilt(0)).toBe(0);
+    expect(dialHandTilt(DIAL_MIN_DEG)).toBe(-DIAL_HAND_TILT_MAX_DEG);
+    expect(dialHandTilt(DIAL_MAX_DEG)).toBe(DIAL_HAND_TILT_MAX_DEG);
+    expect(rest.rotateDeg).toBe(0);
+    expect(min.rotateDeg).toBe(-DIAL_HAND_TILT_MAX_DEG);
+    expect(max.rotateDeg).toBe(DIAL_HAND_TILT_MAX_DEG);
+    expect(min.left).toBe(rest.left);
+    expect(max.top).toBe(rest.top);
   });
 });

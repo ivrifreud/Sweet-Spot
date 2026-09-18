@@ -1,6 +1,6 @@
 import { SCALE_MAX_TILT_DEG } from '../dialMath';
 
-/** Shoulder sockets on the shared 1069×698 scale canvas. */
+/** Shoulder sockets on the padded scale canvas. */
 export const SCALE_ARM_PIVOTS = {
   left: { x: 0.38, y: 0.42 },
   right: { x: 0.619, y: 0.42 },
@@ -8,6 +8,28 @@ export const SCALE_ARM_PIVOTS = {
 
 function clampTilt(tilt: number): number {
   return Math.min(SCALE_MAX_TILT_DEG, Math.max(-SCALE_MAX_TILT_DEG, tilt));
+}
+
+/** Baked tilt frames, one every 2° from -28 to +28. */
+export const SCALE_FRAME_COUNT = 29;
+export const SCALE_FRAME_STEP_DEG = 2;
+
+/** Continuous index in [0, 28] so neighboring frames can crossfade. */
+export function scaleFramePosition(tilt: number): number {
+  const t = clampTilt(tilt);
+  return (t + SCALE_MAX_TILT_DEG) / SCALE_FRAME_STEP_DEG;
+}
+
+export function scaleFrameIndex(tilt: number): number {
+  return Math.round(scaleFramePosition(tilt));
+}
+
+/** Linear blend: only the two frames next to `position` are visible. */
+export function frameBlendOpacity(position: number, index: number): number {
+  'worklet';
+  const d = Math.abs(position - index);
+  if (d >= 1) return 0;
+  return 1 - d;
 }
 
 /** Map a dial reading onto ±SCALE_MAX_TILT_DEG. Center stays level. */
@@ -39,24 +61,6 @@ export function panDeltaY(side: 'left' | 'right', rotateDeg: number): number {
 /** Extra vertical room so a max-tilt pan stays inside the scale slot. */
 export function scalePanClearance(scaleWidth: number, tiltDeg = SCALE_MAX_TILT_DEG): number {
   return Math.ceil(scaleWidth * 0.36 * Math.sin((Math.abs(tiltDeg) * Math.PI) / 180));
-}
-
-export function rotateAroundPivot(
-  rotateDeg: number,
-  pivot: { x: number; y: number },
-  width: number,
-  height: number
-) {
-  'worklet';
-  const px = pivot.x * width;
-  const py = pivot.y * height;
-  return [
-    { translateX: px },
-    { translateY: py },
-    { rotate: `${rotateDeg}deg` },
-    { translateX: -px },
-    { translateY: -py },
-  ];
 }
 
 export function pivotOrigin(pivot: { x: number; y: number }): string {

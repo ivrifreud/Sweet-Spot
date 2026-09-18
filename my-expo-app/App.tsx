@@ -4,11 +4,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 
 import { CalibrationHarness } from './components/CalibrationHarness';
+import { ViewportBadge } from './components/dev/ViewportBadge';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { noteActivity, preloadAudio, startIdleWatch, stopIdleWatch } from './lib/audio';
 import { DEV_BYPASS_USER_ID } from './lib/devBypass';
@@ -17,6 +18,15 @@ import { AuthScreen } from './screens/AuthScreen';
 import { SplashScreen } from './screens/SplashScreen';
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+/** Web preview has no notch. Feed it iPhone 15 insets so insets-driven layout matches the device. */
+const WEB_PREVIEW_METRICS: Metrics | undefined =
+  __DEV__ && Platform.OS === 'web'
+    ? {
+        frame: { x: 0, y: 0, width: 393, height: 852 },
+        insets: { top: 59, left: 0, right: 0, bottom: 34 },
+      }
+    : undefined;
 
 function hideSplash() {
   void ExpoSplashScreen.hideAsync().catch(() => undefined);
@@ -99,10 +109,7 @@ function AppInner() {
         />
       ) : (
         <View style={styles.route}>
-          <AuthScreen
-            onContinue={() => undefined}
-            onDevBypass={() => setDevBypassActive(true)}
-          />
+          <AuthScreen onContinue={() => undefined} onDevBypass={() => setDevBypassActive(true)} />
           {bootError ? (
             <View style={styles.restoreError}>
               <Text style={styles.restoreErrorText}>{bootError}</Text>
@@ -127,13 +134,14 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={WEB_PREVIEW_METRICS}>
       <GestureHandlerRootView style={styles.root}>
         <View style={styles.root} onTouchStart={noteActivity}>
           <StatusBar style="auto" />
           <ErrorBoundary>
             <AppInner />
           </ErrorBoundary>
+          <ViewportBadge />
         </View>
       </GestureHandlerRootView>
     </SafeAreaProvider>

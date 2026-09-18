@@ -1,6 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -45,16 +46,24 @@ function LockoutEmoteVideo() {
     nextPlayer.muted = true;
   });
 
+  const start = useCallback(() => {
+    if (!player.playing) player.play();
+  }, [player]);
+
+  useEventListener(player, 'sourceLoad', () => start());
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status === 'readyToPlay') start();
+  });
+
   useEffect(() => {
-    player.currentTime = 0;
-    player.play();
+    start();
     return () => {
       safePauseVideoPlayer(player);
     };
-  }, [player]);
+  }, [player, start]);
 
   return (
-    <>
+    <View style={styles.emoteMedia}>
       {ready ? null : (
         <Image
           source={LOCKOUT_POSTER}
@@ -73,7 +82,7 @@ function LockoutEmoteVideo() {
         onFirstFrameRender={() => setReady(true)}
         style={styles.emoteMedia}
       />
-    </>
+    </View>
   );
 }
 
@@ -85,22 +94,17 @@ export function ChipLockoutCard({ countdown }: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
 
-  const cardScale = useSharedValue(0.88);
   const cardOpacity = useSharedValue(0);
   const buyScale = useSharedValue(1);
   const adScale = useSharedValue(1);
 
   useEffect(() => {
     cardOpacity.value = withTiming(1, { duration: 240 });
-    cardScale.value = withSequence(
-      withTiming(1.05, { duration: 220 }),
-      withSpring(1, { damping: 12, stiffness: 180 })
-    );
-  }, [cardOpacity, cardScale]);
+  }, [cardOpacity]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
-    transform: [{ scale: cardScale.value }],
+    transform: [{ translateY: (1 - cardOpacity.value) * 18 }],
   }));
 
   const buyStyle = useAnimatedStyle(() => ({
@@ -191,17 +195,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emoteBox: {
-    position: 'absolute',
-    top: -40,
-    left: -28,
-    width: 118,
-    height: 168,
+    width: 132,
+    height: 188,
+    marginBottom: 10,
+    alignSelf: 'center',
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 3,
     borderColor: artStyle.colors.gold,
     backgroundColor: artStyle.colors.projectorBlack,
-    zIndex: 2,
   },
   emoteMedia: {
     width: '100%',

@@ -116,7 +116,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
       ]}>
       <Image
         source={chunk.background}
-        resizeMode="cover"
+        resizeMode="stretch"
         accessible={false}
         style={imageBox}
         onLayout={(event) => {
@@ -154,7 +154,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
         <Image
           key={`progress-${layer.unlockAfterStage}`}
           source={layer.source}
-          resizeMode="cover"
+          resizeMode="stretch"
           accessible={false}
           style={imageBox}
         />
@@ -163,12 +163,9 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
         <>
           <Image
             source={film.grain}
-            resizeMode="cover"
+            resizeMode="stretch"
             accessible={false}
-            style={[
-              imageBox,
-              { opacity: localCasinoMapTheme.film.grainOpacity },
-            ]}
+            style={[imageBox, { opacity: localCasinoMapTheme.film.grainOpacity }]}
           />
           <View
             pointerEvents="none"

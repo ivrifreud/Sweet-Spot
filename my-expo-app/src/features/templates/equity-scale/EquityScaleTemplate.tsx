@@ -30,7 +30,7 @@ import { HeroHoleCards } from './components/HeroHoleCards';
 import { ScaleScene } from './components/ScaleScene';
 import { StageResultsReveal } from './components/StageResultsReveal';
 import { TableBackdrop } from './components/TableBackdrop';
-import { equityTableLayout } from './tableLayout';
+import { CARD_ROW_SIDE_INSET, equityTableLayout } from './tableLayout';
 import type {
   EquityDecision,
   EquityGrade,
@@ -267,15 +267,7 @@ export function EquityScaleTemplate({
         </View>
       )}
 
-      {phase === 'submitting' && !holdForResultClip ? (
-        <Text accessibilityLiveRegion="polite" style={styles.status}>
-          {EQUITY_STRINGS.submitting}
-        </Text>
-      ) : null}
-
-      {revealing || holdForResultClip ? (
-        <StageResultsReveal grade={grade} onComplete={onRevealComplete} />
-      ) : null}
+      {revealing ? <StageResultsReveal grade={grade} onComplete={onRevealComplete} /> : null}
     </View>
   );
 }
@@ -321,14 +313,15 @@ const styles = StyleSheet.create({
   },
   spotBlock: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: CARD_ROW_SIDE_INSET,
+    right: CARD_ROW_SIDE_INSET,
     zIndex: 34,
   },
   spotRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
+    columnGap: 8,
   },
   valueGrid: {
     position: 'absolute',
@@ -369,7 +362,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 32,
+    zIndex: 38,
     overflow: 'visible',
   },
   dialWrap: {

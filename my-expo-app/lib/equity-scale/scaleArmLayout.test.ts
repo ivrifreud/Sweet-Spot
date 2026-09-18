@@ -4,8 +4,11 @@ import { SCALE_MAX_TILT_DEG } from '../../src/features/templates/equity-scale/di
 import {
   SCALE_ARM_PIVOTS,
   dialValueToTilt,
+  frameBlendOpacity,
   panDeltaY,
   scaleArmPose,
+  scaleFrameIndex,
+  scaleFramePosition,
 } from '../../src/features/templates/equity-scale/components/scaleArmLayout';
 
 describe('dialValueToTilt', () => {
@@ -62,6 +65,26 @@ describe('scaleArmPose', () => {
     expect(high.leftRotateDeg).toBe(SCALE_MAX_TILT_DEG);
     expect(low.leftRotateDeg).toBe(-SCALE_MAX_TILT_DEG);
     expect(low.rightRotateDeg).toBe(-SCALE_MAX_TILT_DEG);
+  });
+});
+
+describe('scaleFrameIndex', () => {
+  it('buckets tilt onto 2-degree frames so neighboring poses barely differ', () => {
+    expect(scaleFrameIndex(-28)).toBe(0);
+    expect(scaleFrameIndex(-14)).toBe(7);
+    expect(scaleFrameIndex(0)).toBe(14);
+    expect(scaleFrameIndex(14)).toBe(21);
+    expect(scaleFrameIndex(28)).toBe(28);
+  });
+
+  it('shows only the level frame when the beam is at rest', () => {
+    expect(scaleFramePosition(0)).toBe(14);
+    expect(frameBlendOpacity(14, 14)).toBe(1);
+    expect(frameBlendOpacity(14, 13)).toBe(0);
+    expect(frameBlendOpacity(14, 15)).toBe(0);
+    expect(frameBlendOpacity(14.5, 14)).toBeCloseTo(0.5);
+    expect(frameBlendOpacity(14.5, 15)).toBeCloseTo(0.5);
+    expect(frameBlendOpacity(14.5, 13)).toBe(0);
   });
 });
 

@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
-import { playSfx } from '../../../../../lib/audio';
+import { playSfx, startPeekSfx, stopPeekSfx } from '../../../../../lib/audio';
 import { GESTURES, type StackHitRect } from '../config';
 import {
   PEEK_DRAG_DEAD_ZONE,
@@ -41,6 +41,8 @@ const DROP_SPRING = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const MUCK_THROW_MS = 920;
+/** Cards have left the glove and are airborne before the muck cue lands. */
+const MUCK_CUE_DELAY_MS = 150;
 
 type TableGesturesProps = {
   live: boolean;
@@ -183,8 +185,11 @@ export function TableGestures({
   onRejectedRef.current = onRejected;
 
   const firePeekHold = useCallback(() => {
-    playSfx('peek');
+    startPeekSfx();
     onPeekHoldRef.current?.();
+  }, []);
+  const endPeekCue = useCallback(() => {
+    stopPeekSfx();
   }, []);
   const firePeeked = useCallback(() => {
     onPeekedRef.current();
@@ -195,8 +200,13 @@ export function TableGestures({
   const fireMuck = useCallback(() => {
     onMuckRef.current();
   }, []);
+  const muckCueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fireMuckCue = useCallback(() => {
-    playSfx('fold');
+    if (muckCueTimer.current) clearTimeout(muckCueTimer.current);
+    muckCueTimer.current = setTimeout(() => {
+      muckCueTimer.current = null;
+      playSfx('fold');
+    }, MUCK_CUE_DELAY_MS);
   }, []);
   const fireIllegalCheck = useCallback(() => {
     onIllegalCheckRef.current();
@@ -220,6 +230,7 @@ export function TableGestures({
       peekedThisTouch.value = 0;
       peekArmed.value = 0;
       ignoreFelt.value = 0;
+      stopPeekSfx();
     }
   }, [
     allowCheck,
@@ -252,6 +263,16 @@ export function TableGestures({
     gestureMode.value = MODE_UNDECIDED;
   }, [gestureEpoch, ignoreFelt, muck, muckLocked, peek, peekArmed, peekedThisTouch, gestureMode]);
 
+  useEffect(() => {
+    return () => {
+      stopPeekSfx();
+      if (muckCueTimer.current) {
+        clearTimeout(muckCueTimer.current);
+        muckCueTimer.current = null;
+      }
+    };
+  }, []);
+
   const muckTravel = height * GESTURES.muckTravel;
   const peekTravelPx = Math.max(28, cardHit.height * 0.34);
   const muckZoneTop = height * GESTURES.muckZoneTop;
@@ -267,6 +288,7 @@ export function TableGestures({
           return;
         }
         flattenPeek(peek, true);
+        runOnJS(endPeekCue)();
         if (lockEnabled.value === 1 && allowCheck.value !== 1) {
           runOnJS(fireRejected)();
           return;
@@ -317,6 +339,7 @@ export function TableGestures({
         if (!shouldLongPressSettleLocal(gestureMode.value === MODE_PEEK)) {
           return;
         }
+        runOnJS(endPeekCue)();
         if (muckLocked.value === 1 || ignoreFelt.value === 1) {
           return;
         }
@@ -393,6 +416,7 @@ export function TableGestures({
           if (peekArmed.value === 1) {
             peekArmed.value = 0;
             flattenPeek(peek, true);
+            runOnJS(endPeekCue)();
           }
           muck.value = clampWorklet(-event.translationY / muckTravel, 0, 0.98);
         }
@@ -404,6 +428,7 @@ export function TableGestures({
         }
 
         if (gestureMode.value === MODE_PEEK) {
+          runOnJS(endPeekCue)();
           const revealed = peek.value >= PEEK_REVEAL_THRESHOLD;
           peekArmed.value = 0;
           flattenPeek(peek);
@@ -454,6 +479,7 @@ export function TableGestures({
         }
       })
       .onFinalize(() => {
+        runOnJS(endPeekCue)();
         ignoreFelt.value = 0;
         peekArmed.value = 0;
         if (muckLocked.value !== 1) {
@@ -469,6 +495,7 @@ export function TableGestures({
   }, [
     canCheckEnabled,
     cardHitRect,
+    endPeekCue,
     fireCheck,
     fireIllegalCheck,
     fireMuck,

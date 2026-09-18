@@ -1,11 +1,17 @@
 import { type ReactNode } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
+import { artStyle } from '../../../../../theme/artStyle';
+import { CARD_MAT_PAD_X, CARD_MAT_PAD_Y } from '../tableLayout';
+
 type Variant = 'hero' | 'board';
 
 type Props = {
   children: ReactNode;
   variant: Variant;
+  /** Inner size of the card group, before the felt pad. */
+  contentWidth: number;
+  contentHeight: number;
 };
 
 const CARPET = {
@@ -13,11 +19,24 @@ const CARPET = {
   board: require('../../../../../assets/brand/artstyle/felt-carpet-board.png'),
 } as const;
 
-/** One felt wash behind a card group. No rail or outline — background only. */
-export function CardFeltMat({ children, variant }: Props) {
+/**
+ * Felt wash behind a card group. Width and height are numbers so the PNG's
+ * intrinsic 360×250 / 740×210 size cannot blow the wrap up on web.
+ */
+export function CardFeltMat({ children, variant, contentWidth, contentHeight }: Props) {
+  const width = Math.round(contentWidth + CARD_MAT_PAD_X * 2);
+  const height = Math.round(contentHeight + CARD_MAT_PAD_Y * 2);
+
   return (
-    <View style={styles.wrap}>
-      <Image source={CARPET[variant]} style={styles.carpet} resizeMode="cover" />
+    <View style={[styles.wrap, { width, height }]}>
+      <View pointerEvents="none" style={[styles.carpetClip, { width, height }]}>
+        <View style={[styles.wash, { width, height }]} />
+        <Image
+          source={CARPET[variant]}
+          resizeMode="cover"
+          style={{ position: 'absolute', top: 0, left: 0, width, height }}
+        />
+      </View>
       {children}
     </View>
   );
@@ -26,13 +45,20 @@ export function CardFeltMat({ children, variant }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'relative',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    overflow: 'hidden',
-    borderRadius: 12,
+    overflow: 'visible',
+    flexGrow: 0,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  carpet: {
-    ...StyleSheet.absoluteFillObject,
+  carpetClip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    overflow: 'hidden',
+    borderRadius: 10,
+  },
+  wash: {
+    backgroundColor: artStyle.colors.teal,
   },
 });

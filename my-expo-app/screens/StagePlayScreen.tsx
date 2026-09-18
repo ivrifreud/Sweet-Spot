@@ -7,6 +7,7 @@ import { formatRegenCountdown, submitStageAnswer, type ChipCount } from '../lib/
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
+import { resultClipKind } from '../lib/equity-scale/resultPresentation';
 import { markStreakActivity, toLocalDay } from '../lib/streak';
 import { burnChip } from '../lib/track/chips';
 import { stageSpots } from '../lib/track/stageSpot';
@@ -278,6 +279,19 @@ export function StagePlayScreen({
         onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
         onOutcomeAnimationComplete={() => {
           if (!pendingFeedback) return;
+          if (resultClipKind(equityGrade)) {
+            setPendingFeedback(null);
+            setEquityOutcome(null);
+            setEquityGrade(null);
+            setSettled(null);
+            if (stageComplete || lockedOut) {
+              onBack();
+              return;
+            }
+            setSpotIndex((index) => nextSpotIndex(index + 1));
+            setResetKey((value) => value + 1);
+            return;
+          }
           setFeedback(pendingFeedback);
         }}
         disabled={busy || Boolean(feedback)}
@@ -317,7 +331,6 @@ export function StagePlayScreen({
           <Text style={styles.errorBannerHint}>The hand was not saved. Try again.</Text>
         </View>
       ) : null}
-
     </ScreenShakeHost>
   );
 }

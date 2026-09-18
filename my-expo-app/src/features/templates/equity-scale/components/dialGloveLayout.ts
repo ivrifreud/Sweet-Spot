@@ -3,34 +3,43 @@ import { DIAL_MAX_DEG, DIAL_MIN_DEG } from '../dialMath';
 /** Shared hub for the housing and numbered ring. */
 export const DIAL_PIVOT_ORIGIN = { x: 0.5, y: 0.5 } as const;
 
-/** Wrist rock while turning — never a full spin with the wheel. */
-export const DIAL_HAND_TILT_MAX_DEG = 26;
+export const DIAL_HAND_TILT_MAX_DEG = 15;
+
+/**
+ * Same pinch PNG, rocked a little with the wheel. Left / CCW tilts up,
+ * right / CW tilts down. Rest stays level.
+ */
+export function dialHandTilt(rotationDeg: number): number {
+  'worklet';
+  const span = DIAL_MAX_DEG - DIAL_MIN_DEG;
+  const t = Math.min(1, Math.max(0, (rotationDeg - DIAL_MIN_DEG) / span));
+  return (t - 0.5) * 2 * DIAL_HAND_TILT_MAX_DEG;
+}
 
 const ASPECT = 760 / 900;
 
 /**
- * Fixed-size glove parked on the right rim. It rocks with the wheel
- * instead of orbiting or tumbling 360°.
+ * Large glove gripping the right rim. Thumb pad plants on the wheel; index
+ * tucks behind it; sleeve runs off the bottom-right of the phone.
  */
 export function dialHandPose(rotationDeg: number, dialSize: number) {
   'worklet';
-  const width = dialSize * 1.45;
+  const width = dialSize * 2.2;
   const height = width * ASPECT;
-  const t = DIAL_MAX_DEG === 0 ? 0 : rotationDeg / DIAL_MAX_DEG;
   return {
     width,
     height,
-    left: dialSize * 0.5,
-    top: dialSize * 0.16,
-    rotateDeg: t * DIAL_HAND_TILT_MAX_DEG,
+    left: dialSize * 0.3,
+    top: dialSize * -0.06,
+    rotateDeg: dialHandTilt(rotationDeg),
   };
 }
 
 /**
- * Open rest pose on the aligned 900×760 canvas.
- * Fingertips sit on the rim; the sleeve plants at the screen edge.
+ * Thumb pad on the 900×760 open-pinch canvas. The pad plants on the right
+ * rim; the index fingertip tucks behind the wheel.
  */
-export const DIAL_GLOVE_CONTACT = { x: 0.16, y: 0.36 };
+export const DIAL_GLOVE_CONTACT = { x: 0.2, y: 0.33 };
 export const DIAL_GLOVE_SLEEVE = { x: 0.75, y: 0.966 };
 
 /** Lower-rim sweep in screen space (0° = 3 o'clock, clockwise). */

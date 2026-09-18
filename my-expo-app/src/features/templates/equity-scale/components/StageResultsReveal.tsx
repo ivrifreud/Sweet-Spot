@@ -1,6 +1,6 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -13,7 +13,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { GravityFallingChips } from '../../../../../components/effects';
 import { playSfx } from '../../../../../lib/audio';
 import {
   resultClipKind,
@@ -43,58 +42,59 @@ const STAMP_MISS = require('../../../../../assets/brand/artstyle/stamp-miss.png'
 export function StageResultsReveal({ grade, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const [celebrationFinished, setCelebrationFinished] = useState(false);
   const clipKind = resultClipKind(grade);
-  const showCelebration = clipKind !== null;
-  const showResults = Boolean(grade) && shouldShowResultStamps(grade!, celebrationFinished);
+  const showClip = clipKind !== null;
+  const showResults = Boolean(grade) && shouldShowResultStamps(grade!, true);
 
   useEffect(() => {
-    if (!showResults || !onComplete) return;
-    if (showCelebration && !celebrationFinished) return;
-    const waitMs = celebrationFinished ? 0 : REVEAL_STAMP_MS * 2 + REVEAL_HOLD_MS;
-    const timer = setTimeout(onComplete, waitMs);
+    if (!showResults || !onComplete || showClip) return;
+    const timer = setTimeout(onComplete, REVEAL_STAMP_MS * 2 + REVEAL_HOLD_MS);
     return () => clearTimeout(timer);
-  }, [celebrationFinished, onComplete, showCelebration, showResults]);
+  }, [onComplete, showClip, showResults]);
 
   if (!grade) return null;
 
   const hits = [grade.outsCorrect, grade.equityCorrect, grade.decisionCorrect];
 
+  const stamps = showResults ? (
+    <View style={styles.row}>
+      {STAMPS.map((stamp, index) => (
+        <Stamp
+          key={stamp.key}
+          label={stamp.label}
+          correct={hits[index]!}
+          delay={index * REVEAL_STAMP_MS}
+          reducedMotion={Boolean(reducedMotion)}
+          fontsLoaded={fontsLoaded}
+          cue={index === 2 ? stampFinaleSfx(grade) : null}
+        />
+      ))}
+    </View>
+  ) : null;
+
+  const body = (
+    <View style={styles.stack}>
+      {showClip && clipKind ? <ScaleResultClip variant={clipKind} /> : null}
+      {stamps}
+    </View>
+  );
+
+  if (showClip) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Result. Tap to deal the next hand."
+        onPress={onComplete}
+        style={styles.overlay}>
+        <View pointerEvents="none" style={styles.videoBackdrop} />
+        {body}
+      </Pressable>
+    );
+  }
+
   return (
     <View pointerEvents="none" style={styles.overlay} accessibilityLiveRegion="polite">
-      {showCelebration && !celebrationFinished ? <View style={styles.videoBackdrop} /> : null}
-      <View style={styles.stack}>
-        {showCelebration && clipKind && !celebrationFinished ? (
-          <ScaleResultClip variant={clipKind} onFinished={() => setCelebrationFinished(true)} />
-        ) : null}
-        {showResults ? (
-          <>
-            <View style={styles.row}>
-              {STAMPS.map((stamp, index) => (
-                <Stamp
-                  key={stamp.key}
-                  label={stamp.label}
-                  correct={hits[index]!}
-                  delay={index * REVEAL_STAMP_MS}
-                  reducedMotion={Boolean(reducedMotion)}
-                  fontsLoaded={fontsLoaded}
-                  cue={index === 2 ? stampFinaleSfx(grade) : null}
-                />
-              ))}
-            </View>
-            {grade.stagesCorrect === 3 ? (
-              <GravityFallingChips count={8} minSize={28} baseDuration={2400} zIndex={1} />
-            ) : null}
-            <Text style={styles.caption}>
-              {grade.stagesCorrect === 3
-                ? EQUITY_STRINGS.revealPerfect
-                : grade.stagesCorrect === 2
-                  ? EQUITY_STRINGS.revealClose
-                  : EQUITY_STRINGS.revealMiss}
-            </Text>
-          </>
-        ) : null}
-      </View>
+      {body}
     </View>
   );
 }
@@ -154,10 +154,7 @@ function Stamp({
         accessibilityElementsHidden
       />
       <Text
-        style={[
-          styles.stampLabel,
-          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
-        ]}>
+        style={[styles.stampLabel, fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null]}>
         {label}
       </Text>
     </Animated.View>
@@ -174,14 +171,14 @@ const styles = StyleSheet.create({
   videoBackdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: artStyle.colors.projectorBlack,
-    opacity: 0.78,
+    opacity: 0.72,
     zIndex: 1,
   },
   stack: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 16,
     zIndex: 2,
     paddingHorizontal: 12,
   },
@@ -211,14 +208,5 @@ const styles = StyleSheet.create({
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
-  },
-  caption: {
-    marginTop: 14,
-    color: artStyle.colors.cream,
-    fontSize: 14,
-    fontWeight: '800',
-    textShadowColor: artStyle.colors.projectorBlack,
-    textShadowRadius: 4,
-    zIndex: 2,
   },
 });
