@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   EQUITY_PHONE_LAYOUT,
+  SCALE_ART,
   equityTableLayout,
 } from '../../src/features/templates/equity-scale/tableLayout';
 
@@ -17,15 +18,21 @@ describe('equityTableLayout phone playfield', () => {
     });
 
     expect(layout.scaleHeight).toBeGreaterThan(176);
-    expect(layout.scaleWidth / layout.scaleHeight).toBeCloseTo(1069 / 698, 2);
-    expect(layout.scaleWidth).toBeLessThanOrEqual(IPHONE.width);
+    expect(layout.scaleWidth / layout.scaleHeight).toBeCloseTo(
+      SCALE_ART.width / SCALE_ART.height,
+      2
+    );
+    expect(layout.scaleWidth).toBeLessThanOrEqual(
+      IPHONE.width - EQUITY_PHONE_LAYOUT.scaleSideInset * 2 + 0.01
+    );
     expect(layout.scaleTop).toBeGreaterThan(layout.streetTop + EQUITY_PHONE_LAYOUT.titleH);
     expect(layout.scaleTop).toBeGreaterThan(layout.cardsTop);
     expect(layout.scaleTop + layout.scaleHeight).toBeLessThan(layout.dialTop);
     expect(layout.heroCardWidth).toBeGreaterThan(36);
+    expect(layout.cardsTop).toBeLessThan(IPHONE.topInset + EQUITY_PHONE_LAYOUT.titleH + 16);
   });
 
-  it('puts pot plates at the top on stage 2 and the scale in the middle', () => {
+  it('puts hole cards under the title and pot plates below them on stage 2', () => {
     const layout = equityTableLayout({
       ...IPHONE,
       showingOuts: false,
@@ -33,12 +40,24 @@ describe('equityTableLayout phone playfield', () => {
     });
     const scaleCenter = layout.scaleTop + layout.scaleHeight / 2;
 
-    expect(layout.valueTop).toBeGreaterThanOrEqual(layout.streetTop + EQUITY_PHONE_LAYOUT.titleH);
-    expect(layout.valueTop).toBeLessThan(IPHONE.height * 0.22);
+    expect(layout.cardsTop).toBeGreaterThan(layout.streetTop);
+    expect(layout.valueTop).toBeGreaterThan(layout.cardsTop);
     expect(layout.scaleTop).toBeGreaterThan(layout.valueTop + EQUITY_PHONE_LAYOUT.valueRowH);
     expect(scaleCenter).toBeGreaterThan(IPHONE.height * 0.42);
     expect(scaleCenter).toBeLessThan(IPHONE.height * 0.58);
     expect(layout.scaleTop + layout.scaleHeight).toBeLessThan(layout.dialTop);
+  });
+
+  it('centers the scale on the phone so tilted pans keep side air', () => {
+    for (const showingOuts of [true, false]) {
+      const layout = equityTableLayout({
+        ...IPHONE,
+        showingOuts,
+        boardCount: 3,
+      });
+      const side = (IPHONE.width - layout.scaleWidth) / 2;
+      expect(side).toBeGreaterThanOrEqual(EQUITY_PHONE_LAYOUT.scaleSideInset - 0.5);
+    }
   });
 
   it('keeps side buttons smaller than the center dial with a gap between them', () => {
@@ -63,5 +82,19 @@ describe('equityTableLayout phone playfield', () => {
     expect(layout.scaleTop + layout.scaleHeight).toBeLessThanOrEqual(layout.dialTop);
     expect(layout.heroCardWidth).toBeGreaterThanOrEqual(36);
     expect(layout.buttonSize * 2 + layout.dialSize).toBeLessThan(SE.width);
+  });
+
+  it('keeps a five-card board inside a phone-width row', () => {
+    const layout = equityTableLayout({
+      ...IPHONE,
+      showingOuts: true,
+      boardCount: 5,
+    });
+    const matPadX = 7;
+    const rowGap = 8;
+    const overlap = Math.round(layout.heroCardWidth * 0.33);
+    const heroBlock = layout.heroCardWidth * 2 - overlap + matPadX * 2;
+    const boardBlock = layout.boardCardWidth * 5 + layout.boardGap * 4 + matPadX * 2;
+    expect(heroBlock + rowGap + boardBlock).toBeLessThanOrEqual(IPHONE.width - 24);
   });
 });

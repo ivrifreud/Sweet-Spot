@@ -87,6 +87,7 @@ export function TrackMapScreen({
   onSignOut,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const [previewLockout, setPreviewLockout] = useState(false);
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
@@ -212,7 +213,7 @@ export function TrackMapScreen({
     });
     applyFog(next);
     fogPendingRef.current = true;
-    if (worldRef.current.id !== 'bennys-garden') playSfx('clouds');
+    playSfx('windSwoosh');
     const afterPart = () => {
       fogTimerRef.current = null;
       climbThenWalk(stageNumber);
@@ -263,7 +264,7 @@ export function TrackMapScreen({
         reducedMotion: Boolean(reducedMotionRef.current),
       })
     );
-    if (worldRef.current.id !== 'bennys-garden') playSfx('clouds');
+    playSfx('windSwoosh');
     const afterPart = () => {
       fogTimerRef.current = null;
       applyFog(reduceFog(fogPhaseRef.current, { type: 'parting-finished' }));
@@ -489,6 +490,14 @@ export function TrackMapScreen({
         ) : null}
         <View style={styles.devRow}>
           <FogClimbPreviewButton onPress={previewFogAndClimb} />
+          {__DEV__ ? (
+            <FogClimbPreviewButton
+              // TEMPORARY DEV PREVIEW — delete with the lockout fix.
+              label="LOCKOUT"
+              accessibilityLabel="Preview the out-of-chips lockout card. Development only."
+              onPress={() => setPreviewLockout(true)}
+            />
+          ) : null}
           {devMode && onDevCycleWorld ? (
             <FogClimbPreviewButton
               label={world.id === 'local-casino' ? 'GARDEN' : 'CASINO'}
@@ -503,7 +512,9 @@ export function TrackMapScreen({
         </View>
       </View>
 
-      {lockMessage ? <ChipLockoutCard countdown={lockMessage} /> : null}
+      {lockMessage || previewLockout ? (
+        <ChipLockoutCard countdown={lockMessage ?? 'Refills in 11h 58m'} />
+      ) : null}
 
       <Pressable
         onPress={onSignOut}

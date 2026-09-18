@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/immutability -- Gesture worklets update Reanimated SharedValues. */
+/* eslint-disable react-hooks/immutability, react-hooks/refs -- Gesture worklets update Reanimated SharedValues and callback refs. */
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Image, StyleSheet, Text, View, type AccessibilityActionEvent } from 'react-native';
@@ -27,10 +27,11 @@ import { equityScaleArt } from '../equityScaleArt';
 import { EQUITY_PHONE_LAYOUT } from '../tableLayout';
 import { DIAL_GLOVE_CONTACT, DIAL_PIVOT_ORIGIN, dialHandPose } from './dialGloveLayout';
 
-const REST = require('../../../../../assets/tables/hero-glove-rest.png');
-const REST_SHADOW = require('../../../../../assets/tables/hero-glove-rest-shadow.png');
 const FLICK_DEG_PER_SEC = 80;
 const PIVOT = `${DIAL_PIVOT_ORIGIN.x * 100}% ${DIAL_PIVOT_ORIGIN.y * 100}%`;
+const HAND_ORIGIN = {
+  transformOrigin: `${DIAL_GLOVE_CONTACT.x * 100}% ${DIAL_GLOVE_CONTACT.y * 100}%`,
+} as const;
 
 type Props = {
   value: number;
@@ -279,6 +280,16 @@ export function EstimateDial({
           style={[styles.hitTarget, { width: size, height: size }]}>
           <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
             <Animated.View
+              pointerEvents="none"
+              accessibilityElementsHidden
+              style={[styles.handDock, styles.handBack, HAND_ORIGIN, handStyle]}>
+              <Animated.Image
+                source={equityScaleArt.dialHand.pinchBack}
+                resizeMode="contain"
+                style={styles.handArt}
+              />
+            </Animated.View>
+            <Animated.View
               style={[
                 styles.spinLayer,
                 { width: size, height: size, transformOrigin: PIVOT },
@@ -294,15 +305,12 @@ export function EstimateDial({
             <Animated.View
               pointerEvents="none"
               accessibilityElementsHidden
-              style={[
-                styles.handDock,
-                {
-                  transformOrigin: `${DIAL_GLOVE_CONTACT.x * 100}% ${DIAL_GLOVE_CONTACT.y * 100}%`,
-                },
-                handStyle,
-              ]}>
-              <Image source={REST_SHADOW} resizeMode="contain" style={styles.handArt} />
-              <Image source={REST} resizeMode="contain" style={styles.handArt} />
+              style={[styles.handDock, styles.handFront, HAND_ORIGIN, handStyle]}>
+              <Animated.Image
+                source={equityScaleArt.dialHand.pinchFront}
+                resizeMode="contain"
+                style={styles.handArt}
+              />
             </Animated.View>
             <View pointerEvents="none" style={styles.valuePlate}>
               <Text style={styles.value}>{value}</Text>
@@ -339,6 +347,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
+  },
+  handBack: {
+    zIndex: 0,
+  },
+  handFront: {
     zIndex: 2,
   },
   handArt: {
@@ -346,6 +359,7 @@ const styles = StyleSheet.create({
     height: '100%',
     position: 'absolute',
     overflow: 'visible',
+    backgroundColor: 'transparent',
   },
   valuePlate: {
     position: 'absolute',
