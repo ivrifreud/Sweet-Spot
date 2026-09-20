@@ -42,6 +42,18 @@ import { TableScene } from './components/TableScene';
 import { DEFAULT_SPOT, SKINS, STACK_HIT, CHIP_CARD_GAP, mapBackdropPoint } from './config';
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
+import { GestureTutorialOverlay } from '../../gesture-tutorial';
+import {
+  PEEK_AND_PITCH_TUTORIAL,
+  advanceStep,
+  allowedActionsForStep,
+  currentStep,
+  hasSeenTemplateTutorial,
+  isComplete,
+  markTemplateTutorialSeen,
+  matchesCurrentStep,
+} from '../../../../lib/gesture-tutorial';
+import type { GestureTutorialAction, GestureTutorialStep } from '../../../../lib/gesture-tutorial';
 
 /** Slower deal/muck throw onto the felt. */
 const DEAL_THROW_MS = 1700;
@@ -69,6 +81,25 @@ export type PeekAndPitchTemplateProps = {
   resetKey?: number;
   /** Hide gloves, chips, and banners so a feedback overlay can sit on top. */
   suppressTableActors?: boolean;
+  /** After Deal Me In, always run the first-time coach even if storage was skipped. */
+  forceTutorial?: boolean;
+  onTutorialSettled?: () => void;
+  /** When false, the parent draws the overlay so it cannot sit under the felt hit layer. */
+  embedTutorialOverlay?: boolean;
+  onTutorialUi?: (
+    state: {
+      step: GestureTutorialStep;
+      stepIndex: number;
+      success: boolean;
+      rejectTick: number;
+      cardHit: { x: number; y: number; width: number; height: number };
+      stackHit: { x: number; y: number; width: number; height: number };
+      tableCenter: { x: number; y: number };
+      onGesture: (action: GestureTutorialAction) => void;
+      onReject: () => void;
+      onSkip: () => void;
+    } | null
+  ) => void;
 };
 
 /**
@@ -90,6 +121,10 @@ export function PeekAndPitchTemplate({
   disabled = false,
   resetKey = 0,
   suppressTableActors = false,
+  forceTutorial = false,
+  onTutorialSettled,
+  embedTutorialOverlay = true,
+  onTutorialUi,
 }: PeekAndPitchTemplateProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -106,10 +141,25 @@ export function PeekAndPitchTemplate({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pitching, setPitching] = useState(false);
   const [checkDenied, setCheckDenied] = useState(false);
+  const [tutorialReady, setTutorialReady] = useState(forceTutorial);
+  const [tutorialActive, setTutorialActive] = useState(forceTutorial);
+  const [tutorialIndex, setTutorialIndex] = useState(0);
+  const [tutorialSuccess, setTutorialSuccess] = useState(false);
+  const [rejectTick, setRejectTick] = useState(0);
+  const [gestureEpoch, setGestureEpoch] = useState(0);
   const flightSeed = useRef(0);
   const resolvedRef = useRef(false);
   const pendingChipRef = useRef<'call' | 'raise' | null>(null);
   const chipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tutorialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tutorialActiveRef = useRef(false);
+  const tutorialIndexRef = useRef(0);
+  const tutorialBusyRef = useRef(false);
+  const tutorialDoneRef = useRef(false);
+  const onTutorialSettledRef = useRef(onTutorialSettled);
+  onTutorialSettledRef.current = onTutorialSettled;
+  const onTutorialUiRef = useRef(onTutorialUi);
+  onTutorialUiRef.current = onTutorialUi;
 
   const deal = useSharedValue(0);
   const peek = useSharedValue(0);
@@ -120,6 +170,8 @@ export function PeekAndPitchTemplate({
   const stackDragY = useSharedValue(0);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  tutorialActiveRef.current = tutorialActive;
+  tutorialIndexRef.current = tutorialIndex;
 
   const skin = SKINS[activeSpot.skin];
 
@@ -288,8 +340,39 @@ export function PeekAndPitchTemplate({
       if (chipTimer.current) {
         clearTimeout(chipTimer.current);
       }
+      if (tutorialTimer.current) {
+        clearTimeout(tutorialTimer.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (suppressTableActors) {
+      setTutorialReady(true);
+      return;
+    }
+    if (tutorialDoneRef.current) {
+      setTutorialActive(false);
+      setTutorialReady(true);
+      return;
+    }
+    if (forceTutorial) {
+      setTutorialActive(true);
+      setTutorialReady(true);
+      return;
+    }
+    let cancelled = false;
+    hasSeenTemplateTutorial(PEEK_AND_PITCH_TUTORIAL.templateId).then((seen) => {
+      if (cancelled || tutorialDoneRef.current) {
+        return;
+      }
+      setTutorialActive(!seen);
+      setTutorialReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [forceTutorial, suppressTableActors]);
 
   useEffect(() => {
     if (phase !== 'dealing') {
@@ -299,14 +382,84 @@ export function PeekAndPitchTemplate({
     return () => clearTimeout(timer);
   }, [phase]);
 
+  const resetTutorialActors = useCallback(() => {
+    cancelAnimation(peek);
+    cancelAnimation(muck);
+    cancelAnimation(commit);
+    peek.value = 0;
+    muck.value = 0;
+    commit.value = 0;
+    setPeeked(false);
+    setFlights([]);
+    setPushedChips(0);
+    setPitching(false);
+    pendingChipRef.current = null;
+    if (chipTimer.current) {
+      clearTimeout(chipTimer.current);
+      chipTimer.current = null;
+    }
+    setGestureEpoch((current) => current + 1);
+  }, [commit, muck, peek]);
+
+  const endTutorial = useCallback(() => {
+    tutorialBusyRef.current = false;
+    tutorialDoneRef.current = true;
+    setTutorialSuccess(false);
+    setTutorialActive(false);
+    resetTutorialActors();
+    void markTemplateTutorialSeen(PEEK_AND_PITCH_TUTORIAL.templateId);
+    onTutorialSettledRef.current?.();
+  }, [resetTutorialActors]);
+
+  const rejectTutorial = useCallback(() => {
+    if (!tutorialActiveRef.current || tutorialBusyRef.current) {
+      return;
+    }
+    setRejectTick((current) => current + 1);
+  }, []);
+
+  const completeTutorialAction = useCallback(
+    (action: GestureTutorialAction) => {
+      if (!tutorialActiveRef.current || tutorialBusyRef.current) {
+        return;
+      }
+      if (!matchesCurrentStep(PEEK_AND_PITCH_TUTORIAL.steps, tutorialIndexRef.current, action)) {
+        rejectTutorial();
+        return;
+      }
+      tutorialBusyRef.current = true;
+      setTutorialSuccess(true);
+      if (tutorialTimer.current) {
+        clearTimeout(tutorialTimer.current);
+      }
+      tutorialTimer.current = setTimeout(() => {
+        tutorialTimer.current = null;
+        const next = advanceStep(tutorialIndexRef.current, PEEK_AND_PITCH_TUTORIAL.steps.length);
+        resetTutorialActors();
+        setTutorialSuccess(false);
+        if (isComplete(next, PEEK_AND_PITCH_TUTORIAL.steps.length)) {
+          endTutorial();
+          return;
+        }
+        setTutorialIndex(next);
+        tutorialBusyRef.current = false;
+      }, 220);
+    },
+    [endTutorial, rejectTutorial, resetTutorialActors]
+  );
+
   const markPeeked = useCallback(() => {
+    if (tutorialActiveRef.current) {
+      completeTutorialAction('peek');
+      return;
+    }
     setPeeked((current) => {
       if (!current) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
       return true;
     });
-  }, []);
+  }, [completeTutorialAction]);
 
   const resolve = useCallback(
     (nextDecision: SpotDecision) => {
@@ -336,8 +489,12 @@ export function PeekAndPitchTemplate({
     if (!nextDecision) return;
     pendingChipRef.current = null;
     setPitching(false);
+    if (tutorialActiveRef.current) {
+      completeTutorialAction(nextDecision);
+      return;
+    }
     resolve(nextDecision);
-  }, [resolve]);
+  }, [completeTutorialAction, resolve]);
   const finishChipDecisionRef = useRef(finishChipDecision);
   finishChipDecisionRef.current = finishChipDecision;
   const onTossComplete = useCallback(() => {
@@ -347,6 +504,13 @@ export function PeekAndPitchTemplate({
   const handleChipDecision = useCallback(
     (nextDecision: 'call' | 'raise') => {
       if (phaseRef.current !== 'live' || pendingChipRef.current) {
+        return;
+      }
+      if (
+        tutorialActiveRef.current &&
+        !matchesCurrentStep(PEEK_AND_PITCH_TUTORIAL.steps, tutorialIndexRef.current, nextDecision)
+      ) {
+        rejectTutorial();
         return;
       }
 
@@ -401,7 +565,7 @@ export function PeekAndPitchTemplate({
       if (chipTimer.current) clearTimeout(chipTimer.current);
       chipTimer.current = setTimeout(() => finishChipDecisionRef.current(), waitMs);
     },
-    [chipSize, commit, geometry, peek]
+    [chipSize, commit, geometry, peek, rejectTutorial]
   );
 
   const denyCheck = useCallback(() => {
@@ -413,18 +577,67 @@ export function PeekAndPitchTemplate({
     if (phaseRef.current !== 'live') {
       return;
     }
+    if (tutorialActiveRef.current) {
+      completeTutorialAction('check');
+      return;
+    }
     if (!activeSpot.canCheck) {
       denyCheck();
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     resolve('check');
-  }, [activeSpot.canCheck, denyCheck, resolve]);
+  }, [activeSpot.canCheck, completeTutorialAction, denyCheck, resolve]);
 
   const completeMuck = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (tutorialActiveRef.current) {
+      completeTutorialAction('fold');
+      return;
+    }
     resolve('fold');
-  }, [resolve]);
+  }, [completeTutorialAction, resolve]);
+
+  const tutorialStep = currentStep(PEEK_AND_PITCH_TUTORIAL.steps, tutorialIndex);
+  const tutorialPending = !tutorialReady && !suppressTableActors;
+  const showTutorial =
+    tutorialReady && tutorialActive && Boolean(tutorialStep) && !suppressTableActors;
+  const tutorialAllowed = showTutorial
+    ? allowedActionsForStep(PEEK_AND_PITCH_TUTORIAL.steps, tutorialIndex)
+    : undefined;
+  const checkEnabled =
+    Boolean(activeSpot.canCheck) || (showTutorial && tutorialStep?.action === 'check');
+
+  useEffect(() => {
+    onTutorialUiRef.current?.(
+      showTutorial && tutorialStep
+        ? {
+            step: tutorialStep,
+            stepIndex: tutorialIndex,
+            success: tutorialSuccess,
+            rejectTick,
+            cardHit: geometry.cardHit,
+            stackHit: geometry.stackHit,
+            tableCenter: geometry.tableCenter,
+            onGesture: completeTutorialAction,
+            onReject: rejectTutorial,
+            onSkip: endTutorial,
+          }
+        : null
+    );
+  }, [
+    completeTutorialAction,
+    endTutorial,
+    geometry.cardHit,
+    geometry.stackHit,
+    geometry.tableCenter,
+    rejectTick,
+    rejectTutorial,
+    showTutorial,
+    tutorialIndex,
+    tutorialStep,
+    tutorialSuccess,
+  ]);
 
   const handLabel = describeHoleCards(cards);
 
@@ -484,8 +697,8 @@ export function PeekAndPitchTemplate({
             },
           ]}>
           <ChipStackTarget
-            live={phase === 'live' && !disabled && !pitching}
-            canCheck={Boolean(activeSpot.canCheck)}
+            live={phase === 'live' && !disabled && !pitching && !tutorialPending}
+            canCheck={checkEnabled}
             stackLabel={activeSpot.heroStackLabel}
             potCenter={geometry.tableCenter}
             stackCenter={{
@@ -498,7 +711,9 @@ export function PeekAndPitchTemplate({
             onCall={() => handleChipDecision('call')}
             onRaise={() => handleChipDecision('raise')}
             onCheck={handleCheck}
-            onIllegalCheck={denyCheck}
+            onIllegalCheck={showTutorial ? rejectTutorial : denyCheck}
+            allowedActions={tutorialAllowed}
+            onRejected={showTutorial ? rejectTutorial : undefined}
           />
         </View>
       )}
@@ -552,23 +767,26 @@ export function PeekAndPitchTemplate({
       <GestureHints
         peek={peek}
         peeked={peeked}
-        visible={phase === 'live' && !disabled}
-        canCheck={Boolean(activeSpot.canCheck)}
+        visible={phase === 'live' && !disabled && !showTutorial}
+        canCheck={checkEnabled}
         top={geometry.board.hintTop}
       />
 
       <TableGestures
-        live={phase === 'live' && !disabled && !pitching}
-        canCheck={Boolean(activeSpot.canCheck)}
+        live={phase === 'live' && !disabled && !pitching && !tutorialPending}
+        canCheck={checkEnabled}
         height={height}
         stackHit={geometry.stackHit}
         cardHit={geometry.cardHit}
         peek={peek}
         muck={muck}
+        allowedActions={tutorialAllowed}
+        gestureEpoch={gestureEpoch}
         onPeeked={markPeeked}
         onCheck={handleCheck}
         onMuck={completeMuck}
-        onIllegalCheck={denyCheck}
+        onIllegalCheck={showTutorial ? rejectTutorial : denyCheck}
+        onRejected={showTutorial ? rejectTutorial : undefined}
       />
 
       {suppressTableActors ? null : (
@@ -639,6 +857,22 @@ export function PeekAndPitchTemplate({
               heroCards: nextCards ? [formatCard(nextCards[0]), formatCard(nextCards[1])] : null,
             });
           }}
+        />
+      ) : null}
+
+      {embedTutorialOverlay && showTutorial && tutorialStep ? (
+        <GestureTutorialOverlay
+          config={PEEK_AND_PITCH_TUTORIAL}
+          step={tutorialStep}
+          stepIndex={tutorialIndex}
+          cardHit={geometry.cardHit}
+          stackHit={geometry.stackHit}
+          tableCenter={geometry.tableCenter}
+          success={tutorialSuccess}
+          rejectTick={rejectTick}
+          onGesture={completeTutorialAction}
+          onReject={rejectTutorial}
+          onSkip={endTutorial}
         />
       ) : null}
     </View>

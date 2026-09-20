@@ -11,6 +11,9 @@ import {
 } from '../src/features/decision-feedback';
 import { PeekAndPitchTemplate } from '../src/features/templates/peek-and-pitch';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { GestureTutorialOverlay } from '../src/features/gesture-tutorial';
+import { PEEK_AND_PITCH_TUTORIAL } from '../lib/gesture-tutorial';
+import type { GestureTutorialAction, GestureTutorialStep } from '../lib/gesture-tutorial';
 import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
@@ -124,6 +127,18 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   const [streak, setStreak] = useState<StreakState>(EMPTY_STREAK);
   const [feedback, setFeedback] = useState<PendingFeedback | null>(null);
   const [devWorldId, setDevWorldId] = useState<ReadyWorldId | null>(null);
+  const [tutorialUi, setTutorialUi] = useState<{
+    step: GestureTutorialStep;
+    stepIndex: number;
+    success: boolean;
+    rejectTick: number;
+    cardHit?: { x: number; y: number; width: number; height: number };
+    stackHit?: { x: number; y: number; width: number; height: number };
+    tableCenter?: { x: number; y: number };
+    onGesture?: (action: GestureTutorialAction) => void;
+    onReject?: () => void;
+    onSkip?: () => void;
+  } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmingRegen = useRef(false);
   const submitLock = useRef(createExclusiveLock());
@@ -590,7 +605,33 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
         suppressTableActors={Boolean(feedback)}
+        forceTutorial
+        embedTutorialOverlay={false}
+        onTutorialUi={(state) => {
+          if (state) {
+            setTutorialUi(state);
+          }
+        }}
+        onTutorialSettled={() => setTutorialUi(null)}
       />
+
+      {tutorialUi && !feedback ? (
+        <View style={styles.tutorialHost} pointerEvents="box-none">
+          <GestureTutorialOverlay
+            config={PEEK_AND_PITCH_TUTORIAL}
+            step={tutorialUi.step}
+            stepIndex={tutorialUi.stepIndex}
+            cardHit={tutorialUi.cardHit}
+            stackHit={tutorialUi.stackHit}
+            tableCenter={tutorialUi.tableCenter}
+            success={tutorialUi.success}
+            rejectTick={tutorialUi.rejectTick}
+            onGesture={tutorialUi.onGesture}
+            onReject={tutorialUi.onReject}
+            onSkip={tutorialUi.onSkip}
+          />
+        </View>
+      ) : null}
 
       {feedback ? null : (
         <View style={styles.tableControls} pointerEvents="box-none">
@@ -646,6 +687,12 @@ const styles = StyleSheet.create({
   tableScreen: {
     flex: 1,
     backgroundColor: '#111714',
+    position: 'relative',
+  },
+  tutorialHost: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 9999,
+    elevation: 9999,
   },
   treeStack: {
     flex: 1,
