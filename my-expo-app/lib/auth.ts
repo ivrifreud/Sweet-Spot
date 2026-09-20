@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 
+import { requireOAuthUrl } from './oauthUrl';
 import { requireSupabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -23,7 +24,7 @@ export async function signInWithGoogle() {
   });
   if (error) throw error;
 
-  const res = await WebBrowser.openAuthSessionAsync(data.url!, redirectTo);
+  const res = await WebBrowser.openAuthSessionAsync(requireOAuthUrl(data.url), redirectTo);
 
   if (res.type === 'success' && res.url) {
     const url = new URL(res.url.replace('#', '?'));

@@ -1,6 +1,7 @@
 import { requireSupabase } from '../supabase';
 import { evaluateStage1, isAnswerCorrect, startingEloForLevel } from './routing';
 import { mapSpotRow, type SpotRow } from './mapSpot';
+import { resolveCalibrationSubmit } from './storedAttempt';
 import type { CalibrationSpot, Placement, PokerAction, SpotAnswer } from './types';
 
 export type LoadedSpots = {
@@ -128,6 +129,11 @@ export async function getOrCreateSession(userId: string): Promise<CalibrationSes
   };
 }
 
+function asPokerAction(value: unknown): PokerAction | null {
+  if (value === 'fold' || value === 'call' || value === 'raise') return value;
+  return null;
+}
+
 export async function submitAnswer(input: {
   sessionId: string;
   userId: string;
@@ -137,21 +143,27 @@ export async function submitAnswer(input: {
   answersSoFar: SpotAnswer[];
 }): Promise<SpotAnswer[]> {
   const supabase = requireSupabase();
-  const answers = [
-    ...input.answersSoFar.filter((answer) => answer.spotId !== input.spot.id),
-    { spotId: input.spot.id, chosen: input.chosen },
-  ];
 
   const { data: existing, error: existingError } = await supabase
     .from('spot_attempts')
-    .select('id')
+    .select('id, chosen_answer')
     .eq('session_id', input.sessionId)
     .eq('spot_id', input.spot.id)
     .maybeSingle();
 
   throwIfError(existingError);
 
-  if (!existing) {
+  const resolved = resolveCalibrationSubmit({
+    answersSoFar: input.answersSoFar,
+    spotId: input.spot.id,
+    attempted: input.chosen,
+    storedChosen: asPokerAction(
+      (existing as { chosen_answer?: unknown } | null)?.chosen_answer
+    ),
+  });
+  const answers = resolved.answers;
+
+  if (resolved.persistAttempt && !existing) {
     const { error: insertError } = await supabase.from('spot_attempts').insert({
       user_id: input.userId,
       spot_id: input.spot.id,
