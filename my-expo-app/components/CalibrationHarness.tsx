@@ -34,6 +34,7 @@ import {
   worldForPlacement,
   type ReadyWorldId,
 } from '../lib/track/worldForPlacement';
+import { createExclusiveLock } from '../lib/exclusiveLock';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
@@ -140,6 +141,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmingRegen = useRef(false);
+  const submitLock = useRef(createExclusiveLock());
 
   useEffect(() => {
     return () => {
@@ -322,17 +324,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
 
   async function onChoose(decision: SpotDecision) {
     if (!spots || !sessionId || !current || busy || feedback) return;
+    if (!submitLock.current.tryAcquire()) return;
     setBusy(true);
     setError(null);
     try {
       const chosen = pokerActionForDecision(decision, current);
-      const copy = buildDecisionFeedbackCopy({
-        correct: isAnswerCorrect(current, chosen),
-        chosen,
-        correctAnswer: current.correctAnswer,
-        lesson: current.prompt,
-        continueLabel: 'Deal me the next hand',
-      });
 
       const nextAnswers = devMode
         ? [
@@ -348,11 +344,21 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             answersSoFar: answers,
           });
 
+      const persisted =
+        nextAnswers.find((answer) => answer.spotId === current.id)?.chosen ?? chosen;
+      const copy = buildDecisionFeedbackCopy({
+        correct: isAnswerCorrect(current, persisted),
+        chosen: persisted,
+        correctAnswer: current.correctAnswer,
+        lesson: current.prompt,
+        continueLabel: 'Deal me the next hand',
+      });
+
       setAnswers(nextAnswers);
       const pending: PendingFeedback = {
         copy,
         nextAnswers,
-        key: `${current.id}-${chosen}`,
+        key: `${current.id}-${persisted}`,
         tempo: tempoForDecision(decision),
       };
       if (feedbackTimer.current) {
@@ -362,11 +368,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       const delay = feedbackRevealMs(decision);
       if (delay <= 0) {
         setFeedback(pending);
+        submitLock.current.release();
         setBusy(false);
       } else {
         feedbackTimer.current = setTimeout(() => {
           feedbackTimer.current = null;
           setFeedback(pending);
+          submitLock.current.release();
           setBusy(false);
         }, delay);
         return;
@@ -374,6 +382,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save answer');
       setResetKey((value) => value + 1);
+      submitLock.current.release();
       setBusy(false);
     }
   }

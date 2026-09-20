@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LifeChips } from '../components/track/LifeChips';
 import { formatRegenCountdown, submitStageAnswer, type ChipCount } from '../lib/chip-stack';
+import { createExclusiveLock } from '../lib/exclusiveLock';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
@@ -86,6 +87,7 @@ export function StagePlayScreen({
   const [spotsCompleted, setSpotsCompleted] = useState(() =>
     Math.min(SPOTS_PER_STAGE, Math.max(0, initialSpotsCompleted))
   );
+  const submitLock = useRef(createExclusiveLock());
   const [busy, setBusy] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [feedback, setFeedback] = useState<Pending | null>(null);
@@ -120,6 +122,7 @@ export function StagePlayScreen({
   const handleDecision = useCallback(
     (decision: SpotDecision | EquityDecision, equity?: EquityScaleSubmission) => {
       if (busy || feedback || pendingFeedback) return;
+      if (!submitLock.current.tryAcquire()) return;
       const chosen = pokerActionForDecision(decision, calibration);
       const live =
         Boolean(stageProgressId) && stageNumber === 1 && calibration.spotType === 'level1_stage1';
@@ -231,6 +234,7 @@ export function StagePlayScreen({
           setPlayError(err instanceof Error ? err.message : 'Could not save that hand');
           setResetKey((value) => value + 1);
         } finally {
+          submitLock.current.release();
           setBusy(false);
         }
       })();
