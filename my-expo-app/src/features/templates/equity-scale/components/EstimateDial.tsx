@@ -45,6 +45,7 @@ type Props = {
   onChange: (value: number) => void;
   onAdjustStart: () => void;
   onAdjustEnd: () => void;
+  showHand?: boolean;
 };
 
 function tickHaptic() {
@@ -63,6 +64,7 @@ export function EstimateDial({
   onChange,
   onAdjustStart,
   onAdjustEnd,
+  showHand = true,
 }: Props) {
   const rotation = useSharedValue(valueToDialAngle(value, min, max));
   const lastX = useSharedValue(size / 2);
@@ -279,16 +281,18 @@ export function EstimateDial({
           onAccessibilityAction={onAccessibilityAction}
           style={[styles.hitTarget, { width: size, height: size }]}>
           <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
-            <Animated.View
-              pointerEvents="none"
-              accessibilityElementsHidden
-              style={[styles.handDock, styles.handBack, HAND_ORIGIN, handStyle]}>
-              <Animated.Image
-                source={equityScaleArt.dialHand.pinchBack}
-                resizeMode="contain"
-                style={styles.handArt}
-              />
-            </Animated.View>
+            {showHand ? (
+              <Animated.View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                style={[styles.handDock, styles.handBack, HAND_ORIGIN, handStyle]}>
+                <Animated.Image
+                  source={equityScaleArt.dialHand.pinchBack}
+                  resizeMode="contain"
+                  style={styles.handArt}
+                />
+              </Animated.View>
+            ) : null}
             <Animated.View
               style={[
                 styles.spinLayer,
@@ -302,16 +306,18 @@ export function EstimateDial({
                 accessibilityLabel={label}
               />
             </Animated.View>
-            <Animated.View
-              pointerEvents="none"
-              accessibilityElementsHidden
-              style={[styles.handDock, styles.handFront, HAND_ORIGIN, handStyle]}>
-              <Animated.Image
-                source={equityScaleArt.dialHand.pinchFront}
-                resizeMode="contain"
-                style={styles.handArt}
-              />
-            </Animated.View>
+            {showHand ? (
+              <Animated.View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                style={[styles.handDock, styles.handFront, HAND_ORIGIN, handStyle]}>
+                <Animated.Image
+                  source={equityScaleArt.dialHand.pinchFront}
+                  resizeMode="contain"
+                  style={styles.handArt}
+                />
+              </Animated.View>
+            ) : null}
             <View pointerEvents="none" style={styles.valuePlate}>
               <Text style={styles.value}>{value}</Text>
               <Text style={styles.valueUnit}>{unit}</Text>

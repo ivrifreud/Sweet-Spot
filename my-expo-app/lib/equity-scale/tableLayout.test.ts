@@ -4,6 +4,7 @@ import {
   EQUITY_PHONE_LAYOUT,
   SCALE_ART,
   equityTableLayout,
+  equityTutorialHits,
 } from '../../src/features/templates/equity-scale/tableLayout';
 
 const IPHONE = { width: 390, height: 844, topInset: 47, bottomInset: 34 };
@@ -96,5 +97,21 @@ describe('equityTableLayout phone playfield', () => {
     const heroBlock = layout.heroCardWidth * 2 - overlap + matPadX * 2;
     const boardBlock = layout.boardCardWidth * 5 + layout.boardGap * 4 + matPadX * 2;
     expect(heroBlock + rowGap + boardBlock).toBeLessThanOrEqual(IPHONE.width - 24);
+  });
+
+  it('places tutorial hits on the dial and the side buttons', () => {
+    const layout = equityTableLayout({
+      ...IPHONE,
+      showingOuts: true,
+      boardCount: 3,
+    });
+    const hits = equityTutorialHits(layout, IPHONE);
+    expect(hits.dialHit.x + hits.dialHit.width / 2).toBeCloseTo(IPHONE.width / 2);
+    expect(hits.dialHit.y).toBe(layout.dialTop);
+    expect(hits.foldHit.x).toBe(layout.sideInset);
+    expect(hits.lockInHit.x + hits.lockInHit.width).toBeCloseTo(
+      IPHONE.width - layout.sideInset
+    );
+    expect(hits.callHit).toEqual(hits.lockInHit);
   });
 });

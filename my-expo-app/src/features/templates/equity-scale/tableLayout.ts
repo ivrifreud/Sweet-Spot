@@ -148,6 +148,32 @@ export function equityTableLayout({
   };
 }
 
+export function equityTutorialHits(
+  table: Pick<EquityTableLayout, 'dialSize' | 'dialTop' | 'buttonSize' | 'actionBottom' | 'sideInset'>,
+  viewport: { width: number; height: number }
+) {
+  const buttonY = viewport.height - table.actionBottom - table.buttonSize;
+  const dialHit = {
+    x: (viewport.width - table.dialSize) / 2,
+    y: table.dialTop,
+    width: table.dialSize,
+    height: table.dialSize,
+  };
+  const foldHit = {
+    x: table.sideInset,
+    y: buttonY,
+    width: table.buttonSize,
+    height: table.buttonSize,
+  };
+  const lockInHit = {
+    x: viewport.width - table.sideInset - table.buttonSize,
+    y: buttonY,
+    width: table.buttonSize,
+    height: table.buttonSize,
+  };
+  return { dialHit, foldHit, lockInHit, callHit: lockInHit };
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }

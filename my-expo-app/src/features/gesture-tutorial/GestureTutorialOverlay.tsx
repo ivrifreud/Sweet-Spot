@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -11,12 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   fallbackTableRects,
+  fingerPathForStep,
+  overlayViewport,
+  rectCenter,
   spotlightForTarget,
-  swipeArcForAction,
-  tapOriginForAction,
   type GestureTutorialAction,
   type GestureTutorialConfig,
   type GestureTutorialStep,
+  type TutorialControlHits,
   type TutorialPoint,
   type TutorialRect,
 } from '../../../lib/gesture-tutorial';
@@ -32,6 +34,10 @@ type Props = {
   cardHit?: HitRect;
   stackHit?: HitRect;
   tableCenter?: TutorialPoint;
+  dialHit?: HitRect;
+  lockInHit?: HitRect;
+  foldHit?: HitRect;
+  callHit?: HitRect;
   success: boolean;
   rejectTick: number;
   onSkip?: () => void;
@@ -46,24 +52,47 @@ export function GestureTutorialOverlay({
   cardHit,
   stackHit,
   tableCenter,
+  dialHit,
+  lockInHit,
+  foldHit,
+  callHit,
   success,
   rejectTick,
   onSkip,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const windowSize = useWindowDimensions();
+  const [layout, setLayout] = useState<{ width: number; height: number } | null>(null);
   const shake = useSharedValue(0);
-  const viewport = { width, height };
+  const viewport = overlayViewport(layout, windowSize);
+  const { width, height } = viewport;
   const fallback = fallbackTableRects(viewport);
   const cards = cardHit ?? fallback.cardHit;
   const stack = stackHit ?? fallback.stackHit;
   const pot = tableCenter ?? fallback.tableCenter;
-  const spotlight = spotlightForTarget(step.target, cards, stack, viewport);
-  const arc = swipeArcForAction(step.action, cards, stack, pot, viewport);
-  const tapAt = tapOriginForAction(step.action, cards, stack, pot, viewport);
-  const from = arc?.from ?? tapAt ?? spotlight.origin;
-  const to = arc?.to ?? from;
-  const control = arc?.control ?? from;
+  const extras: TutorialControlHits = {
+    dial: dialHit,
+    lockIn: lockInHit,
+    fold: foldHit,
+    call: callHit,
+  };
+  const spotlight =
+    step.hand === 'tapPair' && foldHit && callHit
+      ? {
+          origin: {
+            x: (rectCenter(foldHit).x + rectCenter(callHit).x) / 2,
+            y: (rectCenter(foldHit).y + rectCenter(callHit).y) / 2,
+          },
+          radius: Math.max(
+            Math.hypot(
+              rectCenter(callHit).x - rectCenter(foldHit).x,
+              rectCenter(callHit).y - rectCenter(foldHit).y
+            ) * 0.62,
+            120
+          ),
+        }
+      : spotlightForTarget(step.target, cards, stack, viewport, extras);
+  const { from, control, to } = fingerPathForStep(step, cards, stack, pot, viewport, extras);
 
   useEffect(() => {
     if (rejectTick <= 0) {
@@ -82,7 +111,18 @@ export function GestureTutorialOverlay({
   }));
 
   return (
-    <Animated.View pointerEvents="box-none" collapsable={false} style={[styles.root, rootStyle]}>
+    <View
+      pointerEvents="box-none"
+      collapsable={false}
+      onLayout={(event) => {
+        const next = event.nativeEvent.layout;
+        setLayout((current) =>
+          current && current.width === next.width && current.height === next.height
+            ? current
+            : { width: next.width, height: next.height }
+        );
+      }}
+      style={styles.root}>
       <SoftSpotlight origin={spotlight.origin} radius={spotlight.radius} />
 
       <PointingGesture
@@ -92,11 +132,13 @@ export function GestureTutorialOverlay({
         control={control}
         to={to}
         success={success}
+        width={width}
+        height={height}
       />
 
-      <View
+      <Animated.View
         pointerEvents="none"
-        style={styles.copy}
+        style={[styles.copy, { paddingTop: insets.top + 10 }, rootStyle]}
         accessible
         accessibilityRole="text"
         accessibilityLabel={step.copy}>
@@ -104,7 +146,7 @@ export function GestureTutorialOverlay({
           {stepIndex + 1} / {config.steps.length}
         </Text>
         <Text style={styles.instruction}>{step.copy}</Text>
-      </View>
+      </Animated.View>
 
       {__DEV__ && onSkip ? (
         <Pressable
@@ -115,7 +157,7 @@ export function GestureTutorialOverlay({
           <Text style={styles.skipLabel}>Skip</Text>
         </Pressable>
       ) : null}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -123,7 +165,7 @@ function SoftSpotlight({ origin, radius }: { origin: TutorialPoint; radius: numb
   const fadeRadius = Math.max(radius * 2.35, 160);
 
   return (
-    <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <Svg pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 0 }]}>
       <Defs>
         <RadialGradient
           id="tutorialSpotlight"
@@ -145,27 +187,30 @@ function SoftSpotlight({ origin, radius }: { origin: TutorialPoint; radius: numb
 const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFill,
-    zIndex: 400,
-    elevation: 400,
+    zIndex: 9999,
+    elevation: 9999,
+    overflow: 'visible',
   },
   copy: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     zIndex: 2,
   },
   index: {
     color: artStyle.colors.goldBright,
-    fontSize: 22,
+    fontSize: 18,
     letterSpacing: 3,
-    marginBottom: 12,
+    marginBottom: 8,
     fontWeight: '800',
   },
   instruction: {
     color: artStyle.colors.cream,
-    fontSize: 40,
-    lineHeight: 46,
+    fontSize: 28,
+    lineHeight: 32,
     textAlign: 'center',
     fontWeight: '800',
     textShadowColor: 'rgba(17, 23, 20, 0.92)',
