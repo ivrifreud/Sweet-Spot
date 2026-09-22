@@ -34,7 +34,10 @@ import {
   worldForPlacement,
   type ReadyWorldId,
 } from '../lib/track/worldForPlacement';
+import { prepareKnownWorldAssets, prepareTemplateAssets } from '../lib/assets/prepareRouteAssets';
+import { prepareWorldAmbience } from '../lib/audio';
 import { createExclusiveLock } from '../lib/exclusiveLock';
+import { markPerf, measurePerf } from '../lib/performance/marks';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
@@ -214,10 +217,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             startingElo: session.startingElo,
             reason: 'already_placed',
           });
-          const seen = await hasSeenPlacement(userId);
-          const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, session.placement);
-          const streakState = await readStreakState();
+          const [seen, stack, progress, streakState] = await Promise.all([
+            hasSeenPlacement(userId),
+            readChipStack(),
+            loadStageProgress(userId, session.placement),
+            readStreakState(),
+          ]);
           if (!cancelled) {
             setContinued(seen);
             setChipStack(stack);
@@ -232,10 +237,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         const shouldFinalize = applyAnswers(loaded, session.answers);
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
-          const seen = await hasSeenPlacement(userId);
-          const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, placed.placement);
-          const streakState = await readStreakState();
+          const [seen, stack, progress, streakState] = await Promise.all([
+            hasSeenPlacement(userId),
+            readChipStack(),
+            loadStageProgress(userId, placed.placement),
+            readStreakState(),
+          ]);
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
@@ -250,7 +257,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           setError(err instanceof Error ? err.message : 'Failed to start calibration');
         }
       } finally {
-        if (!cancelled) setBooting(false);
+        if (!cancelled) {
+          markPerf('harness-ready');
+          measurePerf('harness-boot', 'app-shell-ready', 'harness-ready');
+          setBooting(false);
+        }
       }
     }
 
@@ -259,6 +270,17 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       cancelled = true;
     };
   }, [applyAnswers, devMode, userId]);
+
+  useEffect(() => {
+    if (!result) {
+      void prepareTemplateAssets(1);
+      return;
+    }
+    const worldId = currentWorldIdForPlacement(result.placement) ?? 'bennys-garden';
+    void prepareKnownWorldAssets(worldId);
+    void prepareWorldAmbience(worldId, 'light');
+    void prepareTemplateAssets(2);
+  }, [result]);
 
   async function handleSignOut() {
     if (devMode) {

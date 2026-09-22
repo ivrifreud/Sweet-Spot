@@ -12,6 +12,7 @@ import { CalibrationHarness } from './components/CalibrationHarness';
 import { ViewportBadge } from './components/dev/ViewportBadge';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { noteActivity, preloadAudio, startIdleWatch, stopIdleWatch } from './lib/audio';
+import { markPerf, measurePerf } from './lib/performance/marks';
 import { DEV_BYPASS_USER_ID } from './lib/devBypass';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
@@ -51,8 +52,16 @@ function AppInner() {
   const activeUserId = session?.user.id ?? (devBypassActive ? DEV_BYPASS_USER_ID : null);
 
   useEffect(() => {
-    hideSplash();
+    markPerf('app-inner-mount');
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      markPerf('app-shell-ready');
+      measurePerf('app-shell', 'app-mount', 'app-shell-ready');
+      hideSplash();
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (!supabase) {
@@ -76,7 +85,6 @@ function AppInner() {
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
-          hideSplash();
         }
       });
 
@@ -123,6 +131,7 @@ function AppInner() {
 
 export default function App() {
   useEffect(() => {
+    markPerf('app-mount');
     let cancelled = false;
     void preloadAudio().then(() => {
       if (!cancelled) startIdleWatch();

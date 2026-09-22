@@ -1,8 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEventListener } from 'expo';
 import * as Haptics from 'expo-haptics';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { VideoView } from 'expo-video';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -26,7 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playDecisionSfx } from '../../../lib/audio';
-import { safePauseVideoPlayer } from '../../../lib/video/safePause';
+import { useReadyVideo } from '../../../lib/video/useReadyVideo';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
 import {
@@ -333,12 +332,12 @@ function CoachCard({
       <View style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
         {playEmoteVideo ? (
           outcome === 'incorrect' ? (
-            <MissCoachVideo key={`${restartKey ?? 'emote'}-incorrect`} />
+            <MissCoachVideo restartKey={restartKey} />
           ) : (
             <CoachEmoteVideo
-              key={`${restartKey ?? 'emote'}-correct`}
               source={CORRECT_EMOTE}
               poster={CORRECT_POSTER}
+              restartKey={restartKey}
             />
           )
         ) : (
@@ -355,47 +354,17 @@ function CoachCard({
   );
 }
 
-function MissCoachVideo() {
-  const [ready, setReady] = useState(false);
-  const soughtMidpoint = useRef(false);
-  const player = useVideoPlayer(MISS_EMOTE, (nextPlayer) => {
-    nextPlayer.loop = true;
-    nextPlayer.muted = true;
+function MissCoachVideo({ restartKey }: { restartKey?: string }) {
+  const { player, showPoster, onFirstFrame } = useReadyVideo({
+    source: MISS_EMOTE,
+    generation: `${restartKey ?? 'emote'}-incorrect`,
+    muted: true,
+    resolveSeek: (duration) => duration / 2,
   });
-
-  const beginPlayback = useCallback(
-    (loadedDuration?: number) => {
-      const duration = loadedDuration && loadedDuration > 0 ? loadedDuration : player.duration;
-      if (!soughtMidpoint.current) {
-        if (!(duration > 0)) return;
-        player.currentTime = duration / 2;
-        soughtMidpoint.current = true;
-        player.play();
-        return;
-      }
-      if (!player.playing) player.play();
-    },
-    [player]
-  );
-
-  useEventListener(player, 'sourceLoad', (event) => {
-    if (event.duration > 0) beginPlayback(event.duration);
-  });
-  useEventListener(player, 'statusChange', ({ status }) => {
-    if (status !== 'readyToPlay') return;
-    beginPlayback();
-  });
-
-  useEffect(() => {
-    beginPlayback();
-    return () => {
-      safePauseVideoPlayer(player);
-    };
-  }, [beginPlayback, player]);
 
   return (
     <View style={styles.portraitFill}>
-      {ready ? null : (
+      {showPoster ? (
         <Image
           source={MISS_POSTER}
           style={styles.portraitFill}
@@ -403,38 +372,39 @@ function MissCoachVideo() {
           accessibilityIgnoresInvertColors
           accessible={false}
         />
-      )}
+      ) : null}
       <VideoView
         player={player}
         nativeControls={false}
         contentFit="cover"
         playsInline
         surfaceType="textureView"
-        onFirstFrameRender={() => setReady(true)}
+        onFirstFrameRender={onFirstFrame}
         style={styles.portraitFill}
       />
     </View>
   );
 }
 
-function CoachEmoteVideo({ source, poster }: { source: number; poster: number }) {
-  const [ready, setReady] = useState(false);
-  const player = useVideoPlayer(source, (nextPlayer) => {
-    nextPlayer.loop = true;
-    nextPlayer.muted = true;
+function CoachEmoteVideo({
+  source,
+  poster,
+  restartKey,
+}: {
+  source: number;
+  poster: number;
+  restartKey?: string;
+}) {
+  const { player, showPoster, onFirstFrame } = useReadyVideo({
+    source,
+    generation: `${restartKey ?? 'emote'}-correct`,
+    muted: true,
+    resolveSeek: () => 0,
   });
-
-  useEffect(() => {
-    player.currentTime = 0;
-    player.play();
-    return () => {
-      safePauseVideoPlayer(player);
-    };
-  }, [player]);
 
   return (
     <View style={styles.portraitFill}>
-      {ready ? null : (
+      {showPoster ? (
         <Image
           source={poster}
           style={styles.portraitFill}
@@ -442,14 +412,14 @@ function CoachEmoteVideo({ source, poster }: { source: number; poster: number })
           accessibilityIgnoresInvertColors
           accessible={false}
         />
-      )}
+      ) : null}
       <VideoView
         player={player}
         nativeControls={false}
         contentFit="cover"
         playsInline
         surfaceType="textureView"
-        onFirstFrameRender={() => setReady(true)}
+        onFirstFrameRender={onFirstFrame}
         style={styles.portraitFill}
       />
     </View>

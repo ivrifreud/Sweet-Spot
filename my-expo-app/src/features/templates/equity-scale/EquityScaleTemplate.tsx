@@ -335,6 +335,7 @@ export function EquityScaleTemplate({
           stagesCorrect={grade?.stagesCorrect ?? null}
           width={table.scaleWidth}
           height={table.scaleHeight}
+          resetKey={resetKey}
         />
       </View>
 

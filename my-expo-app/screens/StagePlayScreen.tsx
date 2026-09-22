@@ -8,7 +8,14 @@ import { createExclusiveLock } from '../lib/exclusiveLock';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
-import { resultClipKind } from '../lib/equity-scale/resultPresentation';
+import { markPerf } from '../lib/performance/marks';
+import {
+  canAcceptStageDecision,
+  phaseAfterDecision,
+  resolveContinueAfterFeedback,
+  resolvePostEquityReveal,
+  type StagePlayPhase,
+} from '../lib/track/stagePlayPhase';
 import { markStreakActivity, toLocalDay } from '../lib/streak';
 import { burnChip } from '../lib/track/chips';
 import { stageSpots } from '../lib/track/stageSpot';
@@ -88,6 +95,7 @@ export function StagePlayScreen({
     Math.min(SPOTS_PER_STAGE, Math.max(0, initialSpotsCompleted))
   );
   const submitLock = useRef(createExclusiveLock());
+  const [playPhase, setPlayPhase] = useState<StagePlayPhase>('interactive');
   const [busy, setBusy] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [feedback, setFeedback] = useState<Pending | null>(null);
@@ -121,8 +129,10 @@ export function StagePlayScreen({
 
   const handleDecision = useCallback(
     (decision: SpotDecision | EquityDecision, equity?: EquityScaleSubmission) => {
-      if (busy || feedback || pendingFeedback) return;
+      if (!canAcceptStageDecision(playPhase, busy) || feedback || pendingFeedback) return;
       if (!submitLock.current.tryAcquire()) return;
+      setPlayPhase('submitting');
+      markPerf('stage-decision-start');
       const chosen = pokerActionForDecision(decision, calibration);
       const live =
         Boolean(stageProgressId) && stageNumber === 1 && calibration.spotType === 'level1_stage1';
@@ -223,6 +233,7 @@ export function StagePlayScreen({
             tempo: tempoForDecision(decision),
           };
           setSettled(correct);
+          setPlayPhase(phaseAfterDecision(item.templateId));
           if (item.templateId === 2) {
             setPendingFeedback(nextFeedback);
             setEquityGrade(grade);
@@ -232,6 +243,7 @@ export function StagePlayScreen({
           }
         } catch (err) {
           setPlayError(err instanceof Error ? err.message : 'Could not save that hand');
+          setPlayPhase('interactive');
           setResetKey((value) => value + 1);
         } finally {
           submitLock.current.release();
@@ -242,6 +254,7 @@ export function StagePlayScreen({
     [
       busy,
       calibration,
+      playPhase,
       feedback,
       item,
       onResolved,
@@ -256,17 +269,21 @@ export function StagePlayScreen({
 
   const continueAfterFeedback = useCallback(() => {
     if (!feedback) return;
+    const next = resolveContinueAfterFeedback({ stageComplete, lockedOut });
+    setPlayPhase('resetting');
     setFeedback(null);
     setPendingFeedback(null);
     setEquityOutcome(null);
     setEquityGrade(null);
     setSettled(null);
-    if (stageComplete || lockedOut) {
+    if (next.leaveStage) {
       onBack();
       return;
     }
+    markPerf('stage-next-spot');
     setSpotIndex((index) => nextSpotIndex(index + 1));
     setResetKey((value) => value + 1);
+    setPlayPhase('interactive');
   }, [feedback, lockedOut, onBack, stageComplete]);
 
   return (
@@ -282,20 +299,31 @@ export function StagePlayScreen({
         onPeekDecision={(decision) => handleDecision(decision)}
         onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
         onOutcomeAnimationComplete={() => {
+          const next = resolvePostEquityReveal({
+            grade: equityGrade,
+            hasPendingFeedback: Boolean(pendingFeedback),
+            stageComplete,
+            lockedOut,
+          });
           if (!pendingFeedback) return;
-          if (resultClipKind(equityGrade)) {
+          if (!next.showDecisionOverlay) {
             setPendingFeedback(null);
             setEquityOutcome(null);
             setEquityGrade(null);
             setSettled(null);
-            if (stageComplete || lockedOut) {
+            if (next.leaveStage) {
               onBack();
               return;
             }
-            setSpotIndex((index) => nextSpotIndex(index + 1));
-            setResetKey((value) => value + 1);
+            if (next.advanceSpot) {
+              markPerf('stage-next-spot');
+              setSpotIndex((index) => nextSpotIndex(index + 1));
+              setResetKey((value) => value + 1);
+              setPlayPhase('interactive');
+            }
             return;
           }
+          setPlayPhase('feedback');
           setFeedback(pendingFeedback);
         }}
         disabled={busy || Boolean(feedback)}

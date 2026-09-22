@@ -1,16 +1,13 @@
-/* eslint-disable react-hooks/immutability -- Expo VideoPlayer is mutable media state. */
-import { useEventListener } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useEffect, useRef } from 'react';
+import { VideoView } from 'expo-video';
 import { StyleSheet, View } from 'react-native';
 
 import { isMuted } from '../../../../../lib/audio';
-import { safePauseVideoPlayer } from '../../../../../lib/video/safePause';
 import {
   resultClipMuted,
   resultClipStartTime,
   type ResultClipKind,
 } from '../../../../../lib/equity-scale/resultPresentation';
+import { useReadyVideo } from '../../../../../lib/video/useReadyVideo';
 import { artStyle } from '../../../../../theme/artStyle';
 
 const CHEERING_VIDEO = require('../../../../../assets/videos/equity-scale-cheering.mp4');
@@ -36,39 +33,12 @@ type Props = {
 
 export function ScaleResultClip({ variant }: Props) {
   const clip = CLIP[variant];
-
-  const sought = useRef(false);
-
-  const player = useVideoPlayer(clip.source, (nextPlayer) => {
-    nextPlayer.loop = true;
-    nextPlayer.muted = true;
+  const { player, onFirstFrame } = useReadyVideo({
+    source: clip.source,
+    generation: variant,
+    muted: resultClipMuted(variant) || isMuted(),
+    resolveSeek: (duration) => resultClipStartTime(variant, duration),
   });
-
-  const startOrResume = useCallback(
-    (loadedDuration?: number) => {
-      const duration = loadedDuration && loadedDuration > 0 ? loadedDuration : player.duration;
-      const startAt = resultClipStartTime(variant, duration);
-      if (startAt !== null && !sought.current) {
-        player.currentTime = startAt;
-        sought.current = true;
-        player.muted = resultClipMuted(variant) || isMuted();
-      }
-      if (!player.playing) player.play();
-    },
-    [player, variant]
-  );
-
-  useEventListener(player, 'statusChange', ({ status }) => {
-    if (status !== 'readyToPlay') return;
-    startOrResume();
-  });
-
-  useEffect(() => {
-    startOrResume();
-    return () => {
-      safePauseVideoPlayer(player);
-    };
-  }, [player, startOrResume]);
 
   return (
     <View accessibilityLabel={clip.label} style={[styles.box, { borderColor: clip.border }]}>
@@ -78,9 +48,7 @@ export function ScaleResultClip({ variant }: Props) {
         contentFit="cover"
         playsInline
         surfaceType="textureView"
-        onFirstFrameRender={() => {
-          startOrResume();
-        }}
+        onFirstFrameRender={onFirstFrame}
         style={styles.video}
       />
     </View>

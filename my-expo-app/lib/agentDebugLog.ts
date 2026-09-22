@@ -11,13 +11,14 @@ function ingestHosts(): string[] {
   return [...hosts];
 }
 
-/** Debug-mode ingest. Also posts to the Metro host so a physical phone can reach the PC. */
+/** Debug-mode ingest. Release builds skip all serialization and network work. */
 export function agentDebugLog(entry: {
   hypothesisId: string;
   location: string;
   message: string;
   data?: Record<string, unknown>;
 }): void {
+  if (!__DEV__) return;
   const body = JSON.stringify({
     sessionId: SESSION,
     runId: 'post-fix',

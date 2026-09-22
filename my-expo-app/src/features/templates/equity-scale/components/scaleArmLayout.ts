@@ -13,6 +13,8 @@ function clampTilt(tilt: number): number {
 /** Baked tilt frames, one every 2° from -28 to +28. */
 export const SCALE_FRAME_COUNT = 29;
 export const SCALE_FRAME_STEP_DEG = 2;
+/** Never mount more than the current/previous pair plus one incoming neighbor. */
+export const SCALE_FRAME_WINDOW_MAX = 3;
 
 /** Continuous index in [0, 28] so neighboring frames can crossfade. */
 export function scaleFramePosition(tilt: number): number {
@@ -30,6 +32,44 @@ export function frameBlendOpacity(position: number, index: number): number {
   const d = Math.abs(position - index);
   if (d >= 1) return 0;
   return 1 - d;
+}
+
+export function scaleFrameWindow(
+  position: number,
+  frameCount = SCALE_FRAME_COUNT
+): number[] {
+  if (frameCount <= 0) return [];
+  const last = frameCount - 1;
+  const lo = Math.max(0, Math.min(last, Math.floor(position)));
+  const hi = Math.max(0, Math.min(last, Math.ceil(position)));
+  if (lo === hi) return [lo];
+  return [lo, hi];
+}
+
+export function mergeScaleFrameWindow(
+  current: readonly number[],
+  incoming: readonly number[],
+  frameCount = SCALE_FRAME_COUNT
+): number[] {
+  const live = [...new Set(incoming)]
+    .filter((index) => index >= 0 && index < frameCount)
+    .sort((left, right) => left - right);
+  if (live.length <= 1) return live;
+  const next = [...new Set([...current, ...incoming])]
+    .filter((index) => index >= 0 && index < frameCount)
+    .sort((left, right) => left - right);
+  if (next.length <= SCALE_FRAME_WINDOW_MAX) return next;
+  return live.slice(0, SCALE_FRAME_WINDOW_MAX);
+}
+
+export function visibleScaleFrameOpacities(
+  position: number,
+  mounted: readonly number[]
+): { index: number; opacity: number }[] {
+  return mounted.map((index) => ({
+    index,
+    opacity: frameBlendOpacity(position, index),
+  }));
 }
 
 /** Map a dial reading onto ±SCALE_MAX_TILT_DEG. Center stays level. */
