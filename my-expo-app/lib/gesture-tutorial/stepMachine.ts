@@ -26,7 +26,7 @@ export function matchesCurrentStep(
   index: number,
   action: GestureTutorialAction
 ): boolean {
-  return currentStep(steps, index)?.action === action;
+  return allowedActionsForStep(steps, index)?.includes(action) ?? false;
 }
 
 export function stepFromAction(
@@ -41,5 +41,8 @@ export function allowedActionsForStep(
   index: number
 ): GestureTutorialAction[] | undefined {
   const step = currentStep(steps, index);
-  return step ? [step.action] : undefined;
+  if (!step) {
+    return undefined;
+  }
+  return step.actions ? [...step.actions] : [step.action];
 }

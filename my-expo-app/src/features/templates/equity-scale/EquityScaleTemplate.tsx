@@ -10,6 +10,18 @@ import { playSfx } from '../../../../lib/audio';
 import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
+import { GestureTutorialOverlay } from '../../gesture-tutorial';
+import {
+  EQUITY_SCALE_TUTORIAL,
+  advanceStep,
+  allowedActionsForStep,
+  currentStep,
+  hasSeenTemplateTutorial,
+  isComplete,
+  markTemplateTutorialSeen,
+  matchesCurrentStep,
+} from '../../../../lib/gesture-tutorial';
+import type { GestureTutorialAction } from '../../../../lib/gesture-tutorial';
 import {
   DEFAULT_EQUITY_SPOT,
   EQUITY_DIAL_MAX,
@@ -30,7 +42,7 @@ import { HeroHoleCards } from './components/HeroHoleCards';
 import { ScaleScene } from './components/ScaleScene';
 import { StageResultsReveal } from './components/StageResultsReveal';
 import { TableBackdrop } from './components/TableBackdrop';
-import { CARD_ROW_SIDE_INSET, equityTableLayout } from './tableLayout';
+import { CARD_ROW_SIDE_INSET, equityTableLayout, equityTutorialHits } from './tableLayout';
 import type {
   EquityDecision,
   EquityGrade,
@@ -47,6 +59,7 @@ export type EquityScaleTemplateProps = {
   grade?: EquityGrade | null;
   onSubmit?: (submission: EquityScaleSubmission) => void;
   onOutcomeAnimationComplete?: () => void;
+  forceTutorial?: boolean;
 };
 
 export function EquityScaleTemplate({
@@ -57,6 +70,7 @@ export function EquityScaleTemplate({
   grade = null,
   onSubmit,
   onOutcomeAnimationComplete,
+  forceTutorial = false,
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -70,6 +84,19 @@ export function EquityScaleTemplate({
   const animatedOutcomeRef = useRef<DecisionOutcome | null>(null);
   const revealCompleteRef = useRef(false);
   const onOutcomeCompleteRef = useRef(onOutcomeAnimationComplete);
+  const [tutorialReady, setTutorialReady] = useState(forceTutorial);
+  const [tutorialActive, setTutorialActive] = useState(forceTutorial);
+  const [tutorialIndex, setTutorialIndex] = useState(0);
+  const [tutorialSuccess, setTutorialSuccess] = useState(false);
+  const [rejectTick, setRejectTick] = useState(0);
+  const tutorialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tutorialActiveRef = useRef(false);
+  const tutorialIndexRef = useRef(0);
+  const tutorialBusyRef = useRef(false);
+  const tutorialDoneRef = useRef(false);
+
+  tutorialActiveRef.current = tutorialActive;
+  tutorialIndexRef.current = tutorialIndex;
 
   useEffect(() => {
     onOutcomeCompleteRef.current = onOutcomeAnimationComplete;
@@ -100,6 +127,42 @@ export function EquityScaleTemplate({
     setPhase('revealing');
   }, [outcome]);
 
+  useEffect(() => {
+    if (forceTutorial) {
+      tutorialDoneRef.current = false;
+      tutorialBusyRef.current = false;
+      setTutorialIndex(0);
+      setTutorialSuccess(false);
+      setTutorialActive(true);
+      setTutorialReady(true);
+      return;
+    }
+    if (tutorialDoneRef.current) {
+      setTutorialActive(false);
+      setTutorialReady(true);
+      return;
+    }
+    let cancelled = false;
+    hasSeenTemplateTutorial(EQUITY_SCALE_TUTORIAL.templateId).then((seen) => {
+      if (cancelled || tutorialDoneRef.current) {
+        return;
+      }
+      setTutorialActive(!seen);
+      setTutorialReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [forceTutorial, resetKey, spot.id]);
+
+  useEffect(() => {
+    return () => {
+      if (tutorialTimer.current) {
+        clearTimeout(tutorialTimer.current);
+      }
+    };
+  }, []);
+
   const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
   const showingOuts = phase === 'entering' || phase === 'stage1';
   const tilt = useMemo(
@@ -115,16 +178,89 @@ export function EquityScaleTemplate({
     phase === 'revealing' || phase === 'correct' || phase === 'incorrect' || phase === 'resolved';
   const holdForResultClip = resultClipKind(grade) !== null;
 
+  const restoreLiveSpot = useCallback(() => {
+    setSelectedOuts(EQUITY_INITIAL_OUTS);
+    setSelectedEquity(EQUITY_INITIAL_EQUITY);
+    setLockedOuts(null);
+    submittedRef.current = false;
+    setPhase('stage1');
+  }, []);
+
+  const endTutorial = useCallback(() => {
+    tutorialBusyRef.current = false;
+    tutorialDoneRef.current = true;
+    setTutorialSuccess(false);
+    setTutorialActive(false);
+    restoreLiveSpot();
+    void markTemplateTutorialSeen(EQUITY_SCALE_TUTORIAL.templateId);
+  }, [restoreLiveSpot]);
+
+  const rejectTutorial = useCallback(() => {
+    if (!tutorialActiveRef.current || tutorialBusyRef.current) {
+      return;
+    }
+    setRejectTick((current) => current + 1);
+  }, []);
+
+  const completeTutorialAction = useCallback(
+    (action: GestureTutorialAction) => {
+      if (!tutorialActiveRef.current || tutorialBusyRef.current) {
+        return;
+      }
+      if (!matchesCurrentStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndexRef.current, action)) {
+        rejectTutorial();
+        return;
+      }
+      tutorialBusyRef.current = true;
+      setTutorialSuccess(true);
+      if (tutorialTimer.current) {
+        clearTimeout(tutorialTimer.current);
+      }
+      tutorialTimer.current = setTimeout(() => {
+        tutorialTimer.current = null;
+        const current = currentStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndexRef.current);
+        const next = advanceStep(tutorialIndexRef.current, EQUITY_SCALE_TUTORIAL.steps.length);
+        setTutorialSuccess(false);
+        if (current?.id === 'lock-in') {
+          setPhase('stage2');
+        }
+        if (isComplete(next, EQUITY_SCALE_TUTORIAL.steps.length)) {
+          endTutorial();
+          return;
+        }
+        setTutorialIndex(next);
+        tutorialBusyRef.current = false;
+      }, 220);
+    },
+    [endTutorial, rejectTutorial]
+  );
+
   const lockOuts = useCallback(() => {
     if (!stage1Live) return;
+    if (tutorialActiveRef.current) {
+      if (!matchesCurrentStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndexRef.current, 'lockIn')) {
+        rejectTutorial();
+        return;
+      }
+      playSfx('scaleButton');
+      setLockedOuts(selectedOuts);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      completeTutorialAction('lockIn');
+      return;
+    }
     playSfx('scaleButton');
     setLockedOuts(selectedOuts);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setPhase('stage2');
-  }, [selectedOuts, stage1Live]);
+  }, [completeTutorialAction, rejectTutorial, selectedOuts, stage1Live]);
 
   const submit = useCallback(
     (decision: EquityDecision) => {
+      if (tutorialActiveRef.current) {
+        playSfx('scaleButton');
+        completeTutorialAction(decision);
+        return;
+      }
       if (!stage2Live || submittedRef.current) return;
       playSfx('scaleButton');
       submittedRef.current = true;
@@ -136,7 +272,7 @@ export function EquityScaleTemplate({
         selectedEquity,
       });
     },
-    [lockedOuts, onSubmit, selectedEquity, selectedOuts, stage2Live]
+    [completeTutorialAction, lockedOuts, onSubmit, selectedEquity, selectedOuts, stage2Live]
   );
 
   const activeOutcome =
@@ -154,6 +290,27 @@ export function EquityScaleTemplate({
   });
   const { scaleTop, cardsTop, valueTop, streetTop, actionBottom, dialSize, buttonSize, sideInset } =
     table;
+  const hits = equityTutorialHits(table, { width: windowWidth, height: windowHeight });
+  const tutorialStep = currentStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndex);
+  const showTutorial =
+    tutorialReady &&
+    tutorialActive &&
+    Boolean(tutorialStep) &&
+    (phase === 'stage1' || phase === 'stage2');
+  const tutorialAllowed = showTutorial
+    ? allowedActionsForStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndex)
+    : undefined;
+  const dialEnabled =
+    tutorialReady &&
+    (showingOuts ? stage1Live : stage2Live) &&
+    (!showTutorial || Boolean(tutorialAllowed?.includes('turnDial')));
+  const lockInEnabled =
+    tutorialReady && stage1Live && (!showTutorial || Boolean(tutorialAllowed?.includes('lockIn')));
+  const foldEnabled =
+    tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('fold')));
+  const callEnabled =
+    tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('call')));
+  const showDialHand = !showTutorial || tutorialStep?.hand !== 'turnDial';
 
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
@@ -210,11 +367,14 @@ export function EquityScaleTemplate({
             unit={EQUITY_STRINGS.outsUnit}
             label={EQUITY_STRINGS.outsDialLabel}
             accessibilityLabel="Outs dial"
-            enabled={stage1Live}
+            enabled={dialEnabled}
             size={dialSize}
+            showHand={showDialHand}
             onChange={setSelectedOuts}
             onAdjustStart={() => {}}
-            onAdjustEnd={() => {}}
+            onAdjustEnd={() => {
+              if (tutorialAllowed?.includes('turnDial')) completeTutorialAction('turnDial');
+            }}
           />
         ) : (
           <EstimateDial
@@ -225,11 +385,14 @@ export function EquityScaleTemplate({
             unit={EQUITY_STRINGS.equityUnit}
             label={EQUITY_STRINGS.equityDialLabel}
             accessibilityLabel="Equity dial"
-            enabled={stage2Live}
+            enabled={dialEnabled}
             size={dialSize}
+            showHand={showDialHand}
             onChange={setSelectedEquity}
             onAdjustStart={() => {}}
-            onAdjustEnd={() => {}}
+            onAdjustEnd={() => {
+              if (tutorialAllowed?.includes('turnDial')) completeTutorialAction('turnDial');
+            }}
           />
         )}
       </View>
@@ -241,7 +404,7 @@ export function EquityScaleTemplate({
           <ArtButton
             source={equityScaleArt.buttons.lockIn}
             label={EQUITY_STRINGS.lockIn}
-            enabled={stage1Live}
+            enabled={lockInEnabled}
             size={buttonSize}
             round={false}
             onPress={lockOuts}
@@ -252,7 +415,7 @@ export function EquityScaleTemplate({
           <ArtButton
             source={equityScaleArt.buttons.fold}
             label={EQUITY_STRINGS.fold}
-            enabled={stage2Live}
+            enabled={foldEnabled}
             size={buttonSize}
             onPress={() => submit('fold')}
           />
@@ -260,7 +423,7 @@ export function EquityScaleTemplate({
           <ArtButton
             source={equityScaleArt.buttons.call}
             label={EQUITY_STRINGS.call}
-            enabled={stage2Live}
+            enabled={callEnabled}
             size={buttonSize}
             onPress={() => submit('call')}
           />
@@ -268,6 +431,23 @@ export function EquityScaleTemplate({
       )}
 
       {revealing ? <StageResultsReveal grade={grade} onComplete={onRevealComplete} /> : null}
+
+      {showTutorial && tutorialStep ? (
+        <View style={styles.tutorialHost} pointerEvents="box-none">
+          <GestureTutorialOverlay
+            config={EQUITY_SCALE_TUTORIAL}
+            step={tutorialStep}
+            stepIndex={tutorialIndex}
+            dialHit={hits.dialHit}
+            lockInHit={hits.lockInHit}
+            foldHit={hits.foldHit}
+            callHit={hits.callHit}
+            success={tutorialSuccess}
+            rejectTick={rejectTick}
+            onSkip={endTutorial}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -399,5 +579,11 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontWeight: '800',
     zIndex: 60,
+  },
+  tutorialHost: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 9999,
+    elevation: 9999,
+    overflow: 'visible',
   },
 });
