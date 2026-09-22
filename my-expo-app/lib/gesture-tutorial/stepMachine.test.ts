@@ -43,4 +43,21 @@ describe('stepFromAction / allowedActionsForStep', () => {
     expect(allowedActionsForStep(STEPS, 3)).toEqual(['call']);
     expect(allowedActionsForStep(STEPS, 20)).toBeUndefined();
   });
+
+  it('matches any listed action when a step allows more than one', () => {
+    const decide = [
+      {
+        id: 'decide',
+        action: 'call' as const,
+        actions: ['fold', 'call'] as const,
+        copy: 'Tap Call or Fold.',
+        hand: 'tapPair' as const,
+        target: 'foldButton' as const,
+      },
+    ];
+    expect(allowedActionsForStep(decide, 0)).toEqual(['fold', 'call']);
+    expect(matchesCurrentStep(decide, 0, 'fold')).toBe(true);
+    expect(matchesCurrentStep(decide, 0, 'call')).toBe(true);
+    expect(matchesCurrentStep(decide, 0, 'lockIn')).toBe(false);
+  });
 });

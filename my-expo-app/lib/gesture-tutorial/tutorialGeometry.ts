@@ -1,4 +1,4 @@
-import type { GestureTutorialAction, GestureTutorialTarget } from './types';
+import type { GestureTutorialAction, GestureTutorialHand, GestureTutorialTarget } from './types';
 
 export type TutorialPoint = { x: number; y: number };
 
@@ -17,6 +17,38 @@ export type TutorialArc = {
 
 export function rectCenter(rect: TutorialRect): TutorialPoint {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+}
+
+export function rectsOverlap(a: TutorialRect, b: TutorialRect): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/** Prefer the overlay's laid-out box over the browser window (phone preview). */
+export function overlayViewport(
+  layout: { width: number; height: number } | null | undefined,
+  windowSize: { width: number; height: number }
+): { width: number; height: number } {
+  if (layout && layout.width >= 1 && layout.height >= 1) {
+    return { width: layout.width, height: layout.height };
+  }
+  return windowSize;
+}
+
+const POINTING_SOURCE_W = 544;
+const POINTING_SOURCE_H = 327;
+export const POINTING_GLOVE_W = 120;
+export const POINTING_GLOVE_H = Math.round((POINTING_GLOVE_W * POINTING_SOURCE_H) / POINTING_SOURCE_W);
+/** Fingertip of the right hand, on the left edge of the artwork. */
+export const POINTING_GLOVE_TIP_X = (2 / POINTING_SOURCE_W) * POINTING_GLOVE_W;
+export const POINTING_GLOVE_TIP_Y = (28 / POINTING_SOURCE_H) * POINTING_GLOVE_H;
+
+export function pointingGloveFrame(tip: TutorialPoint): TutorialRect {
+  return {
+    x: tip.x - POINTING_GLOVE_TIP_X,
+    y: tip.y - POINTING_GLOVE_TIP_Y,
+    width: POINTING_GLOVE_W,
+    height: POINTING_GLOVE_H,
+  };
 }
 
 export function fallbackTableRects(viewport: { width: number; height: number }) {
@@ -42,24 +74,45 @@ export type TutorialSpotlight = {
   radius: number;
 };
 
+export type TutorialControlHits = {
+  dial?: TutorialRect;
+  lockIn?: TutorialRect;
+  fold?: TutorialRect;
+  call?: TutorialRect;
+};
+
+function spotlightFromRect(rect: TutorialRect): TutorialSpotlight {
+  return {
+    origin: rectCenter(rect),
+    radius: Math.max(rect.width, rect.height) * 0.78,
+  };
+}
+
 /** Soft pool of light over the table actor this step starts from — no box. */
 export function spotlightForTarget(
   target: GestureTutorialTarget,
   cardHit: TutorialRect,
   stackHit: TutorialRect,
-  viewport: { width: number; height: number }
+  viewport: { width: number; height: number },
+  extras?: TutorialControlHits
 ): TutorialSpotlight {
   if (target === 'cards') {
-    return {
-      origin: rectCenter(cardHit),
-      radius: Math.max(cardHit.width, cardHit.height) * 0.78,
-    };
+    return spotlightFromRect(cardHit);
   }
   if (target === 'stack') {
-    return {
-      origin: rectCenter(stackHit),
-      radius: Math.max(stackHit.width, stackHit.height) * 0.78,
-    };
+    return spotlightFromRect(stackHit);
+  }
+  if (target === 'dial' && extras?.dial) {
+    return spotlightFromRect(extras.dial);
+  }
+  if (target === 'lockIn' && extras?.lockIn) {
+    return spotlightFromRect(extras.lockIn);
+  }
+  if (target === 'foldButton' && extras?.fold) {
+    return spotlightFromRect(extras.fold);
+  }
+  if (target === 'callButton' && extras?.call) {
+    return spotlightFromRect(extras.call);
   }
   return {
     origin: { x: viewport.width / 2, y: viewport.height / 2 },
@@ -129,6 +182,114 @@ export function tapOriginForAction(
     return rectCenter(stackHit);
   }
   return null;
+}
+
+export function tapOriginForTarget(
+  target: GestureTutorialTarget,
+  cardHit: TutorialRect,
+  stackHit: TutorialRect,
+  viewport: { width: number; height: number },
+  extras?: TutorialControlHits
+): TutorialPoint | null {
+  if (target === 'lockIn' && extras?.lockIn) {
+    return rectCenter(extras.lockIn);
+  }
+  if (target === 'foldButton' && extras?.fold) {
+    return rectCenter(extras.fold);
+  }
+  if (target === 'callButton' && extras?.call) {
+    return rectCenter(extras.call);
+  }
+  if (target === 'dial' && extras?.dial) {
+    return rectCenter(extras.dial);
+  }
+  if (target === 'cards') {
+    return rectCenter(cardHit);
+  }
+  if (target === 'stack') {
+    return rectCenter(stackHit);
+  }
+  if (target === 'felt') {
+    return { x: viewport.width / 2, y: viewport.height / 2 };
+  }
+  return null;
+}
+
+export type TutorialDialArc = {
+  center: TutorialPoint;
+  radius: number;
+  from: TutorialPoint;
+  to: TutorialPoint;
+  d: string;
+};
+
+function pointOnDialArc(center: TutorialPoint, radius: number, t: number): TutorialPoint {
+  const rad = ((90 - t * 180) * Math.PI) / 180;
+  return {
+    x: center.x + radius * Math.cos(rad),
+    y: center.y - radius * Math.sin(rad),
+  };
+}
+
+/** Right half-circle on the dial rim: top → right → bottom. */
+export function dialRotatePath(dialHit: TutorialRect): TutorialDialArc {
+  const center = rectCenter(dialHit);
+  const radius = Math.min(dialHit.width, dialHit.height) * 0.42;
+  const from = pointOnDialArc(center, radius, 0);
+  const to = pointOnDialArc(center, radius, 1);
+  return {
+    center,
+    radius,
+    from,
+    to,
+    d: `M ${from.x} ${from.y} A ${radius} ${radius} 0 0 1 ${to.x} ${to.y}`,
+  };
+}
+
+export function pointOnArc(path: TutorialDialArc, t: number): TutorialPoint {
+  return pointOnDialArc(path.center, path.radius, Math.min(1, Math.max(0, t)));
+}
+
+/** Travel heading along the right arc. t=0 is top, t=1 is bottom. */
+export function tangentOnDialArc(path: TutorialDialArc, t: number, _reverse = false): number {
+  const rad = ((90 - Math.min(1, Math.max(0, t)) * 180) * Math.PI) / 180;
+  return Math.atan2(Math.cos(rad), Math.sin(rad));
+}
+
+export function dialArcLength(path: TutorialDialArc): number {
+  return Math.PI * path.radius;
+}
+
+export function fingerPathForStep(
+  step: { action: GestureTutorialAction; hand: GestureTutorialHand; target: GestureTutorialTarget },
+  cardHit: TutorialRect,
+  stackHit: TutorialRect,
+  tableCenter: TutorialPoint,
+  viewport: { width: number; height: number },
+  extras?: TutorialControlHits
+): TutorialArc {
+  if (step.hand === 'turnDial' && extras?.dial) {
+    const path = dialRotatePath(extras.dial);
+    return { from: path.from, control: path.center, to: path.to };
+  }
+  if (step.hand === 'tapPair') {
+    const fold = extras?.fold
+      ? rectCenter(extras.fold)
+      : { x: viewport.width * 0.2, y: viewport.height * 0.8 };
+    const call = extras?.call
+      ? rectCenter(extras.call)
+      : { x: viewport.width * 0.8, y: viewport.height * 0.8 };
+    const from = fold.x >= call.x ? fold : call;
+    const to = fold.x >= call.x ? call : fold;
+    return { from, control: from, to };
+  }
+  const spotlight = spotlightForTarget(step.target, cardHit, stackHit, viewport, extras);
+  const arc = swipeArcForAction(step.action, cardHit, stackHit, tableCenter, viewport);
+  const tapAt = tapOriginForAction(step.action, cardHit, stackHit, tableCenter, viewport);
+  const from = arc?.from ?? tapAt ?? spotlight.origin;
+  const to = arc?.to ?? from;
+  const control = arc?.control ?? from;
+  return { from, control, to };
 }
 
 export function pointOnQuad(

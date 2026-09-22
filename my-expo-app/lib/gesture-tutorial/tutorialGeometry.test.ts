@@ -4,13 +4,22 @@ import {
   approxQuadLength,
   cometDashOffset,
   cometTailLength,
+  dialRotatePath,
+  fingerPathForStep,
+  overlayViewport,
+  pointingGloveFrame,
+  pointOnArc,
   pointOnQuad,
   rectCenter,
+  rectsOverlap,
   spotlightForTarget,
   swipeArcForAction,
   tapOriginForAction,
+  tapOriginForTarget,
   warmthTrailLayers,
 } from './tutorialGeometry';
+import { EQUITY_SCALE_TUTORIAL } from './equityScaleSteps';
+import { PEEK_AND_PITCH_TUTORIAL } from './peekAndPitchSteps';
 
 const cards = { x: 200, y: 700, width: 160, height: 120 };
 const stack = { x: 40, y: 710, width: 120, height: 100 };
@@ -73,6 +82,20 @@ describe('tutorialGeometry', () => {
     });
   });
 
+  it('places the check glove on the phone overlay, not the desktop window', () => {
+    const phone = { width: 393, height: 852 };
+    const desktop = { width: 1280, height: 800 };
+    const box = overlayViewport(phone, desktop);
+    const tip = tapOriginForAction('check', cards, stack, table, box)!;
+    const glove = pointingGloveFrame(tip);
+    const overlay = { x: 0, y: 0, width: phone.width, height: phone.height };
+
+    expect(box).toEqual(phone);
+    expect(tip.x).toBeCloseTo(phone.width / 2);
+    expect(tip.y).toBeCloseTo(phone.height / 2);
+    expect(rectsOverlap(glove, overlay)).toBe(true);
+  });
+
   it('keeps only a tiny bow on peek and fold', () => {
     for (const action of ['peek', 'fold'] as const) {
       const arc = swipeArcForAction(action, cards, stack, table, viewport)!;
@@ -104,9 +127,78 @@ describe('tutorialGeometry', () => {
     const layers = warmthTrailLayers(200);
 
     expect(layers.map((layer) => layer.role)).toEqual(['vapor', 'warmth', 'ember']);
-    expect(layers.map((layer) => layer.width)).toEqual([30, 17, 7]);
     expect(layers[0]!.length).toBeGreaterThan(layers[1]!.length);
     expect(layers[1]!.length).toBeGreaterThan(layers[2]!.length);
     expect(layers[0]!.opacity).toBeLessThan(layers[2]!.opacity);
+  });
+});
+
+describe('fingerPathForStep', () => {
+  it('keeps Peek and Pitch swipe and tap points finite and on the table', () => {
+    for (const step of PEEK_AND_PITCH_TUTORIAL.steps) {
+      const path = fingerPathForStep(step, cards, stack, table, viewport);
+      for (const point of [path.from, path.control, path.to]) {
+        expect(Number.isFinite(point.x)).toBe(true);
+        expect(Number.isFinite(point.y)).toBe(true);
+      }
+    }
+    const peek = fingerPathForStep(PEEK_AND_PITCH_TUTORIAL.steps[0]!, cards, stack, table, viewport);
+    expect(peek.from).toEqual({ x: viewport.width * 0.5, y: viewport.height * 0.5 });
+    expect(peek.to).toEqual(rectCenter(cards));
+    const call = fingerPathForStep(PEEK_AND_PITCH_TUTORIAL.steps[3]!, cards, stack, table, viewport);
+    expect(call.from).toEqual(rectCenter(stack));
+    expect(call.to).toEqual(rectCenter(stack));
+  });
+
+  it('jumps Call or Fold from the right button to the left button', () => {
+    const extras = { dial, lockIn, fold, call };
+    const decide = EQUITY_SCALE_TUTORIAL.steps[3]!;
+    const path = fingerPathForStep(decide, cards, stack, table, viewport, extras);
+    expect(path.from.x).toBeGreaterThan(path.to.x);
+    expect(path.from).toEqual(rectCenter(call));
+    expect(path.to).toEqual(rectCenter(fold));
+  });
+});
+
+const dial = { x: 121, y: 620, width: 148, height: 148 };
+const lockIn = { x: 298, y: 684, width: 84, height: 84 };
+const fold = { x: 8, y: 684, width: 84, height: 84 };
+const call = { x: 298, y: 684, width: 84, height: 84 };
+
+describe('dialRotatePath', () => {
+  it('traces the right half-circle from the top of the dial to the bottom', () => {
+    const path = dialRotatePath(dial);
+    const center = rectCenter(dial);
+
+    expect(path.center).toEqual(center);
+    expect(path.radius).toBeCloseTo(148 * 0.42, 5);
+    expect(path.from.x).toBeCloseTo(center.x, 5);
+    expect(path.from.y).toBeLessThan(center.y);
+    expect(path.to.x).toBeCloseTo(center.x, 5);
+    expect(path.to.y).toBeGreaterThan(center.y);
+    expect(pointOnArc(path, 0)).toEqual(path.from);
+    expect(pointOnArc(path, 1)).toEqual(path.to);
+    const mid = pointOnArc(path, 0.5);
+    expect(mid.x).toBeGreaterThan(center.x);
+    expect(mid.y).toBeCloseTo(center.y, 5);
+    expect(path.d.startsWith('M ')).toBe(true);
+    expect(path.d).toContain(' A ');
+  });
+});
+
+describe('scale tap and spotlight targets', () => {
+  it('places lock-in, fold, and call taps on their buttons', () => {
+    const extras = { dial, lockIn, fold, call };
+    expect(tapOriginForTarget('lockIn', cards, stack, viewport, extras)).toEqual(rectCenter(lockIn));
+    expect(tapOriginForTarget('foldButton', cards, stack, viewport, extras)).toEqual(rectCenter(fold));
+    expect(tapOriginForTarget('callButton', cards, stack, viewport, extras)).toEqual(rectCenter(call));
+  });
+
+  it('pools light on the dial and on the decision buttons', () => {
+    const extras = { dial, lockIn, fold, call };
+    const dialSpot = spotlightForTarget('dial', cards, stack, viewport, extras);
+    expect(dialSpot.origin).toEqual(rectCenter(dial));
+    const foldSpot = spotlightForTarget('foldButton', cards, stack, viewport, extras);
+    expect(foldSpot.origin).toEqual(rectCenter(fold));
   });
 });

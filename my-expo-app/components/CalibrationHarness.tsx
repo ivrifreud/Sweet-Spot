@@ -693,6 +693,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     zIndex: 9999,
     elevation: 9999,
+    overflow: 'visible',
   },
   treeStack: {
     flex: 1,

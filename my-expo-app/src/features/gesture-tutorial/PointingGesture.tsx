@@ -1,8 +1,10 @@
+/* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 import { useEffect } from 'react';
-import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   Extrapolation,
+  cancelAnimation,
   interpolate,
   type SharedValue,
   useAnimatedProps,
@@ -15,8 +17,16 @@ import Animated, {
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import {
+  POINTING_GLOVE_H,
+  POINTING_GLOVE_TIP_X,
+  POINTING_GLOVE_TIP_Y,
+  POINTING_GLOVE_W,
   approxQuadLength,
-  horizonHeadingForSwipe,
+  glovePoseDeg,
+  horizonHeadingForDial,
+  rightHandEdgeLift,
+  pairTapProgress,
+  pointingGloveFrame,
   quadPathD,
   visualMotionForHand,
   warmthTrailLayers,
@@ -26,20 +36,19 @@ import {
 } from '../../../lib/gesture-tutorial';
 import { artStyle } from '../../../theme/artStyle';
 
-const GLOVE = require('../../../assets/tables/tutorial-point-glove.png');
 const LOOP_MS = 1680;
-const SOURCE_W = 159;
-const SOURCE_H = 126;
-const GLOVE_W = 148;
-const GLOVE_H = Math.round((GLOVE_W * SOURCE_H) / SOURCE_W);
-const TIP_X = (155 / SOURCE_W) * GLOVE_W;
-const TIP_Y = (11 / SOURCE_H) * GLOVE_H;
-const PALM_X = GLOVE_W * 0.28;
-const PALM_Y = GLOVE_H * 0.7;
-const NATURAL_ANGLE = Math.atan2(TIP_Y - PALM_Y, TIP_X - PALM_X);
-const TIP_ORIGIN = `${TIP_X}px ${TIP_Y}px`;
+const ROTATE_MS = 3200;
+const PAIR_MS = 3200;
+const GLOVE_W = POINTING_GLOVE_W;
+const GLOVE_H = POINTING_GLOVE_H;
+const TIP_X = POINTING_GLOVE_TIP_X;
+const TIP_Y = POINTING_GLOVE_TIP_Y;
+/** Artwork already points left, so a heading of π is zero rotation. */
+const NATURAL_ANGLE = Math.PI;
+/** Pixels, not a percent string. iOS rejects a decimal percent as the z origin. */
+const TIP_ORIGIN: [number, number, number] = [TIP_X, TIP_Y, 0];
+const GUIDE_HAND = require('../../../assets/tables/tutorial-guide-hand.png');
 
-const AnimatedImage = Animated.createAnimatedComponent(Image);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 type Props = {
@@ -48,13 +57,35 @@ type Props = {
   control: TutorialPoint;
   to: TutorialPoint;
   success: boolean;
+  width: number;
+  height: number;
 };
 
-export function PointingGesture({ hand, from, control, to, success }: Props) {
-  const { width, height } = useWindowDimensions();
+export function PointingGesture(props: Props) {
+  const motion = visualMotionForHand(props.hand);
+  if (motion.kind === 'rotate') {
+    return <RotatePointingGesture {...props} />;
+  }
+  if (motion.kind === 'tapPair') {
+    return <PairTapPointingGesture {...props} />;
+  }
+  return <SwipeTapPointingGesture {...props} tapCount={motion.kind === 'tap' ? motion.tapCount : 1} />;
+}
+
+function SwipeTapPointingGesture({
+  hand,
+  from,
+  control,
+  to,
+  success,
+  tapCount,
+  width,
+  height,
+}: Props & { tapCount: 1 | 2 }) {
   const motion = visualMotionForHand(hand);
-  const heading = horizonHeadingForSwipe(from, to);
-  const rotate = `${((heading - NATURAL_ANGLE) * 180) / Math.PI}deg`;
+  const isTap = motion.kind === 'tap';
+  const fixedPose = glovePoseDeg(hand);
+  const rotateDeg = fixedPose ?? ((horizonHeadingForDial() - NATURAL_ANGLE) * 180) / Math.PI;
   const loop = useSharedValue(0);
   const settle = useSharedValue(1);
   const fromX = useSharedValue(from.x);
@@ -77,36 +108,26 @@ export function PointingGesture({ hand, from, control, to, success }: Props) {
   }, [control.x, control.y, controlX, controlY, from.x, from.y, fromX, fromY, to.x, to.y, toX, toY]);
 
   useEffect(() => {
-    loop.value = 0;
     loop.value = withRepeat(
       withTiming(1, { duration: LOOP_MS, easing: Easing.inOut(Easing.cubic) }),
       -1,
       false
     );
-  }, [hand, from.x, from.y, to.x, to.y, loop]);
+    return () => {
+      cancelAnimation(loop);
+    };
+  }, [hand, loop]);
 
-  useEffect(() => {
-    if (!success) {
-      settle.value = 1;
-      return;
-    }
-    settle.value = withSequence(
-      withTiming(0.92, { duration: 80 }),
-      withTiming(1.06, { duration: 100 }),
-      withTiming(1, { duration: 110 })
-    );
-  }, [settle, success]);
+  useSuccessSettle(settle, success);
 
   const gloveMotion = useAnimatedStyle(() => {
     const phase = loop.value;
-    if (motion.kind === 'tap') {
-      const contact = tapContact(phase, motion.tapCount);
+    if (isTap) {
+      const contact = tapContact(phase, tapCount);
       return {
-        opacity: interpolate(phase, [0, 0.08, 0.88, 1], [0, 1, 1, 0], Extrapolation.CLAMP),
         transform: [
-          { translateX: fromX.value - TIP_X },
-          { translateY: fromY.value + contact * 14 - TIP_Y },
-          { rotate },
+          { translateY: contact * 14 },
+          { rotate: `${rotateDeg + (fixedPose == null ? rightHandEdgeLift(fromX.value, width) : 0)}deg` },
           { scale: settle.value },
         ],
       };
@@ -123,21 +144,20 @@ export function PointingGesture({ hand, from, control, to, success }: Props) {
       travel
     );
     return {
-      opacity: interpolate(phase, [0, 0.08, 0.84, 1], [0, 1, 1, 0], Extrapolation.CLAMP),
       transform: [
-        { translateX: point.x - TIP_X },
-        { translateY: point.y - TIP_Y },
-        { rotate },
+        { translateX: point.x - TIP_X - (fromX.value - TIP_X) },
+        { translateY: point.y - TIP_Y - (fromY.value - TIP_Y) },
+        { rotate: `${rotateDeg + (fixedPose == null ? rightHandEdgeLift(point.x, width) : 0)}deg` },
         { scale: settle.value },
       ],
     };
   });
 
   const smudgeStyle = useAnimatedStyle(() => {
-    if (motion.kind === 'tap') {
-      const contact = tapContact(loop.value, motion.tapCount);
+    if (isTap) {
+      const contact = tapContact(loop.value, tapCount);
       return {
-        opacity: contact * interpolate(loop.value, [0, 0.08, 0.9, 1], [0, 1, 1, 0]),
+        opacity: Math.max(0.35, contact),
         transform: [
           { translateX: fromX.value - 26 },
           { translateY: fromY.value - 26 },
@@ -156,14 +176,16 @@ export function PointingGesture({ hand, from, control, to, success }: Props) {
       travel
     );
     return {
-      opacity: interpolate(loop.value, [0, 0.12, 0.8, 0.92, 1], [0, 0.85, 0.7, 0.2, 0]),
+      opacity: interpolate(loop.value, [0, 0.12, 0.8, 0.92, 1], [0.85, 0.85, 0.7, 0.2, 0.85]),
       transform: [{ translateX: point.x - 26 }, { translateY: point.y - 26 }, { scale: 1 }],
     };
   });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {motion.kind === 'swipe' ? (
+    <View style={[StyleSheet.absoluteFill, styles.fingerLayer]} pointerEvents="none">
+      {isTap ? (
+        <TapRipples count={tapCount} loop={loop} origin={from} />
+      ) : (
         <TouchTrail
           d={pathD}
           loop={loop}
@@ -172,24 +194,212 @@ export function PointingGesture({ hand, from, control, to, success }: Props) {
           width={width}
           height={height}
         />
-      ) : (
-        <TapRipples count={motion.tapCount} loop={loop} origin={from} />
       )}
-      <Animated.View style={[styles.contactGlow, smudgeStyle]}>
-        <Svg width={52} height={52}>
-          <Defs>
-            <RadialGradient id="contactHeat" cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor={artStyle.colors.goldBright} stopOpacity={1} />
-              <Stop offset="0.28" stopColor={artStyle.colors.gold} stopOpacity={0.84} />
-              <Stop offset="0.62" stopColor={artStyle.colors.cream} stopOpacity={0.34} />
-              <Stop offset="1" stopColor={artStyle.colors.tealFaded} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Circle cx={26} cy={26} r={26} fill="url(#contactHeat)" />
-        </Svg>
-      </Animated.View>
-      <AnimatedImage source={GLOVE} resizeMode="contain" style={[styles.glove, gloveMotion]} />
+      <ContactGlow style={smudgeStyle} />
+      <TutorialGlove tip={from} motion={gloveMotion} />
     </View>
+  );
+}
+
+function RotatePointingGesture({ hand, from, control, to, success, width, height }: Props) {
+  const loop = useSharedValue(0);
+  const settle = useSharedValue(1);
+  const centerX = useSharedValue(control.x);
+  const centerY = useSharedValue(control.y);
+  const radius = Math.max(24, Math.hypot(from.x - control.x, from.y - control.y));
+  const pathD = `M ${from.x} ${from.y} A ${radius} ${radius} 0 0 1 ${to.x} ${to.y}`;
+  const pathLength = Math.max(24, Math.PI * radius);
+  const trailLayers = warmthTrailLayers(pathLength);
+  const rotateDeg = ((horizonHeadingForDial() - NATURAL_ANGLE) * 180) / Math.PI;
+
+  useEffect(() => {
+    centerX.value = control.x;
+    centerY.value = control.y;
+  }, [centerX, centerY, control.x, control.y]);
+
+  useEffect(() => {
+    loop.value = withRepeat(
+      withTiming(1, { duration: ROTATE_MS, easing: Easing.inOut(Easing.cubic) }),
+      -1,
+      true
+    );
+    return () => {
+      cancelAnimation(loop);
+    };
+  }, [hand, loop]);
+
+  useSuccessSettle(settle, success);
+
+  const gloveMotion = useAnimatedStyle(() => {
+    const travel = rotateTravel(loop.value);
+    const point = pointOnDialArcWorklet(centerX.value, centerY.value, radius, travel);
+    return {
+      transform: [
+        { translateX: point.x - from.x },
+        { translateY: point.y - from.y },
+        { rotate: `${rotateDeg + rightHandEdgeLift(point.x, width)}deg` },
+        { scale: settle.value },
+      ],
+    };
+  });
+
+  const smudgeStyle = useAnimatedStyle(() => {
+    const travel = rotateTravel(loop.value);
+    const point = pointOnDialArcWorklet(centerX.value, centerY.value, radius, travel);
+    return {
+      opacity: interpolate(travel, [0, 0.08, 1], [0.35, 0.85, 0.85]),
+      transform: [{ translateX: point.x - 26 }, { translateY: point.y - 26 }, { scale: 1 }],
+    };
+  });
+
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.fingerLayer]} pointerEvents="none">
+      <TouchTrail
+        d={pathD}
+        loop={loop}
+        pathLength={pathLength}
+        layers={trailLayers}
+        width={width}
+        height={height}
+        travel="rotate"
+      />
+      <ContactGlow style={smudgeStyle} />
+      <TutorialGlove tip={from} motion={gloveMotion} />
+    </View>
+  );
+}
+
+function PairTapPointingGesture({ from, to, success, hand, width }: Props) {
+  const loop = useSharedValue(0);
+  const settle = useSharedValue(1);
+  const fromX = useSharedValue(from.x);
+  const fromY = useSharedValue(from.y);
+  const toX = useSharedValue(to.x);
+  const toY = useSharedValue(to.y);
+  const fixedPose = glovePoseDeg(hand);
+  const rotateDeg = fixedPose ?? ((horizonHeadingForDial() - NATURAL_ANGLE) * 180) / Math.PI;
+
+  useEffect(() => {
+    fromX.value = from.x;
+    fromY.value = from.y;
+    toX.value = to.x;
+    toY.value = to.y;
+  }, [from.x, from.y, fromX, fromY, to.x, to.y, toX, toY]);
+
+  useEffect(() => {
+    loop.value = withRepeat(
+      withTiming(1, { duration: PAIR_MS, easing: Easing.linear }),
+      -1,
+      false
+    );
+    return () => {
+      cancelAnimation(loop);
+    };
+  }, [hand, loop]);
+
+  useSuccessSettle(settle, success);
+
+  const gloveMotion = useAnimatedStyle(() => {
+    const progress = pairTapProgress(loop.value);
+    const contact = pairTapContact(loop.value);
+    const x = fromX.value + (toX.value - fromX.value) * progress;
+    const y = fromY.value + (toY.value - fromY.value) * progress;
+    return {
+      transform: [
+        { translateX: x - fromX.value },
+        { translateY: y - fromY.value + contact * 14 },
+        { rotate: `${rotateDeg + (fixedPose == null ? rightHandEdgeLift(x, width) : 0)}deg` },
+        { scale: settle.value },
+      ],
+    };
+  });
+
+  const smudgeStyle = useAnimatedStyle(() => {
+    const progress = pairTapProgress(loop.value);
+    const contact = pairTapContact(loop.value);
+    const x = fromX.value + (toX.value - fromX.value) * progress;
+    const y = fromY.value + (toY.value - fromY.value) * progress;
+    return {
+      opacity: Math.max(0.2, contact),
+      transform: [
+        { translateX: x - 26 },
+        { translateY: y - 26 },
+        { scale: interpolate(contact, [0, 1], [0.35, 1.05]) },
+      ],
+    };
+  });
+
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.fingerLayer]} pointerEvents="none">
+      <PairTapRipples loop={loop} from={from} to={to} />
+      <ContactGlow style={smudgeStyle} />
+      <TutorialGlove tip={from} motion={gloveMotion} />
+    </View>
+  );
+}
+
+function TutorialGlove({
+  tip,
+  motion,
+}: {
+  tip: TutorialPoint;
+  motion: ReturnType<typeof useAnimatedStyle>;
+}) {
+  const frame = pointingGloveFrame(tip);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      collapsable={false}
+      style={[
+        styles.gloveDock,
+        {
+          left: frame.x,
+          top: frame.y,
+          width: frame.width,
+          height: frame.height,
+          transformOrigin: TIP_ORIGIN,
+        },
+        motion,
+      ]}>
+      <Animated.Image
+        source={GUIDE_HAND}
+        fadeDuration={0}
+        resizeMode="stretch"
+        style={{ width: frame.width, height: frame.height }}
+      />
+    </Animated.View>
+  );
+}
+
+function useSuccessSettle(settle: SharedValue<number>, success: boolean) {
+  useEffect(() => {
+    if (!success) {
+      settle.value = 1;
+      return;
+    }
+    settle.value = withSequence(
+      withTiming(0.92, { duration: 80 }),
+      withTiming(1.06, { duration: 100 }),
+      withTiming(1, { duration: 110 })
+    );
+  }, [settle, success]);
+}
+
+function ContactGlow({ style }: { style: ReturnType<typeof useAnimatedStyle> }) {
+  return (
+    <Animated.View style={[styles.contactGlow, style]}>
+      <Svg width={52} height={52}>
+        <Defs>
+          <RadialGradient id="contactHeat" cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor={artStyle.colors.goldBright} stopOpacity={1} />
+            <Stop offset="0.28" stopColor={artStyle.colors.gold} stopOpacity={0.84} />
+            <Stop offset="0.62" stopColor={artStyle.colors.cream} stopOpacity={0.34} />
+            <Stop offset="1" stopColor={artStyle.colors.tealFaded} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={26} cy={26} r={26} fill="url(#contactHeat)" />
+      </Svg>
+    </Animated.View>
   );
 }
 
@@ -198,12 +408,34 @@ function heldTravel(phase: number) {
   return interpolate(phase, [0, 0.12, 0.8, 0.9, 1], [0, 0, 1, 1, 1], Extrapolation.CLAMP);
 }
 
+function rotateTravel(phase: number) {
+  'worklet';
+  return Math.min(1, Math.max(0, phase));
+}
+
 function tapContact(phase: number, count: 1 | 2) {
   'worklet';
   if (count === 1) {
     return interpolate(phase, [0, 0.18, 0.3, 0.44, 1], [0, 0, 1, 0, 0]);
   }
   return interpolate(phase, [0, 0.12, 0.22, 0.35, 0.45, 0.58, 1], [0, 0, 1, 0, 1, 0, 0]);
+}
+
+function pairTapContact(phase: number) {
+  'worklet';
+  if (phase < 0.5) {
+    return interpolate(phase, [0, 0.08, 0.16, 0.28], [0, 1, 0, 0]);
+  }
+  return interpolate(phase, [0.5, 0.58, 0.66, 0.78], [0, 1, 0, 0]);
+}
+
+function pointOnDialArcWorklet(centerX: number, centerY: number, radius: number, t: number) {
+  'worklet';
+  const rad = ((90 - t * 180) * Math.PI) / 180;
+  return {
+    x: centerX + radius * Math.cos(rad),
+    y: centerY - radius * Math.sin(rad),
+  };
 }
 
 function pointOnQuadWorklet(
@@ -230,6 +462,7 @@ function TouchTrail({
   layers,
   width,
   height,
+  travel = 'held',
 }: {
   d: string;
   loop: SharedValue<number>;
@@ -237,9 +470,10 @@ function TouchTrail({
   layers: WarmthTrailLayer[];
   width: number;
   height: number;
+  travel?: 'held' | 'rotate';
 }) {
   return (
-    <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
       {layers.map((layer) => (
         <TrailLayer
           key={layer.role}
@@ -247,6 +481,7 @@ function TouchTrail({
           loop={loop}
           pathLength={pathLength}
           layer={layer}
+          travel={travel}
         />
       ))}
     </Svg>
@@ -258,21 +493,26 @@ function TrailLayer({
   loop,
   pathLength,
   layer,
+  travel = 'held',
 }: {
   d: string;
   loop: SharedValue<number>;
   pathLength: number;
   layer: WarmthTrailLayer;
+  travel?: 'held' | 'rotate';
 }) {
   const animatedProps = useAnimatedProps(() => {
-    const travel = heldTravel(loop.value);
+    const along = travel === 'rotate' ? rotateTravel(loop.value) : heldTravel(loop.value);
     return {
-      strokeDashoffset: layer.length - travel * pathLength,
-      opacity: interpolate(
-        loop.value,
-        [0, 0.1, 0.8, 0.93, 1],
-        [0, layer.opacity, layer.opacity, layer.opacity * 0.18, 0]
-      ),
+      strokeDashoffset: layer.length - along * pathLength,
+      opacity:
+        travel === 'rotate'
+          ? interpolate(along, [0, 0.08, 1], [0, layer.opacity, layer.opacity])
+          : interpolate(
+              loop.value,
+              [0, 0.1, 0.8, 0.93, 1],
+              [0, layer.opacity, layer.opacity, layer.opacity * 0.18, 0]
+            ),
     };
   });
   const color =
@@ -294,6 +534,40 @@ function TrailLayer({
       strokeDasharray={`${layer.length} ${pathLength + layer.length}`}
       strokeDashoffset={layer.length}
     />
+  );
+}
+
+function PairTapRipples({
+  loop,
+  from,
+  to,
+}: {
+  loop: SharedValue<number>;
+  from: TutorialPoint;
+  to: TutorialPoint;
+}) {
+  const first = useAnimatedStyle(() => {
+    const pulse = pairTapContact(loop.value);
+    const onLeft = pairTapProgress(loop.value) < 0.5;
+    return {
+      opacity: onLeft ? pulse * 0.9 : 0,
+      transform: [{ scale: interpolate(pulse, [0, 1], [0.18, 2.1]) }],
+    };
+  });
+  const second = useAnimatedStyle(() => {
+    const pulse = pairTapContact(loop.value);
+    const onRight = pairTapProgress(loop.value) > 0.5;
+    return {
+      opacity: onRight ? pulse * 0.9 : 0,
+      transform: [{ scale: interpolate(pulse, [0, 1], [0.18, 2.1]) }],
+    };
+  });
+
+  return (
+    <>
+      <Animated.View style={[styles.ripple, { left: from.x - 24, top: from.y - 24 }, first]} />
+      <Animated.View style={[styles.ripple, { left: to.x - 24, top: to.y - 24 }, second]} />
+    </>
   );
 }
 
@@ -339,13 +613,16 @@ function Ripple({
 }
 
 const styles = StyleSheet.create({
-  glove: {
+  gloveDock: {
     position: 'absolute',
-    left: 0,
-    top: 0,
-    width: GLOVE_W,
-    height: GLOVE_H,
-    transformOrigin: TIP_ORIGIN,
+    overflow: 'visible',
+    zIndex: 50,
+    elevation: 50,
+    opacity: 1,
+  },
+  fingerLayer: {
+    zIndex: 50,
+    elevation: 50,
   },
   contactGlow: {
     position: 'absolute',
