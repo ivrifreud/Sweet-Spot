@@ -67,11 +67,17 @@ export function valueToDialAngle(value: number, min: number, max: number): numbe
   return DIAL_MIN_DEG + t * (DIAL_MAX_DEG - DIAL_MIN_DEG);
 }
 
-export function dialAngleToValue(angle: number, min: number, max: number): number {
+/** Continuous dial reading before detent snap. Defined first so worklets can close over it. */
+export function dialAngleToExactValue(angle: number, min: number, max: number): number {
   'worklet';
   const bounded = clampRange(angle, DIAL_MIN_DEG, DIAL_MAX_DEG);
   const t = (bounded - DIAL_MIN_DEG) / (DIAL_MAX_DEG - DIAL_MIN_DEG);
-  return Math.round(min + t * (max - min));
+  return min + t * (max - min);
+}
+
+export function dialAngleToValue(angle: number, min: number, max: number): number {
+  'worklet';
+  return Math.round(dialAngleToExactValue(angle, min, max));
 }
 
 export function outsToDialAngle(outs: number): number {

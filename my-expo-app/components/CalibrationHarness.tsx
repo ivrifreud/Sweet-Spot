@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  InteractionManager,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -18,7 +25,6 @@ import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
-import { LOCAL_CASINO_WORLD, BENNYS_GARDEN_WORLD } from './track/worldMapTemplates';
 import { signOut } from '../lib/auth';
 import {
   applyLocalRegen,
@@ -34,9 +40,10 @@ import {
   worldForPlacement,
   type ReadyWorldId,
 } from '../lib/track/worldForPlacement';
-import { prepareKnownWorldAssets, prepareTemplateAssets } from '../lib/assets/prepareRouteAssets';
-import { prepareWorldAmbience } from '../lib/audio';
+import { prepareKnownWorldAssets, prepareLockoutCoachAssets, prepareTemplateAssets } from '../lib/assets/prepareRouteAssets';
+import { preparePeekTableAudio, prepareWorldAmbience } from '../lib/audio';
 import { createExclusiveLock } from '../lib/exclusiveLock';
+import { shouldMountTrackMap } from '../lib/track/stagePlayPhase';
 import { markPerf, measurePerf } from '../lib/performance/marks';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
@@ -272,15 +279,25 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   }, [applyAnswers, devMode, userId]);
 
   useEffect(() => {
-    if (!result) {
-      void prepareTemplateAssets(1);
-      return;
+    if (result) {
+      const worldId = currentWorldIdForPlacement(result.placement) ?? 'bennys-garden';
+      const handle = InteractionManager.runAfterInteractions(() => {
+        void prepareKnownWorldAssets(worldId);
+        void prepareWorldAmbience(worldId, 'light');
+        void prepareTemplateAssets(2);
+        void prepareLockoutCoachAssets();
+      });
+      return () => handle.cancel();
     }
-    const worldId = currentWorldIdForPlacement(result.placement) ?? 'bennys-garden';
-    void prepareKnownWorldAssets(worldId);
-    void prepareWorldAmbience(worldId, 'light');
-    void prepareTemplateAssets(2);
-  }, [result]);
+    if (!welcomeSeen) {
+      const handle = InteractionManager.runAfterInteractions(() => {
+        void prepareTemplateAssets(1);
+        void preparePeekTableAudio();
+      });
+      return () => handle.cancel();
+    }
+    return undefined;
+  }, [result, welcomeSeen]);
 
   async function handleSignOut() {
     if (devMode) {
@@ -457,8 +474,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     })();
   }
 
-  const stageLabel =
-    current?.spotType === 'calibration_stage1' ? 'Stage 1' : 'Stage 2';
+  const stageLabel = current?.spotType === 'calibration_stage1' ? 'Stage 1' : 'Stage 2';
   const progress = current ? `${current.sequenceOrder} / 6` : result ? 'Done' : '…';
   const tableSpot = useMemo(
     () => (current ? toPeekAndPitchSpot(current, `${stageLabel} · ${progress}`) : null),
@@ -509,88 +525,82 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
 
     const placedWorldId = currentWorldIdForPlacement(reveal.placement);
     const previewWorldId = devMode && devWorldId ? devWorldId : placedWorldId;
-    const currentWorld =
-      previewWorldId === 'local-casino'
-        ? LOCAL_CASINO_WORLD
-        : previewWorldId === 'bennys-garden'
-          ? BENNYS_GARDEN_WORLD
-          : undefined;
 
     return (
       <View style={styles.treeStack}>
-        <TrackMapScreen
-          key={previewWorldId ?? 'map'}
-          reveal={reveal}
-          currentWorld={currentWorld}
-          remainingChips={chipStack.chips}
-          lockMessage={
-            chipStack.lockedOut && chipStack.regenAt
-              ? `Chips are spent. Refills in ${formatRegenCountdown(chipStack.regenAt, now)}.`
-              : chipStack.lockedOut
-                ? 'Chips are spent. They refill in 12 hours.'
-                : null
-          }
-          goldBars={0}
-          streakDays={streak.currentStreak}
-          streakBestDays={streak.bestStreak}
-          completedCount={completedCount}
-          spotsByStage={spotsByStage}
-          isActive={playingStage == null}
-          devMode={devMode}
-          onDevCycleWorld={
-            devMode && placedWorldId
-              ? () => setDevWorldId((current) => nextDevPreviewWorld(current ?? placedWorldId))
-              : undefined
-          }
-          onPlayStage={(stageNumber) => void openStage(stageNumber)}
-          onSignOut={() => void handleSignOut()}
-        />
+        {shouldMountTrackMap(playingStage) ? (
+          <TrackMapScreen
+            key={previewWorldId ?? 'map'}
+            reveal={reveal}
+            worldId={previewWorldId ?? undefined}
+            remainingChips={chipStack.chips}
+            lockMessage={
+              chipStack.lockedOut && chipStack.regenAt
+                ? `Chips are spent. Refills in ${formatRegenCountdown(chipStack.regenAt, now)}.`
+                : chipStack.lockedOut
+                  ? 'Chips are spent. They refill in 12 hours.'
+                  : null
+            }
+            goldBars={0}
+            streakDays={streak.currentStreak}
+            streakBestDays={streak.bestStreak}
+            completedCount={completedCount}
+            spotsByStage={spotsByStage}
+            isActive
+            devMode={devMode}
+            onDevCycleWorld={
+              devMode && placedWorldId
+                ? () => setDevWorldId((current) => nextDevPreviewWorld(current ?? placedWorldId))
+                : undefined
+            }
+            onPlayStage={(stageNumber) => void openStage(stageNumber)}
+            onSignOut={() => void handleSignOut()}
+          />
+        ) : playingStage != null ? (
+          <StagePlayScreen
+            reveal={reveal}
+            stageNumber={playingStage}
+            remainingChips={chipStack.chips}
+            goldBars={0}
+            streakDays={streak.currentStreak}
+            streakBestDays={streak.bestStreak}
+            initialSpotsCompleted={stageSpotsCompleted}
+            stageProgressId={stageProgressId}
+            forceTutorial={devMode}
+            onResolved={(update) => {
+              setChipStack({
+                chips: update.remainingChips,
+                lockedOut: update.lockedOut,
+                regenAt: update.regenAt,
+              });
+              if (update.stageComplete) {
+                setCompletedCount((count) => Math.max(count, playingStage));
+              }
+              setSpotsByStage((current) => ({
+                ...current,
+                [playingStage]: update.spotsCompleted,
+              }));
+              setStageSpotsCompleted(update.spotsCompleted);
+              if (
+                typeof update.streakCurrent === 'number' ||
+                typeof update.streakBest === 'number'
+              ) {
+                setStreak((current) => ({
+                  currentStreak: update.streakCurrent ?? current.currentStreak,
+                  bestStreak: update.streakBest ?? current.bestStreak,
+                  lastActiveDay: current.lastActiveDay,
+                }));
+              }
+            }}
+            onBack={() => {
+              setPlayingStage(null);
+              setStageProgressId(null);
+            }}
+          />
+        ) : null}
         {error ? (
           <View style={styles.treeError} pointerEvents="none">
             <Text style={styles.errorBannerText}>{error}</Text>
-          </View>
-        ) : null}
-        {playingStage != null ? (
-          <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
-            <StagePlayScreen
-              reveal={reveal}
-              stageNumber={playingStage}
-              remainingChips={chipStack.chips}
-              goldBars={0}
-              streakDays={streak.currentStreak}
-              streakBestDays={streak.bestStreak}
-              initialSpotsCompleted={stageSpotsCompleted}
-              stageProgressId={stageProgressId}
-              onResolved={(update) => {
-                setChipStack({
-                  chips: update.remainingChips,
-                  lockedOut: update.lockedOut,
-                  regenAt: update.regenAt,
-                });
-                if (update.stageComplete) {
-                  setCompletedCount((count) => Math.max(count, playingStage));
-                }
-                setSpotsByStage((current) => ({
-                  ...current,
-                  [playingStage]: update.spotsCompleted,
-                }));
-                setStageSpotsCompleted(update.spotsCompleted);
-                if (
-                  typeof update.streakCurrent === 'number' ||
-                  typeof update.streakBest === 'number'
-                ) {
-                  setStreak((current) => ({
-                    currentStreak: update.streakCurrent ?? current.currentStreak,
-                    bestStreak: update.streakBest ?? current.bestStreak,
-                    lastActiveDay: current.lastActiveDay,
-                  }));
-                }
-              }}
-              onBack={() => {
-                setPlayingStage(null);
-                setStageProgressId(null);
-              }}
-            />
           </View>
         ) : null}
       </View>

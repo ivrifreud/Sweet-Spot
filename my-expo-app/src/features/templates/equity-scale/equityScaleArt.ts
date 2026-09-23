@@ -47,6 +47,8 @@ export const equityScaleArt = {
   dialHand: {
     pinchBack: require('../../../../assets/tables/equity-scale/dial-hand-pinch-back.png'),
     pinchFront: require('../../../../assets/tables/equity-scale/dial-hand-pinch-front.png'),
+    /** Full composite — same canvas as the two-layer sandwich; kept for tooling. */
+    pinch: require('../../../../assets/tables/equity-scale/dial-hand-pinch.png'),
   },
   dial: require('../../../../assets/tables/equity-scale/rotary-dial.png'),
   buttons: {

@@ -2,8 +2,9 @@
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playSfx } from '../../../../lib/audio';
@@ -31,7 +32,8 @@ import {
   EQUITY_OUTS_MAX,
   EQUITY_OUTS_MIN,
 } from './config';
-import { dialValueToTilt } from './components/scaleArmLayout';
+import { dialGloveLayoutBox } from './components/dialGloveLayout';
+import { dialValueToTilt, scaleFramePosition } from './components/scaleArmLayout';
 import { percent, requiredEquity } from './equityMath';
 import { equityScaleArt } from './equityScaleArt';
 import { EQUITY_STRINGS, equityStreetTitle } from './strings';
@@ -78,6 +80,9 @@ export function EquityScaleTemplate({
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
+  const hosePosition = useSharedValue(
+    scaleFramePosition(dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX))
+  );
   const [lockedOuts, setLockedOuts] = useState<number | null>(null);
   const [phase, setPhase] = useState<EquityScalePhase>('entering');
   const submittedRef = useRef(false);
@@ -129,7 +134,12 @@ export function EquityScaleTemplate({
 
   useEffect(() => {
     if (forceTutorial) {
-      tutorialDoneRef.current = false;
+      // Keep a finished/skipped coach off for this mount even if deps re-fire.
+      if (tutorialDoneRef.current) {
+        setTutorialActive(false);
+        setTutorialReady(true);
+        return;
+      }
       tutorialBusyRef.current = false;
       setTutorialIndex(0);
       setTutorialSuccess(false);
@@ -165,13 +175,11 @@ export function EquityScaleTemplate({
 
   const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
   const showingOuts = phase === 'entering' || phase === 'stage1';
-  const tilt = useMemo(
-    () =>
-      showingOuts
-        ? dialValueToTilt(selectedOuts, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
-        : dialValueToTilt(selectedEquity, EQUITY_DIAL_MIN, EQUITY_DIAL_MAX),
-    [selectedEquity, selectedOuts, showingOuts]
-  );
+  useEffect(() => {
+    hosePosition.value = showingOuts
+      ? scaleFramePosition(dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX))
+      : scaleFramePosition(dialValueToTilt(EQUITY_INITIAL_EQUITY, EQUITY_DIAL_MIN, EQUITY_DIAL_MAX));
+  }, [hosePosition, resetKey, showingOuts]);
   const stage1Live = !disabled && phase === 'stage1';
   const stage2Live = !disabled && phase === 'stage2';
   const revealing =
@@ -290,6 +298,7 @@ export function EquityScaleTemplate({
   });
   const { scaleTop, cardsTop, valueTop, streetTop, actionBottom, dialSize, buttonSize, sideInset } =
     table;
+  const gloveBox = dialGloveLayoutBox(dialSize);
   const hits = equityTutorialHits(table, { width: windowWidth, height: windowHeight });
   const tutorialStep = currentStep(EQUITY_SCALE_TUTORIAL.steps, tutorialIndex);
   const showTutorial =
@@ -310,8 +319,6 @@ export function EquityScaleTemplate({
     tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('fold')));
   const callEnabled =
     tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('call')));
-  const showDialHand = !showTutorial || tutorialStep?.hand !== 'turnDial';
-
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
       <TableBackdrop skin={spot.skin} />
@@ -328,14 +335,16 @@ export function EquityScaleTemplate({
         </Text>
       </View>
 
-      <View style={[styles.scaleWrap, { top: scaleTop }]}>
+      <View style={[styles.scaleWrap, { top: scaleTop, height: table.scaleHeight }]}>
         <ScaleScene
-          tilt={tilt}
+          position={hosePosition}
+          initialPosition={scaleFramePosition(
+            dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
+          )}
           outcome={activeOutcome}
           stagesCorrect={grade?.stagesCorrect ?? null}
           width={table.scaleWidth}
           height={table.scaleHeight}
-          resetKey={resetKey}
         />
       </View>
 
@@ -358,7 +367,17 @@ export function EquityScaleTemplate({
         </View>
       </View>
 
-      <View style={[styles.dialWrap, { bottom: actionBottom }]}>
+      <View
+        collapsable={false}
+        style={[
+          styles.dialWrap,
+          {
+            bottom: actionBottom - gloveBox.overflowBelow,
+            left: (windowWidth - dialSize) / 2 - gloveBox.dialLeft,
+            width: gloveBox.width,
+            height: gloveBox.height,
+          },
+        ]}>
         {showingOuts ? (
           <EstimateDial
             key={`outs-${resetKey}-${spot.id}`}
@@ -370,7 +389,8 @@ export function EquityScaleTemplate({
             accessibilityLabel="Outs dial"
             enabled={dialEnabled}
             size={dialSize}
-            showHand={showDialHand}
+            showHand
+            hosePosition={hosePosition}
             onChange={setSelectedOuts}
             onAdjustStart={() => {}}
             onAdjustEnd={() => {
@@ -388,7 +408,8 @@ export function EquityScaleTemplate({
             accessibilityLabel="Equity dial"
             enabled={dialEnabled}
             size={dialSize}
-            showHand={showDialHand}
+            showHand
+            hosePosition={hosePosition}
             onChange={setSelectedEquity}
             onAdjustStart={() => {}}
             onAdjustEnd={() => {
@@ -548,10 +569,8 @@ const styles = StyleSheet.create({
   },
   dialWrap: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
     zIndex: 45,
+    elevation: 45,
     overflow: 'visible',
   },
   actions: {

@@ -60,6 +60,8 @@ type Props = {
   streakBestDays: number;
   initialSpotsCompleted?: number;
   stageProgressId?: string | null;
+  /** GY / calibration bypass: force Equity Scale coach on the first hand. */
+  forceTutorial?: boolean;
   onResolved: (update: StagePlayResolved) => void;
   onBack: () => void;
 };
@@ -82,6 +84,7 @@ export function StagePlayScreen({
   remainingChips,
   initialSpotsCompleted = 0,
   stageProgressId = null,
+  forceTutorial = false,
   onResolved,
   onBack,
 }: Props) {
@@ -328,6 +331,9 @@ export function StagePlayScreen({
         }}
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
+        forceTutorial={
+          forceTutorial && item.templateId === 2 && spotIndex === nextSpotIndex(initialSpotsCompleted)
+        }
       />
 
       <View

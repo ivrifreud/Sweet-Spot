@@ -13,6 +13,7 @@ type Props = {
   resetKey: number;
   outcome: DecisionOutcome | null;
   grade?: EquityGrade | null;
+  forceTutorial?: boolean;
   onPeekDecision: (decision: SpotDecision) => void;
   onEquitySubmit: (submission: EquityScaleSubmission) => void;
   onOutcomeAnimationComplete: () => void;
@@ -34,7 +35,16 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
       />
     );
   },
-  2: ({ item, disabled, resetKey, outcome, grade, onEquitySubmit, onOutcomeAnimationComplete }) => {
+  2: ({
+    item,
+    disabled,
+    resetKey,
+    outcome,
+    grade,
+    forceTutorial,
+    onEquitySubmit,
+    onOutcomeAnimationComplete,
+  }) => {
     if (item.templateId !== 2) throw new Error('Equity renderer received the wrong spot');
     return (
       <EquityScaleTemplate
@@ -45,6 +55,7 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
         onOutcomeAnimationComplete={onOutcomeAnimationComplete}
         disabled={disabled}
         resetKey={resetKey}
+        forceTutorial={forceTutorial}
       />
     );
   },

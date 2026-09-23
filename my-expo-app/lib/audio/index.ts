@@ -222,6 +222,17 @@ export async function prepareWorldAmbience(
   await ensureAmbiencePlayer(next);
 }
 
+/** Warm the first table cues during welcome so Deal Me In does not create players and decode art together. */
+export async function preparePeekTableAudio(): Promise<void> {
+  await Promise.all([
+    ensureSfxPlayer('deal'),
+    ensureSfxPlayer('peek'),
+    ensureSfxPlayer('check'),
+    ensureSfxPlayer('settle'),
+    prepareWorldAmbience('bennys-garden', 'night'),
+  ]);
+}
+
 function guarded(name: SfxName | AmbienceName, gapMs = 80): boolean {
   const now = Date.now();
   if ((lastPlayed[name] ?? 0) + gapMs > now) return false;

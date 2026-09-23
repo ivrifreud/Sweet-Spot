@@ -27,4 +27,11 @@ describe('peek hand reset', () => {
     expect(shouldApplyDealComplete(active, active, true)).toBe(true);
     expect(shouldApplyDealComplete(active, active, false)).toBe(false);
   });
+
+  it('lets only the JS thread read the active generation after a finished notify', () => {
+    const generation = nextHandResetGeneration(0);
+    const interrupted = nextHandResetGeneration(generation);
+    expect(shouldApplyDealComplete(generation, generation, true)).toBe(true);
+    expect(shouldApplyDealComplete(generation, interrupted, true)).toBe(false);
+  });
 });

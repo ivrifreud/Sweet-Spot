@@ -1,5 +1,5 @@
 import './global.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import * as ExpoSplashScreen from 'expo-splash-screen';
@@ -48,11 +48,13 @@ function AppInner() {
   const [bootError, setBootError] = useState<string | null>(supabaseConfigError);
   const [started, setStarted] = useState(false);
   const [devBypassActive, setDevBypassActive] = useState(false);
+  const queuedStartRef = useRef(false);
 
   const activeUserId = session?.user.id ?? (devBypassActive ? DEV_BYPASS_USER_ID : null);
 
   useEffect(() => {
     markPerf('app-inner-mount');
+    hideSplash();
   }, []);
 
   useEffect(() => {
@@ -60,6 +62,10 @@ function AppInner() {
       markPerf('app-shell-ready');
       measurePerf('app-shell', 'app-mount', 'app-shell-ready');
       hideSplash();
+      if (queuedStartRef.current) {
+        queuedStartRef.current = false;
+        setStarted(true);
+      }
     }
   }, [loading]);
 
@@ -102,7 +108,13 @@ function AppInner() {
   }
 
   if (loading) {
-    return <BootScreen message="Restoring session…" />;
+    return (
+      <SplashScreen
+        onPressStart={() => {
+          queuedStartRef.current = true;
+        }}
+      />
+    );
   }
 
   return (

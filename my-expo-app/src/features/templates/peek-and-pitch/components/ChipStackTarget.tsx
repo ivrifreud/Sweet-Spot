@@ -8,6 +8,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { playCheckSfx, queueCheckSfx } from '../../../../../lib/audio';
 import { GESTURES } from '../config';
 import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
 
@@ -68,6 +69,7 @@ export function ChipStackTarget({
   const allowCall = useSharedValue(includesAction(allowedActions, 'call') ? 1 : 0);
   const allowRaise = useSharedValue(includesAction(allowedActions, 'raise') ? 1 : 0);
   const allowCheck = useSharedValue(includesAction(allowedActions, 'check') ? 1 : 0);
+  const checkPresses = useSharedValue(0);
 
   const onCallRef = useRef(onCall);
   onCallRef.current = onCall;
@@ -95,6 +97,12 @@ export function ChipStackTarget({
   const fireRejected = useCallback(() => {
     onRejectedRef.current?.();
   }, []);
+  const queueCheckCue = useCallback(() => {
+    queueCheckSfx();
+  }, []);
+  const startCheckCue = useCallback(() => {
+    playCheckSfx();
+  }, []);
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
@@ -108,6 +116,7 @@ export function ChipStackTarget({
       stackDragX.value = 0;
       stackDragY.value = 0;
       raiseArmed.value = 0;
+      checkPresses.value = 0;
     }
   }, [
     allowCall,
@@ -116,6 +125,7 @@ export function ChipStackTarget({
     allowedActions,
     canCheck,
     canCheckEnabled,
+    checkPresses,
     live,
     liveEnabled,
     lockEnabled,
@@ -131,6 +141,31 @@ export function ChipStackTarget({
       .maxDuration(GESTURES.tapMaxDuration)
       .maxDelay(GESTURES.doubleTapMs)
       .maxDistance(GESTURES.tapMaxDistance)
+      .onTouchesDown(() => {
+        // The double-tap commits on the second finger-up. Start the cue on the second press.
+        if (liveEnabled.value !== 1) {
+          return;
+        }
+        const press = checkPresses.value + 1;
+        checkPresses.value = press;
+        if (press === 1) {
+          runOnJS(queueCheckCue)();
+          return;
+        }
+        if (press !== 2) {
+          return;
+        }
+        if (lockEnabled.value === 1 && allowCheck.value !== 1) {
+          return;
+        }
+        if (canCheckEnabled.value !== 1) {
+          return;
+        }
+        runOnJS(startCheckCue)();
+      })
+      .onFinalize(() => {
+        checkPresses.value = 0;
+      })
       .onEnd((_event, success) => {
         if (!success || liveEnabled.value !== 1) {
           return;
@@ -168,7 +203,8 @@ export function ChipStackTarget({
         const towardPotX = potCenter.x - stackCenter.x;
         const towardPotY = potCenter.y - stackCenter.y;
         const length = Math.max(1, Math.hypot(towardPotX, towardPotY));
-        const progress = (event.translationX * towardPotX + event.translationY * towardPotY) / length;
+        const progress =
+          (event.translationX * towardPotX + event.translationY * towardPotY) / length;
         if (progress >= GESTURES.stackRaiseCommit) {
           raiseArmed.value = 1;
         }
@@ -224,6 +260,7 @@ export function ChipStackTarget({
     return Gesture.Exclusive(checkTap, raisePan, callTap);
   }, [
     canCheckEnabled,
+    checkPresses,
     fireCall,
     fireCheck,
     fireIllegalCheck,
@@ -234,6 +271,7 @@ export function ChipStackTarget({
     allowCall,
     allowCheck,
     allowRaise,
+    queueCheckCue,
     potCenter.x,
     potCenter.y,
     stackCenter.x,
@@ -242,6 +280,7 @@ export function ChipStackTarget({
     stackDragX,
     stackDragY,
     stackPress,
+    startCheckCue,
   ]);
 
   return (
@@ -258,7 +297,10 @@ export function ChipStackTarget({
           { name: 'magicTap', label: 'Call' },
         ]}
         onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'activate' || event.nativeEvent.actionName === 'magicTap') {
+          if (
+            event.nativeEvent.actionName === 'activate' ||
+            event.nativeEvent.actionName === 'magicTap'
+          ) {
             onCall();
           }
         }}

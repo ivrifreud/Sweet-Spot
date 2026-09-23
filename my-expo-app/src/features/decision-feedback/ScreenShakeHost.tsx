@@ -74,7 +74,7 @@ export function ScreenShakeHost({
     <Animated.View
       testID="decision-screen-shake"
       pointerEvents={pointerEvents}
-      style={[style, shakeStyle]}>
+      style={[style, shakeStyle, { overflow: 'visible' as const }]}>
       {children}
     </Animated.View>
   );

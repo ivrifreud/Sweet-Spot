@@ -5,6 +5,7 @@ import {
   phaseAfterDecision,
   resolveContinueAfterFeedback,
   resolvePostEquityReveal,
+  shouldMountTrackMap,
 } from './stagePlayPhase';
 
 describe('stage play phase', () => {
@@ -54,5 +55,11 @@ describe('stage play phase', () => {
       leaveStage: false,
       advanceSpot: true,
     });
+  });
+
+  it('unmounts the track map while a stage is open so the phone is not holding both scenes', () => {
+    expect(shouldMountTrackMap(null)).toBe(true);
+    expect(shouldMountTrackMap(1)).toBe(false);
+    expect(shouldMountTrackMap(2)).toBe(false);
   });
 });

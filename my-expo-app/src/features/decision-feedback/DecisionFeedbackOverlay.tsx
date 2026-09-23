@@ -4,6 +4,7 @@ import { VideoView } from 'expo-video';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -378,7 +379,7 @@ function MissCoachVideo({ restartKey }: { restartKey?: string }) {
         nativeControls={false}
         contentFit="cover"
         playsInline
-        surfaceType="textureView"
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
         onFirstFrameRender={onFirstFrame}
         style={styles.portraitFill}
       />
@@ -418,7 +419,7 @@ function CoachEmoteVideo({
         nativeControls={false}
         contentFit="cover"
         playsInline
-        surfaceType="textureView"
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
         onFirstFrameRender={onFirstFrame}
         style={styles.portraitFill}
       />

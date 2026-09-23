@@ -23,6 +23,7 @@ export type PlaybackEvent =
   | { type: 'status'; generation: number; status: 'loading' | 'readyToPlay' | 'error'; duration?: number }
   | { type: 'sourceLoad'; generation: number; duration?: number }
   | { type: 'firstFrame'; generation: number }
+  | { type: 'playing'; generation: number }
   | { type: 'timeout'; generation: number }
   | { type: 'dispose'; generation: number };
 
@@ -123,7 +124,40 @@ export function planPlayback(
 
   if (state.phase === 'disposed') return ignore(state);
 
-  if (event.type === 'timeout' || (event.type === 'status' && event.status === 'error')) {
+  if (event.type === 'timeout') {
+    const alreadyPlaying =
+      state.phase === 'playing' ||
+      state.phase === 'firstFrame' ||
+      state.phase === 'seeking' ||
+      !state.showPoster;
+    if (alreadyPlaying) {
+      return {
+        state,
+        command: {
+          ignore: false,
+          seekTo: null,
+          shouldPlay: false,
+          muted: null,
+          showPoster: state.showPoster,
+          fallback: false,
+        },
+      };
+    }
+    const next: PlaybackState = { ...state, phase: 'fallback', showPoster: true };
+    return {
+      state: next,
+      command: {
+        ignore: false,
+        seekTo: null,
+        shouldPlay: false,
+        muted: null,
+        showPoster: true,
+        fallback: true,
+      },
+    };
+  }
+
+  if (event.type === 'status' && event.status === 'error') {
     const next: PlaybackState = { ...state, phase: 'fallback', showPoster: true };
     return {
       state: next,
@@ -159,6 +193,20 @@ export function planPlayback(
         : state.duration
       : state.duration;
 
+  if (event.type === 'playing') {
+    return {
+      state: { ...state, phase: 'playing', showPoster: false },
+      command: {
+        ignore: false,
+        seekTo: null,
+        shouldPlay: false,
+        muted: null,
+        showPoster: false,
+        fallback: false,
+      },
+    };
+  }
+
   if (event.type === 'firstFrame') {
     if (state.phase !== 'playing' && state.phase !== 'seeking' && state.phase !== 'ready') {
       return ignore(state);
@@ -182,11 +230,11 @@ export function planPlayback(
 
   if (duration == null || duration <= 0) {
     return {
-      state: { ...state, phase: 'ready', duration },
+      state: { ...state, phase: 'playing', duration },
       command: {
         ignore: false,
         seekTo: null,
-        shouldPlay: false,
+        shouldPlay: true,
         muted: state.muted,
         showPoster: true,
         fallback: false,

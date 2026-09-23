@@ -1,5 +1,5 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -23,7 +23,10 @@ import { artStyle } from '../../../../../theme/artStyle';
 import { REVEAL_HOLD_MS, REVEAL_STAMP_MS } from '../config';
 import { EQUITY_STRINGS } from '../strings';
 import type { EquityGrade } from '../types';
-import { ScaleResultClip } from './ScaleResultClip';
+
+const ScaleResultClip = lazy(() =>
+  import('./ScaleResultClip').then((mod) => ({ default: mod.ScaleResultClip }))
+);
 
 type Props = {
   grade: EquityGrade | null;
@@ -74,7 +77,11 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
 
   const body = (
     <View style={styles.stack}>
-      {showClip && clipKind ? <ScaleResultClip variant={clipKind} /> : null}
+      {showClip && clipKind ? (
+        <Suspense fallback={null}>
+          <ScaleResultClip variant={clipKind} />
+        </Suspense>
+      ) : null}
       {stamps}
     </View>
   );

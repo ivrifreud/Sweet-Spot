@@ -21,7 +21,10 @@ import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
 import { FogClimbPreviewButton } from '../components/track/FogClimbPreviewButton';
 import { StreakModal } from '../components/track/StreakModal';
 import { TrackHud } from '../components/track/TrackHud';
+import type { ReadyWorldId } from '../lib/track/worldForPlacement';
 import {
+  BENNYS_GARDEN_WORLD,
+  LOCAL_CASINO_WORLD,
   createBennysGardenWorld,
   type WorldMapTemplate,
 } from '../components/track/worldMapTemplates';
@@ -52,6 +55,7 @@ type Props = {
   streakBestDays: number;
   completedCount: number;
   spotsByStage?: Record<number, number>;
+  worldId?: ReadyWorldId;
   currentWorld?: WorldMapTemplate;
   avatarSource?: ImageSourcePropType;
   /** False while a level covers the map so Benny's shoes stay put until focus. */
@@ -63,6 +67,16 @@ type Props = {
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
+
+function resolveWorld(
+  worldId?: ReadyWorldId,
+  currentWorld?: WorldMapTemplate
+): WorldMapTemplate | undefined {
+  if (currentWorld) return currentWorld;
+  if (worldId === 'local-casino') return LOCAL_CASINO_WORLD;
+  if (worldId === 'bennys-garden') return BENNYS_GARDEN_WORLD;
+  return undefined;
+}
 
 function initialStanding(completedCount: number, nodeCount: number): number {
   const current = currentStageNumber(completedCount, nodeCount);
@@ -78,6 +92,7 @@ export function TrackMapScreen({
   streakBestDays,
   completedCount,
   spotsByStage = {},
+  worldId,
   currentWorld,
   avatarSource,
   isActive = true,
@@ -92,8 +107,10 @@ export function TrackMapScreen({
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
-  const [sessionWorld] = useState(() => currentWorld ?? createBennysGardenWorld());
-  const world = currentWorld ?? sessionWorld;
+  const [sessionWorld] = useState(
+    () => resolveWorld(worldId, currentWorld) ?? createBennysGardenWorld()
+  );
+  const world = resolveWorld(worldId, currentWorld) ?? sessionWorld;
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [nativeMap, setNativeMap] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() =>

@@ -123,7 +123,12 @@ export function GestureTutorialOverlay({
         );
       }}
       style={styles.root}>
-      <SoftSpotlight origin={spotlight.origin} radius={spotlight.radius} />
+      <SoftSpotlight
+        origin={spotlight.origin}
+        radius={spotlight.radius}
+        width={width}
+        height={height}
+      />
 
       <PointingGesture
         key={step.id}
@@ -161,11 +166,24 @@ export function GestureTutorialOverlay({
   );
 }
 
-function SoftSpotlight({ origin, radius }: { origin: TutorialPoint; radius: number }) {
+function SoftSpotlight({
+  origin,
+  radius,
+  width,
+  height,
+}: {
+  origin: TutorialPoint;
+  radius: number;
+  width: number;
+  height: number;
+}) {
   const fadeRadius = Math.max(radius * 2.35, 160);
+  // Android SVG often paints 0×0 for percentage Rect sizes; use pixels.
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
 
   return (
-    <Svg pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 0 }]}>
+    <Svg pointerEvents="none" width={w} height={h} style={[StyleSheet.absoluteFill, { zIndex: 0 }]}>
       <Defs>
         <RadialGradient
           id="tutorialSpotlight"
@@ -179,7 +197,7 @@ function SoftSpotlight({ origin, radius }: { origin: TutorialPoint; radius: numb
           <Stop offset="1" stopColor={artStyle.colors.projectorBlack} stopOpacity={0.76} />
         </RadialGradient>
       </Defs>
-      <Rect width="100%" height="100%" fill="url(#tutorialSpotlight)" />
+      <Rect x={0} y={0} width={w} height={h} fill="url(#tutorialSpotlight)" />
     </Svg>
   );
 }

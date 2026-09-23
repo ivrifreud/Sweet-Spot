@@ -1,5 +1,5 @@
 import { VideoView } from 'expo-video';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { isMuted } from '../../../../../lib/audio';
 import {
@@ -47,7 +47,7 @@ export function ScaleResultClip({ variant }: Props) {
         nativeControls={false}
         contentFit="cover"
         playsInline
-        surfaceType="textureView"
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
         onFirstFrameRender={onFirstFrame}
         style={styles.video}
       />

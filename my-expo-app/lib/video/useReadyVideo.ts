@@ -27,7 +27,10 @@ export function useReadyVideo(options: {
   }, [generationKey]);
   const resolveSeek = options.resolveSeek ?? (() => 0);
   const muted = options.muted ?? true;
-  const stateRef = useRef(initialPlaybackState());
+  const stateRef = useRef(
+    planPlayback(initialPlaybackState(), { type: 'request', generation: 1, muted: options.muted ?? true })
+      .state
+  );
   const [showPoster, setShowPoster] = useState(true);
   const [fallback, setFallback] = useState(false);
 
@@ -46,7 +49,13 @@ export function useReadyVideo(options: {
     if (planned.command.seekTo != null) player.currentTime = planned.command.seekTo;
     if (planned.command.shouldPlay && !player.playing) {
       markPerf(`video-play-${generationId}`);
-      player.play();
+      try {
+        player.play();
+      } catch {
+        if (!player.playing) {
+          apply({ type: 'timeout', generation: generationId });
+        }
+      }
     }
   };
 
@@ -61,11 +70,17 @@ export function useReadyVideo(options: {
   useEventListener(player, 'sourceLoad', (event) => {
     apply({ type: 'sourceLoad', generation: generationId, duration: event.duration });
   });
+  useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    if (isPlaying) {
+      apply({ type: 'playing', generation: generationId });
+    }
+  });
 
   useEffect(() => {
     markPerf(`video-request-${generationId}`);
     apply({ type: 'request', generation: generationId, muted });
     const timeout = setTimeout(() => {
+      if (player.playing) return;
       apply({ type: 'timeout', generation: generationId });
     }, options.timeoutMs ?? FIRST_FRAME_TIMEOUT_MS);
     return () => {
@@ -79,7 +94,7 @@ export function useReadyVideo(options: {
 
   return {
     player,
-    showPoster: showPoster || fallback,
+    showPoster,
     fallback,
     onFirstFrame: () => {
       markPerf(`video-first-frame-${generationId}`);

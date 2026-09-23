@@ -1,6 +1,3 @@
-import { equityScaleArt } from '../../src/features/templates/equity-scale/equityScaleArt';
-import { scaleFrameIndex } from '../../src/features/templates/equity-scale/components/scaleArmLayout';
-
 export async function prepareBundledAssets(sources: readonly number[]): Promise<void> {
   if (sources.length === 0) return;
   try {
@@ -11,7 +8,19 @@ export async function prepareBundledAssets(sources: readonly number[]): Promise<
   }
 }
 
-export function firstEquityScaleAssets(): number[] {
+export function firstPeekAssets(): number[] {
+  return [
+    require('../../assets/tables/hero-glove-rest.png'),
+    require('../../assets/tables/hero-glove-pinch.png'),
+    require('../../assets/tables/hero-glove-lift.png'),
+  ];
+}
+
+export async function firstEquityScaleAssets(): Promise<number[]> {
+  const [{ equityScaleArt }, { scaleFrameIndex }] = await Promise.all([
+    import('../../src/features/templates/equity-scale/equityScaleArt'),
+    import('../../src/features/templates/equity-scale/components/scaleArmLayout'),
+  ]);
   const rest = scaleFrameIndex(0);
   const neighbors = [rest - 1, rest, rest + 1].filter(
     (index) => index >= 0 && index < equityScaleArt.scaleFrames.length
@@ -25,14 +34,6 @@ export function firstEquityScaleAssets(): number[] {
   ];
 }
 
-export function firstPeekAssets(): number[] {
-  return [
-    require('../../assets/tables/hero-glove-rest.png'),
-    require('../../assets/tables/hero-glove-pinch.png'),
-    require('../../assets/tables/hero-glove-lift.png'),
-  ];
-}
-
 export async function prepareKnownWorldAssets(worldId: string): Promise<void> {
   const sources: number[] = [];
   if (worldId === 'bennys-garden') {
@@ -43,6 +44,27 @@ export async function prepareKnownWorldAssets(worldId: string): Promise<void> {
   await prepareBundledAssets(sources);
 }
 
+/** Coach lockout clip + still — warm before the tray empties. */
+export function lockoutCoachAssets(): number[] {
+  return [
+    require('../../assets/brand/artstyle/coach-broke-lockout.mp4'),
+    require('../../assets/brand/artstyle/coach-broke-lockout.png'),
+  ];
+}
+
+export async function prepareLockoutCoachAssets(): Promise<void> {
+  await prepareBundledAssets(lockoutCoachAssets());
+}
+
 export async function prepareTemplateAssets(templateId: 1 | 2): Promise<void> {
-  await prepareBundledAssets(templateId === 2 ? firstEquityScaleAssets() : firstPeekAssets());
+  if (templateId === 1) {
+    await prepareBundledAssets(firstPeekAssets());
+    return;
+  }
+  try {
+    const sources = await firstEquityScaleAssets();
+    await prepareBundledAssets(sources);
+  } catch {
+    // Bundled require() remains the fallback.
+  }
 }

@@ -163,6 +163,11 @@ export function PeekAndPitchTemplate({
   const onTutorialUiRef = useRef(onTutorialUi);
   onTutorialUiRef.current = onTutorialUi;
   const dealGenerationRef = useRef(0);
+  const applyDealComplete = useCallback((generation: number) => {
+    if (shouldApplyDealComplete(generation, dealGenerationRef.current, true)) {
+      setPhase('live');
+    }
+  }, []);
 
   const deal = useSharedValue(0);
   const peek = useSharedValue(0);
@@ -328,13 +333,14 @@ export function PeekAndPitchTemplate({
         1,
         { duration: DEAL_THROW_MS, easing: Easing.out(Easing.cubic) },
         (finished) => {
-          if (shouldApplyDealComplete(generation, dealGenerationRef.current, Boolean(finished))) {
-            runOnJS(setPhase)('live');
+          // Worklets may only pass primitives to JS. Never read a React ref here.
+          if (finished) {
+            runOnJS(applyDealComplete)(generation);
           }
         }
       );
     },
-    [commit, deal, muck, peek, stackDragX, stackDragY, stackPress]
+    [applyDealComplete, commit, deal, muck, peek, stackDragX, stackDragY, stackPress]
   );
 
   useEffect(() => {
