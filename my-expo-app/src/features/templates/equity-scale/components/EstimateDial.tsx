@@ -1,17 +1,15 @@
 /* eslint-disable react-hooks/immutability, react-hooks/refs -- Gesture worklets update Reanimated SharedValues and callback refs. */
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View, type AccessibilityActionEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDecay,
   withSpring,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
 
 import { startDialSfx, stopDialSfx } from '../../../../../lib/audio';
@@ -20,7 +18,6 @@ import {
   DIAL_CENTER_DEADZONE_PX,
   DIAL_MAX_DEG,
   DIAL_MIN_DEG,
-  SCALE_MAX_TILT_DEG,
   dialAngleToValue,
   dialIsSpinning,
   rotationAfterFingerMove,
@@ -28,11 +25,13 @@ import {
 } from '../dialMath';
 import { equityScaleArt } from '../equityScaleArt';
 import { EQUITY_PHONE_LAYOUT } from '../tableLayout';
-import { SCALE_FRAME_STEP_DEG } from './scaleArmLayout';
-import { DIAL_PIVOT_ORIGIN, dialGloveLayoutBox, dialHandPose } from './dialGloveLayout';
+import { DIAL_GLOVE_CONTACT, DIAL_PIVOT_ORIGIN, dialHandPose } from './dialGloveLayout';
 
 const FLICK_DEG_PER_SEC = 80;
 const PIVOT = `${DIAL_PIVOT_ORIGIN.x * 100}% ${DIAL_PIVOT_ORIGIN.y * 100}%`;
+const HAND_ORIGIN = {
+  transformOrigin: `${DIAL_GLOVE_CONTACT.x * 100}% ${DIAL_GLOVE_CONTACT.y * 100}%`,
+} as const;
 
 type Props = {
   value: number;
@@ -47,7 +46,6 @@ type Props = {
   onAdjustStart: () => void;
   onAdjustEnd: () => void;
   showHand?: boolean;
-  hosePosition: SharedValue<number>;
 };
 
 function tickHaptic() {
@@ -67,10 +65,7 @@ export function EstimateDial({
   onAdjustStart,
   onAdjustEnd,
   showHand = true,
-  hosePosition,
 }: Props) {
-  const box = useMemo(() => dialGloveLayoutBox(size), [size]);
-  const gloveBox = useMemo(() => dialHandPose(0, size), [size]);
   const rotation = useSharedValue(valueToDialAngle(value, min, max));
   const lastX = useSharedValue(size / 2);
   const lastY = useSharedValue(0);
@@ -94,24 +89,6 @@ export function EstimateDial({
     rotation.value = withTiming(valueToDialAngle(value, min, max), { duration: 90 });
     lastEmitted.value = value;
   }, [dragging, lastEmitted, max, min, rotation, value]);
-
-  useAnimatedReaction(
-    () => rotation.value,
-    (angle) => {
-      const minV = minValue.value;
-      const maxV = maxValue.value;
-      const span = maxV - minV;
-      const bounded = Math.min(DIAL_MAX_DEG, Math.max(DIAL_MIN_DEG, angle));
-      const t = (bounded - DIAL_MIN_DEG) / (DIAL_MAX_DEG - DIAL_MIN_DEG);
-      const nextValue = span <= 0 ? minV : minV + t * span;
-      const tiltT = span <= 0 ? 0.5 : Math.min(1, Math.max(0, (nextValue - minV) / span));
-      const tilt = Math.min(
-        SCALE_MAX_TILT_DEG,
-        Math.max(-SCALE_MAX_TILT_DEG, (tiltT - 0.5) * 2 * SCALE_MAX_TILT_DEG)
-      );
-      hosePosition.value = (tilt + SCALE_MAX_TILT_DEG) / SCALE_FRAME_STEP_DEG;
-    }
-  );
 
   const onChangeRef = useRef(onChange);
   const onAdjustStartRef = useRef(onAdjustStart);
@@ -142,6 +119,9 @@ export function EstimateDial({
     onAdjustEndRef.current();
   }, []);
 
+  const [backFailed, setBackFailed] = useState(false);
+  const [frontFailed, setFrontFailed] = useState(false);
+  const useSingleHandFallback = backFailed || frontFailed;
   const soundingRef = useRef(false);
   const lastSpinAtRef = useRef(0);
 
@@ -267,6 +247,17 @@ export function EstimateDial({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
+  const handStyle = useAnimatedStyle(() => {
+    const pose = dialHandPose(rotation.value, dialSize.value);
+    return {
+      width: pose.width,
+      height: pose.height,
+      left: pose.left,
+      top: pose.top,
+      transform: [{ rotate: `${pose.rotateDeg}deg` }],
+    };
+  });
+
   const adjust = (delta: number) => {
     if (!enabled) return;
     onChange(Math.min(max, Math.max(min, value + delta)));
@@ -277,30 +268,8 @@ export function EstimateDial({
     adjust(event.nativeEvent.actionName === 'increment' ? 1 : -1);
   };
 
-  // Static sandwich (back → dial → front). No rotate on the glove layers —
-  // Android clips transformed views to pre-rotate bounds and sheared the hand.
-  const handArtStyle = {
-    position: 'absolute' as const,
-    left: box.gloveLeft,
-    top: box.gloveTop,
-    width: gloveBox.width,
-    height: gloveBox.height,
-  };
-
   return (
-    <View collapsable={false} style={[styles.wrap, { width: box.width, height: box.height }]}>
-      {showHand ? (
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          style={[styles.handDock, styles.handBack, handArtStyle]}>
-          <Image
-            source={equityScaleArt.dialHand.pinchBack}
-            resizeMode="contain"
-            style={styles.handArt}
-          />
-        </View>
-      ) : null}
+    <View style={styles.wrap}>
       <GestureDetector gesture={gesture}>
         <Animated.View
           collapsable={false}
@@ -313,57 +282,69 @@ export function EstimateDial({
             { name: 'decrement', label: 'Decrease' },
           ]}
           onAccessibilityAction={onAccessibilityAction}
-          style={[
-            styles.hitTarget,
-            {
-              width: size,
-              height: size,
-              left: box.dialLeft,
-              top: box.dialTop,
-            },
-          ]}>
-          <Animated.View
-            style={[
-              styles.spinLayer,
-              { width: size, height: size, transformOrigin: PIVOT },
-              spinStyle,
-            ]}>
-            <Image
-              source={equityScaleArt.dial}
-              resizeMode="cover"
-              style={{ width: size, height: size }}
-              accessibilityLabel={label}
-            />
-          </Animated.View>
-          <View pointerEvents="none" style={styles.valuePlate}>
-            <Text style={styles.value}>{value}</Text>
-            <Text style={styles.valueUnit}>{unit}</Text>
+          style={[styles.hitTarget, { width: size, height: size }]}>
+          <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
+            {showHand && !useSingleHandFallback ? (
+              <Animated.View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                style={[styles.handDock, styles.handBack, HAND_ORIGIN, handStyle]}>
+                <Animated.Image
+                  source={equityScaleArt.dialHand.pinchBack}
+                  resizeMode="contain"
+                  style={styles.handArt}
+                  onError={() => setBackFailed(true)}
+                />
+              </Animated.View>
+            ) : null}
+            <Animated.View
+              style={[
+                styles.spinLayer,
+                { width: size, height: size, transformOrigin: PIVOT },
+                spinStyle,
+              ]}>
+              <Image
+                source={equityScaleArt.dial}
+                resizeMode="cover"
+                style={{ width: size, height: size }}
+                accessibilityLabel={label}
+              />
+            </Animated.View>
+            {showHand ? (
+              <Animated.View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                style={[styles.handDock, styles.handFront, HAND_ORIGIN, handStyle]}>
+                <Animated.Image
+                  source={equityScaleArt.dialHand.pinchFront}
+                  resizeMode="contain"
+                  style={styles.handArt}
+                  onError={() => setFrontFailed(true)}
+                />
+              </Animated.View>
+            ) : null}
+            <View pointerEvents="none" style={styles.valuePlate}>
+              <Text style={styles.value}>{value}</Text>
+              <Text style={styles.valueUnit}>{unit}</Text>
+            </View>
           </View>
         </Animated.View>
       </GestureDetector>
-      {showHand ? (
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          style={[styles.handDock, styles.handFront, handArtStyle]}>
-          <Image
-            source={equityScaleArt.dialHand.pinchFront}
-            resizeMode="contain"
-            style={styles.handArt}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'relative',
+    alignItems: 'center',
     overflow: 'visible',
   },
   hitTarget: {
-    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  dialStack: {
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
@@ -374,6 +355,8 @@ const styles = StyleSheet.create({
   },
   handDock: {
     position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'visible',
   },
   handBack: {
@@ -385,6 +368,9 @@ const styles = StyleSheet.create({
   handArt: {
     width: '100%',
     height: '100%',
+    position: 'absolute',
+    overflow: 'visible',
+    backgroundColor: 'transparent',
   },
   valuePlate: {
     position: 'absolute',
