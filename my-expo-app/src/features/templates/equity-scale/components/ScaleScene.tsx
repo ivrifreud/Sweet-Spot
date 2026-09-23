@@ -1,16 +1,25 @@
-import { useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect -- Frame window syncs from tilt/reset, then settles after the crossfade. */
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import Animated, {
+  cancelAnimation,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { markPerf } from '../../../../../lib/performance/marks';
 import type { DecisionOutcome } from '../../../decision-feedback/types';
 import { equityScaleArt } from '../equityScaleArt';
 import { SCALE_ART } from '../tableLayout';
-import { frameBlendOpacity, scaleFramePosition } from './scaleArmLayout';
+import {
+  frameBlendOpacity,
+  mergeScaleFrameWindow,
+  scaleFramePosition,
+  scaleFrameWindow,
+} from './scaleArmLayout';
 
 type Props = {
   tilt: number;
@@ -18,6 +27,7 @@ type Props = {
   stagesCorrect?: 0 | 1 | 2 | 3 | null;
   width?: number;
   height?: number;
+  resetKey?: number;
 };
 
 export const SCALE_SCENE = SCALE_ART;
@@ -45,12 +55,27 @@ function ScaleFrameLayer({
   );
 }
 
-export function ScaleScene({ tilt, width = SCALE_ART.width, height = SCALE_ART.height }: Props) {
-  const position = useSharedValue(scaleFramePosition(tilt));
+export function ScaleScene({
+  tilt,
+  width = SCALE_ART.width,
+  height = SCALE_ART.height,
+  resetKey = 0,
+}: Props) {
+  const start = scaleFramePosition(tilt);
+  const position = useSharedValue(start);
+  const [mounted, setMounted] = useState(() => scaleFrameWindow(start));
 
   useEffect(() => {
-    position.value = withTiming(scaleFramePosition(tilt), { duration: 120 });
-  }, [position, tilt]);
+    const next = scaleFrameWindow(scaleFramePosition(tilt));
+    setMounted((current) => mergeScaleFrameWindow(current, next));
+    markPerf(`scale-frame-${resetKey}-${next.join('-')}`);
+    cancelAnimation(position);
+    position.value = withTiming(scaleFramePosition(tilt), { duration: 120 }, (finished) => {
+      if (finished) {
+        runOnJS(setMounted)(next);
+      }
+    });
+  }, [position, resetKey, tilt]);
 
   return (
     <View
@@ -60,10 +85,10 @@ export function ScaleScene({ tilt, width = SCALE_ART.width, height = SCALE_ART.h
       <View style={[styles.layer, { width, height }]}>
         <Image source={equityScaleArt.scale.body} resizeMode="contain" style={styles.art} />
       </View>
-      {equityScaleArt.scaleFrames.map((source, index) => (
+      {mounted.map((index) => (
         <ScaleFrameLayer
           key={index}
-          source={source}
+          source={equityScaleArt.scaleFrames[index]!}
           index={index}
           position={position}
           width={width}

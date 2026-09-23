@@ -27,6 +27,7 @@ import {
 } from '../components/track/worldMapTemplates';
 import { agentDebugLog } from '../lib/agentDebugLog';
 import { playSfx, startAmbience, startIdleWatch, stopAmbience, stopIdleWatch } from '../lib/audio';
+import { markPerf } from '../lib/performance/marks';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { initialFogPhase, reduceFog, type FogPhase } from '../lib/track/fogCycle';
 import type { Point } from '../lib/track/mapPath';
@@ -152,7 +153,10 @@ export function TrackMapScreen({
     const play = pendingPlay.current;
     if (play === null) return;
     pendingPlay.current = null;
-    if (play === stageNumber) playStageRef.current(play);
+    if (play === stageNumber) {
+      markPerf('map-stage-requested');
+      playStageRef.current(play);
+    }
   }
 
   function startWalk(stageNumber: number): boolean {
@@ -373,6 +377,7 @@ export function TrackMapScreen({
 
     if (world.id === 'bennys-garden') playSfx('nodePress');
     if (alreadyThere) {
+      markPerf('map-stage-requested');
       onPlayStage(stageNumber);
       return;
     }
@@ -455,6 +460,7 @@ export function TrackMapScreen({
               onPressNode={handlePress}
               onArrived={handleArrived}
               onCameraSettled={handleCameraSettled}
+              mapActive={isActive}
             />
           </View>
         ) : null}
@@ -476,9 +482,11 @@ export function TrackMapScreen({
         <Text style={[styles.kicker, display]} accessibilityRole="header" numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
-        <Text style={styles.debugLine} pointerEvents="none">
-          {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
-        </Text>
+        {__DEV__ ? (
+          <Text style={styles.debugLine} pointerEvents="none">
+            {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
+          </Text>
+        ) : null}
         {!lockMessage && notice ? (
           <View
             accessible

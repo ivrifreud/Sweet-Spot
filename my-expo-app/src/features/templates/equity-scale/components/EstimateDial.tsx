@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/immutability, react-hooks/refs -- Gesture worklets update Reanimated SharedValues and callback refs. */
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View, type AccessibilityActionEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -119,6 +119,9 @@ export function EstimateDial({
     onAdjustEndRef.current();
   }, []);
 
+  const [backFailed, setBackFailed] = useState(false);
+  const [frontFailed, setFrontFailed] = useState(false);
+  const useSingleHandFallback = backFailed || frontFailed;
   const soundingRef = useRef(false);
   const lastSpinAtRef = useRef(0);
 
@@ -281,7 +284,7 @@ export function EstimateDial({
           onAccessibilityAction={onAccessibilityAction}
           style={[styles.hitTarget, { width: size, height: size }]}>
           <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
-            {showHand ? (
+            {showHand && !useSingleHandFallback ? (
               <Animated.View
                 pointerEvents="none"
                 accessibilityElementsHidden
@@ -290,6 +293,7 @@ export function EstimateDial({
                   source={equityScaleArt.dialHand.pinchBack}
                   resizeMode="contain"
                   style={styles.handArt}
+                  onError={() => setBackFailed(true)}
                 />
               </Animated.View>
             ) : null}
@@ -315,6 +319,7 @@ export function EstimateDial({
                   source={equityScaleArt.dialHand.pinchFront}
                   resizeMode="contain"
                   style={styles.handArt}
+                  onError={() => setFrontFailed(true)}
                 />
               </Animated.View>
             ) : null}
