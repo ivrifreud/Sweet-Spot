@@ -7,7 +7,7 @@ describe('tutorialSeenKey', () => {
     expect(tutorialSeenKey('peek-and-pitch')).toBe(
       'sweetspot.templateTutorialSeen.peek-and-pitch'
     );
-    expect(tutorialSeenKey('equity-scale')).toBe('sweetspot.templateTutorialSeen.v3.equity-scale');
+    expect(tutorialSeenKey('equity-scale')).toBe('sweetspot.templateTutorialSeen.v6.equity-scale');
     expect(tutorialSeenKey('equity-scale')).not.toBe(tutorialSeenKey('peek-and-pitch'));
   });
 });

@@ -74,4 +74,65 @@ describe('playbackPlan', () => {
     });
     expect(error.command.fallback).toBe(true);
   });
+
+  it('plays on readyToPlay even when duration is still unknown', () => {
+    const requested = planPlayback(initialPlaybackState(), {
+      type: 'request',
+      generation: 3,
+      muted: true,
+    });
+    const ready = planPlayback(requested.state, {
+      type: 'status',
+      generation: 3,
+      status: 'readyToPlay',
+      duration: 0,
+    });
+    expect(ready.command.shouldPlay).toBe(true);
+    expect(ready.command.fallback).toBe(false);
+
+    const later = planPlayback(
+      ready.state,
+      { type: 'sourceLoad', generation: 3, duration: 8 },
+      () => 0
+    );
+    expect(later.command.shouldPlay).toBe(true);
+    expect(later.command.seekTo).toBe(0);
+  });
+
+  it('does not overlay a poster after timeout once the generation is playing', () => {
+    let state = planPlayback(initialPlaybackState(), {
+      type: 'request',
+      generation: 5,
+      muted: true,
+    }).state;
+    state = planPlayback(state, {
+      type: 'status',
+      generation: 5,
+      status: 'readyToPlay',
+      duration: 6,
+    }).state;
+    const playing = planPlayback(state, { type: 'playing', generation: 5 });
+    expect(playing.command.showPoster).toBe(false);
+
+    const lateTimeout = planPlayback(playing.state, { type: 'timeout', generation: 5 });
+    expect(lateTimeout.command.fallback).toBe(false);
+    expect(lateTimeout.command.showPoster).toBe(false);
+  });
+
+  it('accepts firstFrame after play has started', () => {
+    let state = planPlayback(initialPlaybackState(), {
+      type: 'request',
+      generation: 6,
+      muted: true,
+    }).state;
+    state = planPlayback(state, {
+      type: 'status',
+      generation: 6,
+      status: 'readyToPlay',
+      duration: 0,
+    }).state;
+    const frame = planPlayback(state, { type: 'firstFrame', generation: 6 });
+    expect(frame.command.ignore).toBe(false);
+    expect(frame.command.showPoster).toBe(false);
+  });
 });

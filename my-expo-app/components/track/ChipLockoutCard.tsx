@@ -1,7 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { VideoView } from 'expo-video';
 import { useEffect } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -17,6 +17,8 @@ import { artStyle } from '../../theme/artStyle';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const LOCKOUT_EMOTE = require('../../assets/brand/artstyle/coach-broke-lockout.mp4');
 const LOCKOUT_POSTER = require('../../assets/brand/artstyle/coach-broke-lockout.png');
+/** ~5MB clip — give Expo Go time before falling back to the still. */
+const LOCKOUT_READY_MS = 12_000;
 
 function pressPlaceholder() {
   // Premium rebuy and rewarded ads are placeholders this sprint.
@@ -43,7 +45,9 @@ function LockoutEmoteVideo() {
     source: LOCKOUT_EMOTE,
     generation: 'lockout',
     muted: true,
+    loop: true,
     resolveSeek: () => 0,
+    timeoutMs: LOCKOUT_READY_MS,
   });
 
   return (
@@ -62,7 +66,7 @@ function LockoutEmoteVideo() {
         nativeControls={false}
         contentFit="cover"
         playsInline
-        surfaceType="textureView"
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
         onFirstFrameRender={onFirstFrame}
         style={styles.emoteMedia}
       />

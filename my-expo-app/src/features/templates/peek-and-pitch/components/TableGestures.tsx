@@ -13,7 +13,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
-import { playSfx, startPeekSfx, stopPeekSfx } from '../../../../../lib/audio';
+import {
+  playCheckSfx,
+  playSfx,
+  queueCheckSfx,
+  startPeekSfx,
+  stopPeekSfx,
+} from '../../../../../lib/audio';
 import { GESTURES, type StackHitRect } from '../config';
 import {
   PEEK_DRAG_DEAD_ZONE,
@@ -170,6 +176,7 @@ export function TableGestures({
   const allowCheck = useSharedValue(includesAction(allowedActions, 'check') ? 1 : 0);
   const stackHitRect = useSharedValue<StackHitRect>(stackHit);
   const cardHitRect = useSharedValue<StackHitRect>(cardHit);
+  const checkPresses = useSharedValue(0);
 
   const onPeekHoldRef = useRef(onPeekHold);
   onPeekHoldRef.current = onPeekHold;
@@ -214,6 +221,12 @@ export function TableGestures({
   const fireRejected = useCallback(() => {
     onRejectedRef.current?.();
   }, []);
+  const queueCheckCue = useCallback(() => {
+    queueCheckSfx();
+  }, []);
+  const startCheckCue = useCallback(() => {
+    playCheckSfx();
+  }, []);
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
@@ -230,6 +243,7 @@ export function TableGestures({
       peekedThisTouch.value = 0;
       peekArmed.value = 0;
       ignoreFelt.value = 0;
+      checkPresses.value = 0;
       stopPeekSfx();
     }
   }, [
@@ -240,6 +254,7 @@ export function TableGestures({
     canCheck,
     canCheckEnabled,
     cardHit,
+    checkPresses,
     cardHitRect,
     ignoreFelt,
     live,
@@ -283,6 +298,31 @@ export function TableGestures({
       .maxDuration(GESTURES.tapMaxDuration)
       .maxDelay(GESTURES.doubleTapMs)
       .maxDistance(GESTURES.tapMaxDistance)
+      .onTouchesDown(() => {
+        // The double-tap commits on the second finger-up. Start the cue on the second press.
+        if (liveEnabled.value !== 1) {
+          return;
+        }
+        const press = checkPresses.value + 1;
+        checkPresses.value = press;
+        if (press === 1) {
+          runOnJS(queueCheckCue)();
+          return;
+        }
+        if (press !== 2) {
+          return;
+        }
+        if (lockEnabled.value === 1 && allowCheck.value !== 1) {
+          return;
+        }
+        if (canCheckEnabled.value !== 1) {
+          return;
+        }
+        runOnJS(startCheckCue)();
+      })
+      .onFinalize(() => {
+        checkPresses.value = 0;
+      })
       .onEnd((_event, success) => {
         if (!success || liveEnabled.value !== 1) {
           return;
@@ -495,6 +535,7 @@ export function TableGestures({
   }, [
     canCheckEnabled,
     cardHitRect,
+    checkPresses,
     endPeekCue,
     fireCheck,
     fireIllegalCheck,
@@ -518,7 +559,9 @@ export function TableGestures({
     peekArmed,
     peekTravelPx,
     peekedThisTouch,
+    queueCheckCue,
     stackHitRect,
+    startCheckCue,
     startedLow,
   ]);
 

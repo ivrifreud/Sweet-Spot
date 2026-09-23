@@ -42,3 +42,7 @@ export function resolveContinueAfterFeedback(input: {
   }
   return { leaveStage: false, advanceSpot: true };
 }
+
+export function shouldMountTrackMap(playingStage: number | null): boolean {
+  return playingStage == null;
+}

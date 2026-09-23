@@ -5,7 +5,8 @@ const seenThisSession = new Set<string>();
 
 export function tutorialSeenKey(templateId: string): string {
   // Bump when the scale coach should play once more after an earlier finish was saved.
-  const revision = templateId === 'equity-scale' ? 'v3.' : '';
+  // Bump when QA finished an earlier revision before the coach was visible on phone.
+  const revision = templateId === 'equity-scale' ? 'v6.' : '';
   return `${KEY_PREFIX}${revision}${templateId}`;
 }
 
