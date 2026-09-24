@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   approxQuadLength,
+  buildTearDropOutline,
   cometDashOffset,
   cometTailLength,
   dialRotatePath,
@@ -12,11 +13,16 @@ import {
   pointOnQuad,
   rectCenter,
   rectsOverlap,
+  CONTACT_GLOW_RADIUS,
+  sampleTrailCenterline,
+  smoothClosedOutline,
+  outlineToSvgPathD,
   spotlightForTarget,
   swipeArcForAction,
   tapOriginForAction,
   tapOriginForTarget,
-  warmthTrailLayers,
+  tutorialCopyTop,
+  warmthTrailProfile,
 } from './tutorialGeometry';
 import { EQUITY_SCALE_TUTORIAL } from './equityScaleSteps';
 import { PEEK_AND_PITCH_TUTORIAL } from './peekAndPitchSteps';
@@ -123,15 +129,253 @@ describe('tutorialGeometry', () => {
     expect(cometDashOffset(1, 200, 80)).toBe(-120);
   });
 
-  it('builds a rounded warmth trail that tapers and cools behind the fingertip', () => {
-    const layers = warmthTrailLayers(200);
+  it('builds a warmth trail profile that tapers and cools behind the fingertip', () => {
+    const profile = warmthTrailProfile(200);
 
-    expect(layers.map((layer) => layer.role)).toEqual(['vapor', 'warmth', 'ember']);
-    expect(layers[0]!.length).toBeGreaterThan(layers[1]!.length);
-    expect(layers[1]!.length).toBeGreaterThan(layers[2]!.length);
-    expect(layers[0]!.opacity).toBeLessThan(layers[2]!.opacity);
+    expect(profile.tipHalfWidth).toBeGreaterThan(6);
+    expect(profile.tipHalfWidth).toBeLessThanOrEqual(CONTACT_GLOW_RADIUS * 0.55);
+    expect(profile.tailLength).toBeLessThan(cometTailLength(200));
+    expect(profile.taperPower).toBeGreaterThan(1);
+    expect(profile.heatStops.map((stop) => stop.offset)).toEqual([0, 0.28, 0.62, 1]);
+    expect(profile.heatStops[0]!.opacity).toBeGreaterThan(profile.heatStops[3]!.opacity);
+    expect(profile.heatStops[3]!.opacity).toBe(0);
+  });
+
+  it('builds a finger-sized dial trail that matches the contact glow', () => {
+    const profile = warmthTrailProfile(Math.PI * 120, 'finger');
+
+    expect(profile.tipHalfWidth).toBeLessThanOrEqual(CONTACT_GLOW_RADIUS * 0.35);
+    expect(profile.tipHalfWidth * 2).toBeLessThanOrEqual(CONTACT_GLOW_RADIUS);
+    expect(profile.tailLength).toBeLessThanOrEqual(42);
+    expect(profile.tailLength).toBeLessThan(warmthTrailProfile(Math.PI * 120).tailLength);
+  });
+
+  it('parks tutorial copy in the upper center clear of a low hand path', () => {
+    const top = tutorialCopyTop(
+      viewport,
+      { from: { x: 200, y: 720 }, control: { x: 200, y: 780 }, to: { x: 200, y: 840 } },
+      48,
+      96
+    );
+    expect(top).toBeGreaterThanOrEqual(48);
+    expect(top).toBeLessThan(viewport.height * 0.35);
+    expect(top + 96 + 36).toBeLessThanOrEqual(720);
+  });
+
+  it('shifts tutorial copy above a mid-screen dial hand', () => {
+    const handMinY = 380;
+    const top = tutorialCopyTop(
+      viewport,
+      { from: { x: 280, y: handMinY }, control: { x: 300, y: 460 }, to: { x: 280, y: 540 } },
+      48,
+      96
+    );
+    expect(top + 96 + 36).toBeLessThanOrEqual(handMinY);
+  });
+
+  it('samples a centerline behind the fingertip along a quad path', () => {
+    const from = { x: 0, y: 0 };
+    const control = { x: 50, y: 0 };
+    const to = { x: 100, y: 0 };
+    const pathLength = approxQuadLength(from, control, to);
+    const profile = warmthTrailProfile(pathLength);
+    const points = sampleTrailCenterline({
+      kind: 'quad',
+      from,
+      control,
+      to,
+      along: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      tipInset: 0,
+      samples: 8,
+    });
+
+    expect(points.length).toBe(9);
+    expect(points[0]).toEqual(pointOnQuad(from, control, to, 1));
+    expect(points[points.length - 1]!.x).toBeLessThan(points[0]!.x);
+    for (const point of points) {
+      expect(Number.isFinite(point.x)).toBe(true);
+      expect(Number.isFinite(point.y)).toBe(true);
+    }
+  });
+
+  it('pins the trail tip to the fingertip so the tear-drop comes out of the finger', () => {
+    const from = { x: 0, y: 0 };
+    const control = { x: 50, y: 0 };
+    const to = { x: 100, y: 0 };
+    const pathLength = approxQuadLength(from, control, to);
+    const profile = warmthTrailProfile(pathLength);
+    const finger = pointOnQuad(from, control, to, 1);
+    const points = sampleTrailCenterline({
+      kind: 'quad',
+      from,
+      control,
+      to,
+      along: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      samples: 8,
+    });
+    expect(points[0]).toEqual(finger);
+  });
+
+  it('lets the tear-drop nose sit on the fingertip glow instead of hovering beside it', () => {
+    const from = { x: 0, y: 0 };
+    const control = { x: 50, y: 0 };
+    const to = { x: 100, y: 0 };
+    const pathLength = approxQuadLength(from, control, to);
+    const profile = warmthTrailProfile(pathLength);
+    const centerline = sampleTrailCenterline({
+      kind: 'quad',
+      from,
+      control,
+      to,
+      along: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      samples: 12,
+    });
+    const tip = centerline[0]!;
+    const outline = buildTearDropOutline(centerline, profile);
+    const farthestForward = Math.max(...outline.map((point) => point.x));
+    expect(farthestForward).toBeGreaterThanOrEqual(tip.x);
+    expect(farthestForward).toBeLessThanOrEqual(tip.x + CONTACT_GLOW_RADIUS);
+    const nearest = outline.reduce((best, point) => {
+      const gap = Math.hypot(point.x - tip.x, point.y - tip.y);
+      return gap < best ? gap : best;
+    }, Infinity);
+    expect(nearest).toBeLessThan(8);
+  });
+
+  it('samples a dial centerline behind the fingertip along the arc', () => {
+    const dial = { x: 100, y: 100, width: 120, height: 120 };
+    const path = dialRotatePath(dial);
+    const pathLength = Math.PI * path.radius;
+    const profile = warmthTrailProfile(pathLength);
+    const points = sampleTrailCenterline({
+      kind: 'dial',
+      center: path.center,
+      radius: path.radius,
+      along: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      tipInset: 0,
+      samples: 8,
+    });
+
+    expect(points.length).toBe(9);
+    expect(points[0]).toEqual(pointOnArc(path, 1));
+    expect(points[points.length - 1]!.y).toBeLessThan(points[0]!.y);
+  });
+
+  it('flips the dial tail to the other side for anti-clockwise travel', () => {
+    const dial = { x: 100, y: 100, width: 120, height: 120 };
+    const path = dialRotatePath(dial);
+    const pathLength = Math.PI * path.radius;
+    const profile = warmthTrailProfile(pathLength);
+    const clockwise = sampleTrailCenterline({
+      kind: 'dial',
+      center: path.center,
+      radius: path.radius,
+      along: 0.5,
+      direction: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      samples: 8,
+    });
+    const antiClockwise = sampleTrailCenterline({
+      kind: 'dial',
+      center: path.center,
+      radius: path.radius,
+      along: 0.5,
+      direction: -1,
+      pathLength,
+      tailLength: profile.tailLength,
+      samples: 8,
+    });
+
+    expect(clockwise[clockwise.length - 1]!.y).toBeLessThan(clockwise[0]!.y);
+    expect(antiClockwise[antiClockwise.length - 1]!.y).toBeGreaterThan(antiClockwise[0]!.y);
+  });
+
+  it('builds a closed tear-drop outline that is widest at the tip and pointed at the tail', () => {
+    const from = { x: 0, y: 0 };
+    const control = { x: 50, y: 0 };
+    const to = { x: 100, y: 0 };
+    const pathLength = approxQuadLength(from, control, to);
+    const profile = warmthTrailProfile(pathLength);
+    const centerline = sampleTrailCenterline({
+      kind: 'quad',
+      from,
+      control,
+      to,
+      along: 1,
+      pathLength,
+      tailLength: profile.tailLength,
+      tipInset: 0,
+      samples: 12,
+    });
+    const outline = buildTearDropOutline(centerline, profile);
+
+    expect(outline.length).toBeGreaterThan(centerline.length);
+    expect(outline[0]).toEqual(outline[outline.length - 1]);
+
+    const tip = centerline[0]!;
+    const mid = centerline[Math.floor(centerline.length / 2)]!;
+    const tail = centerline[centerline.length - 1]!;
+    const tipWidth = maxLateralSpan(outline, tip);
+    const midWidth = maxLateralSpan(outline, mid);
+    const tailWidth = maxLateralSpan(outline, tail);
+
+    expect(tipWidth).toBeGreaterThan(midWidth);
+    expect(midWidth).toBeGreaterThan(tailWidth);
+    expect(tailWidth).toBeLessThan(4);
+  });
+
+  it('Chaikin-smooths a closed outline into more points without sharp corners', () => {
+    const box = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+      { x: 0, y: 0 },
+    ];
+    const smoothed = smoothClosedOutline(box, 3);
+    expect(smoothed.length).toBeGreaterThan(box.length);
+    expect(smoothed[0]).toEqual(smoothed[smoothed.length - 1]);
+    for (const point of smoothed) {
+      expect(Number.isFinite(point.x)).toBe(true);
+      expect(Number.isFinite(point.y)).toBe(true);
+    }
+  });
+
+  it('builds an SVG path string from a closed outline', () => {
+    const outline = [
+      { x: 0, y: 0 },
+      { x: 10, y: 2 },
+      { x: 20, y: 0 },
+      { x: 10, y: -2 },
+      { x: 0, y: 0 },
+    ];
+    const d = outlineToSvgPathD(outline);
+    expect(d.startsWith('M ')).toBe(true);
+    expect(d.includes('C ')).toBe(true);
+    expect(d.endsWith('Z')).toBe(true);
   });
 });
+
+function maxLateralSpan(outline: { x: number; y: number }[], along: { x: number; y: number }) {
+  let max = 0;
+  for (const point of outline) {
+    const dy = Math.abs(point.y - along.y);
+    const dx = Math.abs(point.x - along.x);
+    if (dx < 8) {
+      max = Math.max(max, dy * 2);
+    }
+  }
+  return max;
+}
 
 describe('fingerPathForStep', () => {
   it('keeps Peek and Pitch swipe and tap points finite and on the table', () => {

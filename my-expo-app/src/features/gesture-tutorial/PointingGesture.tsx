@@ -3,18 +3,16 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
-  Extrapolation,
   cancelAnimation,
   interpolate,
   type SharedValue,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import {
   POINTING_GLOVE_H,
@@ -23,18 +21,18 @@ import {
   POINTING_GLOVE_W,
   approxQuadLength,
   glovePoseDeg,
+  heldTravelProgress,
   horizonHeadingForDial,
   rightHandEdgeLift,
   pairTapProgress,
   pointingGloveFrame,
-  quadPathD,
+  rotateTravelProgress,
   visualMotionForHand,
-  warmthTrailLayers,
   type GestureTutorialHand,
   type TutorialPoint,
-  type WarmthTrailLayer,
 } from '../../../lib/gesture-tutorial';
 import { artStyle } from '../../../theme/artStyle';
+import { WarmthTearTrail } from './WarmthTearTrail';
 
 const LOOP_MS = 1680;
 const ROTATE_MS = 3200;
@@ -48,8 +46,6 @@ const NATURAL_ANGLE = Math.PI;
 /** Pixels, not a percent string. iOS rejects a decimal percent as the z origin. */
 const TIP_ORIGIN: [number, number, number] = [TIP_X, TIP_Y, 0];
 const GUIDE_HAND = require('../../../assets/tables/tutorial-guide-hand.png');
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 type Props = {
   hand: GestureTutorialHand;
@@ -95,8 +91,6 @@ function SwipeTapPointingGesture({
   const toX = useSharedValue(to.x);
   const toY = useSharedValue(to.y);
   const pathLength = Math.max(24, approxQuadLength(from, control, to));
-  const pathD = quadPathD(from, control, to);
-  const trailLayers = warmthTrailLayers(pathLength);
 
   useEffect(() => {
     fromX.value = from.x;
@@ -133,7 +127,7 @@ function SwipeTapPointingGesture({
       };
     }
 
-    const travel = heldTravel(phase);
+    const travel = heldTravelProgress(phase);
     const point = pointOnQuadWorklet(
       fromX.value,
       fromY.value,
@@ -165,7 +159,7 @@ function SwipeTapPointingGesture({
         ],
       };
     }
-    const travel = heldTravel(loop.value);
+    const travel = heldTravelProgress(loop.value);
     const point = pointOnQuadWorklet(
       fromX.value,
       fromY.value,
@@ -186,11 +180,16 @@ function SwipeTapPointingGesture({
       {isTap ? (
         <TapRipples count={tapCount} loop={loop} origin={from} />
       ) : (
-        <TouchTrail
-          d={pathD}
+        <WarmthTearTrail
+          kind="quad"
           loop={loop}
           pathLength={pathLength}
-          layers={trailLayers}
+          fromX={fromX}
+          fromY={fromY}
+          controlX={controlX}
+          controlY={controlY}
+          toX={toX}
+          toY={toY}
           width={width}
           height={height}
         />
@@ -207,9 +206,7 @@ function RotatePointingGesture({ hand, from, control, to, success, width, height
   const centerX = useSharedValue(control.x);
   const centerY = useSharedValue(control.y);
   const radius = Math.max(24, Math.hypot(from.x - control.x, from.y - control.y));
-  const pathD = `M ${from.x} ${from.y} A ${radius} ${radius} 0 0 1 ${to.x} ${to.y}`;
   const pathLength = Math.max(24, Math.PI * radius);
-  const trailLayers = warmthTrailLayers(pathLength);
   const rotateDeg = ((horizonHeadingForDial() - NATURAL_ANGLE) * 180) / Math.PI;
 
   useEffect(() => {
@@ -219,9 +216,9 @@ function RotatePointingGesture({ hand, from, control, to, success, width, height
 
   useEffect(() => {
     loop.value = withRepeat(
-      withTiming(1, { duration: ROTATE_MS, easing: Easing.inOut(Easing.cubic) }),
+      withTiming(2, { duration: ROTATE_MS * 2, easing: Easing.linear }),
       -1,
-      true
+      false
     );
     return () => {
       cancelAnimation(loop);
@@ -231,7 +228,7 @@ function RotatePointingGesture({ hand, from, control, to, success, width, height
   useSuccessSettle(settle, success);
 
   const gloveMotion = useAnimatedStyle(() => {
-    const travel = rotateTravel(loop.value);
+    const travel = rotateTravelProgress(loop.value);
     const point = pointOnDialArcWorklet(centerX.value, centerY.value, radius, travel);
     return {
       transform: [
@@ -244,7 +241,7 @@ function RotatePointingGesture({ hand, from, control, to, success, width, height
   });
 
   const smudgeStyle = useAnimatedStyle(() => {
-    const travel = rotateTravel(loop.value);
+    const travel = rotateTravelProgress(loop.value);
     const point = pointOnDialArcWorklet(centerX.value, centerY.value, radius, travel);
     return {
       opacity: interpolate(travel, [0, 0.08, 1], [0.35, 0.85, 0.85]),
@@ -254,11 +251,13 @@ function RotatePointingGesture({ hand, from, control, to, success, width, height
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.fingerLayer]} pointerEvents="none">
-      <TouchTrail
-        d={pathD}
+      <WarmthTearTrail
+        kind="dial"
         loop={loop}
         pathLength={pathLength}
-        layers={trailLayers}
+        centerX={centerX}
+        centerY={centerY}
+        radius={radius}
         width={width}
         height={height}
         travel="rotate"
@@ -403,16 +402,6 @@ function ContactGlow({ style }: { style: ReturnType<typeof useAnimatedStyle> }) 
   );
 }
 
-function heldTravel(phase: number) {
-  'worklet';
-  return interpolate(phase, [0, 0.12, 0.8, 0.9, 1], [0, 0, 1, 1, 1], Extrapolation.CLAMP);
-}
-
-function rotateTravel(phase: number) {
-  'worklet';
-  return Math.min(1, Math.max(0, phase));
-}
-
 function tapContact(phase: number, count: 1 | 2) {
   'worklet';
   if (count === 1) {
@@ -453,88 +442,6 @@ function pointOnQuadWorklet(
     x: inverse * inverse * fromX + 2 * inverse * t * controlX + t * t * toX,
     y: inverse * inverse * fromY + 2 * inverse * t * controlY + t * t * toY,
   };
-}
-
-function TouchTrail({
-  d,
-  loop,
-  pathLength,
-  layers,
-  width,
-  height,
-  travel = 'held',
-}: {
-  d: string;
-  loop: SharedValue<number>;
-  pathLength: number;
-  layers: WarmthTrailLayer[];
-  width: number;
-  height: number;
-  travel?: 'held' | 'rotate';
-}) {
-  return (
-    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      {layers.map((layer) => (
-        <TrailLayer
-          key={layer.role}
-          d={d}
-          loop={loop}
-          pathLength={pathLength}
-          layer={layer}
-          travel={travel}
-        />
-      ))}
-    </Svg>
-  );
-}
-
-function TrailLayer({
-  d,
-  loop,
-  pathLength,
-  layer,
-  travel = 'held',
-}: {
-  d: string;
-  loop: SharedValue<number>;
-  pathLength: number;
-  layer: WarmthTrailLayer;
-  travel?: 'held' | 'rotate';
-}) {
-  const animatedProps = useAnimatedProps(() => {
-    const along = travel === 'rotate' ? rotateTravel(loop.value) : heldTravel(loop.value);
-    return {
-      strokeDashoffset: layer.length - along * pathLength,
-      opacity:
-        travel === 'rotate'
-          ? interpolate(along, [0, 0.08, 1], [0, layer.opacity, layer.opacity])
-          : interpolate(
-              loop.value,
-              [0, 0.1, 0.8, 0.93, 1],
-              [0, layer.opacity, layer.opacity, layer.opacity * 0.18, 0]
-            ),
-    };
-  });
-  const color =
-    layer.role === 'vapor'
-      ? artStyle.colors.tealFaded
-      : layer.role === 'warmth'
-        ? artStyle.colors.cream
-        : artStyle.colors.goldBright;
-
-  return (
-    <AnimatedPath
-      animatedProps={animatedProps}
-      d={d}
-      fill="none"
-      stroke={color}
-      strokeWidth={layer.width}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeDasharray={`${layer.length} ${pathLength + layer.length}`}
-      strokeDashoffset={layer.length}
-    />
-  );
 }
 
 function PairTapRipples({
@@ -630,6 +537,8 @@ const styles = StyleSheet.create({
     top: 0,
     width: 52,
     height: 52,
+    zIndex: 40,
+    elevation: 40,
   },
   ripple: {
     position: 'absolute',
