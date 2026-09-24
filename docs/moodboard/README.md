@@ -638,6 +638,9 @@ Send these next if you have them — they close real gaps the current pack does 
 7. **Period Chip Stack lives icon** — three inked poker chips (full / empty),
    redrawn from the hearts layout sheet, not hearts.
 8. **Period Gold Coin face** — cream/gold coin with Sweet Spot mark (no `$`).
+9. **Marquee-rail smoked glass / ticket-booth strip** — layout reference for the
+   translucent top HUD (`feature/hud-map-redesign`). Runtime icons currently live
+   as SVG in `my-expo-app/components/hud/HudIcons.tsx`.
 
 Do not send more photoreal poker POV, generic glove grids, Match Masters clones,
 or extra Duolingo screenshots unless they show a **new** HUD or map state we lack

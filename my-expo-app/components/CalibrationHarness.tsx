@@ -541,7 +541,8 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
                   ? 'Chips are spent. They refill in 12 hours.'
                   : null
             }
-            goldBars={0}
+            goldCoins={0}
+            regenAt={chipStack.regenAt}
             streakDays={streak.currentStreak}
             streakBestDays={streak.bestStreak}
             completedCount={completedCount}
@@ -561,7 +562,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             reveal={reveal}
             stageNumber={playingStage}
             remainingChips={chipStack.chips}
-            goldBars={0}
+            goldCoins={0}
             streakDays={streak.currentStreak}
             streakBestDays={streak.bestStreak}
             initialSpotsCompleted={stageSpotsCompleted}

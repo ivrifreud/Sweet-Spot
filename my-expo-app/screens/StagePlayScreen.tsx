@@ -55,7 +55,7 @@ type Props = {
   reveal: LevelReveal;
   stageNumber: number;
   remainingChips: ChipCount;
-  goldBars: number;
+  goldCoins: number;
   streakDays: number;
   streakBestDays: number;
   initialSpotsCompleted?: number;

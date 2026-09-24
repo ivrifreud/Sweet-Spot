@@ -17,7 +17,6 @@ import {
   lockReason,
   mapPercentToUnit,
   mapNodeAnchorOffset,
-  MAP_NODE_CHIP_HEIGHT,
   MAP_NODE_CHIP_SIZE,
   nodePixels,
   progressChunkIndex,
@@ -68,7 +67,7 @@ describe('overworld unlocks', () => {
   });
 
   it('keeps later nodes locked until the previous stage is done', () => {
-    expect(lockReason(3, 1, 3)).toMatch(/Stage 2/i);
+    expect(lockReason(3, 1, 3)).toMatch(/previous stage/i);
     expect(canEnterStage(2, 1, 3)).toBe(true);
   });
 
@@ -92,9 +91,9 @@ describe('overworld unlocks', () => {
     expect(markers[1]?.spotsCompleted).toBe(3);
     expect(markers[1]?.progressFraction).toBeCloseTo(3 / 7);
     expect(stageProgressPercent(3)).toBe(43);
-    expect(MAP_NODE_CHIP_SIZE).toBe(40);
-    expect(mapNodeAnchorOffset().x).toBe(38);
-    expect(mapNodeAnchorOffset().y).toBeCloseTo(MAP_NODE_CHIP_HEIGHT * 0.4);
+    expect(MAP_NODE_CHIP_SIZE).toBe(53);
+    expect(mapNodeAnchorOffset().x).toBeCloseTo((53 + 14) / 2);
+    expect(mapNodeAnchorOffset().y).toBeCloseTo((53 + 14) / 2);
   });
 });
 
