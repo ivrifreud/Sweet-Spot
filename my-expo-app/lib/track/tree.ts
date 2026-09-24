@@ -32,20 +32,21 @@ export type MapChunk = {
 /** Portrait map box. Width / height — keep in sync with the eventual map art. */
 export const MAP_ASPECT = 9 / 16;
 
-export const MAP_NODE_CHIP_SIZE = 40;
+export const MAP_NODE_CHIP_SIZE = 53;
 export const MAP_NODE_SIZE = MAP_NODE_CHIP_SIZE;
-export const MAP_NODE_CAPTION_WIDTH = 76;
+export const MAP_NODE_CAPTION_WIDTH = 88;
 export const MAP_NODES_PER_CHUNK = 4;
 
 /** Visual height of the three-quarter map chip (matches chip-3q aspect). */
 export const MAP_NODE_CHIP_HEIGHT = MAP_NODE_CHIP_SIZE * (450 / 512);
 
 /** Offset from the authored path point to the top-left of the checkpoint wrap.
- * Y pins the 3/4 chip face (not the bounding-box center) onto the road. */
+ * Centers the circular status ring on the road. */
 export function mapNodeAnchorOffset(): { x: number; y: number } {
+  const ring = MAP_NODE_CHIP_SIZE + 14;
   return {
-    x: MAP_NODE_CAPTION_WIDTH / 2,
-    y: MAP_NODE_CHIP_HEIGHT * 0.4,
+    x: ring / 2,
+    y: ring / 2,
   };
 }
 
@@ -130,7 +131,7 @@ export function lockReason(
     return 'Chips are spent. They refill in 12 hours.';
   }
   if (stageStatus(stageNumber, completedCount) === 'locked') {
-    return `Finish Stage ${completedCount + 1} first.`;
+    return 'Finish the previous stage first.';
   }
   return null;
 }

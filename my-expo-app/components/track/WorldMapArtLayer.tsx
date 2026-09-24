@@ -168,6 +168,17 @@ export function WorldMapArtLayer({
           style={imageBox}
         />
       ))}
+      {/* Warm scrim demotes scenery so chip nodes stay the focus. */}
+      <LinearGradient
+        colors={[
+          'rgba(17,23,20,0.22)',
+          'rgba(17,23,20,0.08)',
+          'rgba(17,23,20,0.38)',
+        ]}
+        locations={[0, 0.45, 1]}
+        pointerEvents="none"
+        style={styles.fill}
+      />
       {film ? (
         <>
           <Image

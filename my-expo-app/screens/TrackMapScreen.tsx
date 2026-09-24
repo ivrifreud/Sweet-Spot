@@ -1,26 +1,17 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ImageSourcePropType,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  LevelProgressionMap,
-  trailForWalk,
-  walkDurationMs,
-} from '../components/track/LevelProgressionMap';
+import { MarqueeRail, type MarqueeRailSheet } from '../components/hud/MarqueeRail';
+import { ChipStackSheet } from '../components/sheets/ChipStackSheet';
+import { GoldCoinsSheet } from '../components/sheets/GoldCoinsSheet';
+import { ProfileSheet } from '../components/sheets/ProfileSheet';
+import { SettingsSheet } from '../components/sheets/SettingsSheet';
+import { StreakSheet } from '../components/sheets/StreakSheet';
+import { LevelProgressionMap } from '../components/track/LevelProgressionMap';
 import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
-import { FogClimbPreviewButton } from '../components/track/FogClimbPreviewButton';
-import { StreakModal } from '../components/track/StreakModal';
-import { TrackHud } from '../components/track/TrackHud';
 import type { ReadyWorldId } from '../lib/track/worldForPlacement';
 import {
   BENNYS_GARDEN_WORLD,
@@ -30,10 +21,10 @@ import {
 } from '../components/track/worldMapTemplates';
 import { agentDebugLog } from '../lib/agentDebugLog';
 import { playSfx, startAmbience, startIdleWatch, stopAmbience, stopIdleWatch } from '../lib/audio';
+import { buildProfileStats } from '../lib/hud/profileStats';
 import { markPerf } from '../lib/performance/marks';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { initialFogPhase, reduceFog, type FogPhase } from '../lib/track/fogCycle';
-import type { Point } from '../lib/track/mapPath';
 import {
   FOG_PART_MS,
   MAP_NODES_PER_CHUNK,
@@ -50,15 +41,16 @@ import { artStyle } from '../theme/artStyle';
 type Props = {
   reveal: LevelReveal;
   remainingChips: number;
-  goldBars: number;
+  goldCoins: number;
   streakDays: number;
   streakBestDays: number;
   completedCount: number;
   spotsByStage?: Record<number, number>;
+  regenAt?: string | null;
+  displayName?: string;
   worldId?: ReadyWorldId;
   currentWorld?: WorldMapTemplate;
-  avatarSource?: ImageSourcePropType;
-  /** False while a level covers the map so Benny's shoes stay put until focus. */
+  /** False while a level covers the map so the hero pin stays put until focus. */
   isActive?: boolean;
   lockMessage?: string | null;
   /** guy/000 bypass — shows the map switcher. */
@@ -66,6 +58,7 @@ type Props = {
   onDevCycleWorld?: () => void;
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
+  onRetakePlacement?: () => void;
 };
 
 function resolveWorld(
@@ -87,20 +80,22 @@ function initialStanding(completedCount: number, nodeCount: number): number {
 export function TrackMapScreen({
   reveal,
   remainingChips,
-  goldBars,
+  goldCoins,
   streakDays,
   streakBestDays,
   completedCount,
   spotsByStage = {},
+  regenAt = null,
+  displayName = 'Player',
   worldId,
   currentWorld,
-  avatarSource,
   isActive = true,
   lockMessage = null,
   devMode = false,
   onDevCycleWorld,
   onPlayStage,
   onSignOut,
+  onRetakePlacement,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [previewLockout, setPreviewLockout] = useState(false);
@@ -116,9 +111,8 @@ export function TrackMapScreen({
   const [standing, setStanding] = useState(() =>
     initialStanding(completedCount, world.nodes.length)
   );
-  const [trail, setTrail] = useState<Point[]>([]);
-  const [trailKey, setTrailKey] = useState(0);
-  const [walkDuration, setWalkDuration] = useState(560);
+  const [hopKey, setHopKey] = useState(0);
+  const [activeSheet, setActiveSheet] = useState<MarqueeRailSheet | null>(null);
   const [cameraChunkIndex, setCameraChunkIndex] = useState(() =>
     chunkIndexForStage(initialStanding(completedCount, world.nodes.length), world.chunks)
   );
@@ -126,7 +120,6 @@ export function TrackMapScreen({
     initialFogPhase(Math.floor(completedCount / MAP_NODES_PER_CHUNK), world.chunks.length)
   );
   const [notice, setNotice] = useState<string | null>(null);
-  const [showStreak, setShowStreak] = useState(false);
 
   const map = useMemo(
     () =>
@@ -160,7 +153,7 @@ export function TrackMapScreen({
     physicalStandingRef.current = stageNumber;
     destinationRef.current = null;
     setStanding(stageNumber);
-    setTrail([]);
+    setHopKey((key) => key + 1);
     const queued = walkQueueRef.current[0];
     walkQueueRef.current = [];
     if (queued != null && queued !== stageNumber) {
@@ -176,17 +169,11 @@ export function TrackMapScreen({
     }
   }
 
+  /** Instant travel + hero hop — replaces the walking avatar trail. */
   function startWalk(stageNumber: number): boolean {
-    const mapNow = mapRef.current;
-    const worldNow = worldRef.current;
-    if (mapNow.width <= 0) return false;
     if (physicalStandingRef.current === stageNumber) return false;
-    const nextTrail = trailForWalk(physicalStandingRef.current, stageNumber, mapNow, worldNow);
     destinationRef.current = stageNumber;
-    const duration = walkDurationMs(nextTrail);
-    setTrail(nextTrail);
-    setWalkDuration(duration);
-    setTrailKey((key) => key + 1);
+    finishArrival(stageNumber);
     return true;
   }
 
@@ -325,8 +312,7 @@ export function TrackMapScreen({
     pendingAfterCamera.current = null;
     const chunk = chunkIndexForStage(next, world.chunks);
     setStanding(next);
-    setTrail([]);
-    setTrailKey((key) => key + 1);
+    setHopKey((key) => key + 1);
     setCameraChunkIndex(chunk);
     applyFog(
       initialFogPhase(Math.floor(completedCount / MAP_NODES_PER_CHUNK), world.chunks.length)
@@ -403,18 +389,22 @@ export function TrackMapScreen({
     requestTravel(stageNumber);
   }
 
-  function handleArrived() {
-    if (world.id !== 'bennys-garden') playSfx('arrive');
-    const dest = destinationRef.current ?? physicalStandingRef.current;
-    finishArrival(dest);
-  }
-
   function handleCameraSettled() {
     const cb = pendingAfterCamera.current;
     if (!cb) return;
     pendingAfterCamera.current = null;
     cb();
   }
+
+  const profileStats = buildProfileStats({
+    displayName,
+    levelLabel: `Level ${reveal.placement}`,
+    worldLabel: world.name,
+    completedCount,
+    spotsByStage,
+    streakDays,
+    streakBestDays,
+  });
 
   return (
     <View
@@ -470,12 +460,8 @@ export function TrackMapScreen({
               completedCount={completedCount}
               spotsByStage={spotsByStage}
               standing={standing}
-              trail={trail}
-              trailKey={trailKey}
-              walkDuration={walkDuration}
-              avatarSource={avatarSource}
+              hopKey={hopKey}
               onPressNode={handlePress}
-              onArrived={handleArrived}
               onCameraSettled={handleCameraSettled}
               mapActive={isActive}
             />
@@ -483,20 +469,18 @@ export function TrackMapScreen({
         ) : null}
       </View>
 
-      <View pointerEvents="box-none" style={[styles.hudWrap, { paddingTop: insets.top + 10 }]}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(17,23,20,0.72)', 'rgba(17,23,20,0.28)', 'rgba(17,23,20,0)']}
-          locations={[0, 0.55, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-        <TrackHud
+      <View pointerEvents="box-none" style={styles.hudWrap}>
+        <MarqueeRail
           remainingChips={remainingChips}
-          goldBars={goldBars}
+          goldCoins={goldCoins}
           streakDays={streakDays}
-          onPressStreak={() => setShowStreak(true)}
+          regenAt={regenAt}
+          onOpenSheet={setActiveSheet}
         />
-        <Text style={[styles.kicker, display]} accessibilityRole="header" numberOfLines={1}>
+        <Text
+          style={[styles.kicker, display, { marginTop: insets.top + 62 }]}
+          accessibilityRole="header"
+          numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
         {__DEV__ ? (
@@ -513,48 +497,45 @@ export function TrackMapScreen({
             <Text style={styles.noticeText}>{notice}</Text>
           </View>
         ) : null}
-        <View style={styles.devRow}>
-          <FogClimbPreviewButton onPress={previewFogAndClimb} />
-          {__DEV__ ? (
-            <FogClimbPreviewButton
-              // TEMPORARY DEV PREVIEW — delete with the lockout fix.
-              label="LOCKOUT"
-              accessibilityLabel="Preview the out-of-chips lockout card. Development only."
-              onPress={() => setPreviewLockout(true)}
-            />
-          ) : null}
-          {devMode && onDevCycleWorld ? (
-            <FogClimbPreviewButton
-              label={world.id === 'local-casino' ? 'GARDEN' : 'CASINO'}
-              accessibilityLabel={
-                world.id === 'local-casino'
-                  ? "Switch preview to Benny's Garden"
-                  : 'Switch preview to A Local Casino'
-              }
-              onPress={onDevCycleWorld}
-            />
-          ) : null}
-        </View>
       </View>
 
       {lockMessage || previewLockout ? (
         <ChipLockoutCard countdown={lockMessage ?? 'Refills in 11h 58m'} />
       ) : null}
 
-      <Pressable
-        onPress={onSignOut}
-        hitSlop={12}
-        style={[styles.signOut, { bottom: insets.bottom + 8 }]}
-        accessibilityRole="button"
-        accessibilityLabel="Sign out">
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-
-      <StreakModal
-        visible={showStreak}
+      <ProfileSheet
+        visible={activeSheet === 'profile'}
+        stats={profileStats}
+        onClose={() => setActiveSheet(null)}
+      />
+      <ChipStackSheet
+        visible={activeSheet === 'chips'}
+        chips={remainingChips}
+        regenAt={regenAt}
+        onClose={() => setActiveSheet(null)}
+      />
+      <GoldCoinsSheet
+        visible={activeSheet === 'gold'}
+        goldCoins={goldCoins}
+        onClose={() => setActiveSheet(null)}
+      />
+      <StreakSheet
+        visible={activeSheet === 'streak'}
         currentStreak={streakDays}
         bestStreak={streakBestDays}
-        onClose={() => setShowStreak(false)}
+        onClose={() => setActiveSheet(null)}
+      />
+      <SettingsSheet
+        visible={activeSheet === 'settings'}
+        onClose={() => setActiveSheet(null)}
+        onSignOut={onSignOut}
+        onRetakePlacement={onRetakePlacement}
+        onFogUp={previewFogAndClimb}
+        onPreviewLockout={() => setPreviewLockout(true)}
+        onCycleWorld={devMode && onDevCycleWorld ? onDevCycleWorld : undefined}
+        worldCycleLabel={
+          world.id === 'local-casino' ? 'GARDEN' : 'CASINO'
+        }
       />
     </View>
   );
@@ -570,6 +551,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  kicker: {
+    color: artStyle.colors.goldBright,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textAlign: 'center',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    backgroundColor: 'transparent',
+  },
   hudWrap: {
     position: 'absolute',
     top: 0,
@@ -580,15 +571,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 10,
     gap: 4,
-  },
-  kicker: {
-    color: artStyle.colors.goldBright,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textAlign: 'center',
-    textShadowColor: artStyle.colors.projectorBlack,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    backgroundColor: 'transparent',
   },
   debugLine: {
     color: artStyle.colors.cream,
@@ -607,24 +590,5 @@ const styles = StyleSheet.create({
     color: artStyle.colors.cream,
     fontSize: 14,
     textAlign: 'center',
-  },
-  devRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  signOut: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-    zIndex: 8,
-  },
-  signOutText: {
-    color: 'rgba(232,215,167,0.78)',
-    fontSize: 14,
   },
 });

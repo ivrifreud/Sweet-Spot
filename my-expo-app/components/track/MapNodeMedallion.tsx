@@ -1,58 +1,95 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { MAP_NODE_CHIP_SIZE, type StageStatus } from '../../lib/track/tree';
 import { ChipSprite } from '../../src/features/templates/peek-and-pitch/components/ChipSprite';
+import { MAP_NODE_CHIP_SIZE, type StageStatus } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
-import { CHIP_3Q_ASPECT } from '../../theme/chipArt';
+import { PadlockIcon, PlayPlateIcon } from '../hud/HudIcons';
+
+/** Perfect circular status ring diameter (chip + ink rim). */
+export const MAP_NODE_RING_PAD = 14;
+export const MAP_NODE_RING_SIZE = MAP_NODE_CHIP_SIZE + MAP_NODE_RING_PAD;
 
 type Props = {
-  number: number;
   status: StageStatus;
   size?: number;
 };
 
 /**
- * Three-quarter chip on the path — baked thickness from chip-3q, seated on the
- * dirt without a drop shadow so it reads as part of the map.
+ * Chip medallion inside a perfect circular status ring.
+ * No stage number or title — state is ring color, PLAY plate, or padlock.
  */
-export function MapNodeMedallion({ number, status, size = MAP_NODE_CHIP_SIZE }: Props) {
+export function MapNodeMedallion({ status, size = MAP_NODE_CHIP_SIZE }: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const chipSize = size;
-  const chipHeight = chipSize * CHIP_3Q_ASPECT;
+  const ringSize = chipSize + MAP_NODE_RING_PAD;
   const locked = status === 'locked';
   const completed = status === 'completed';
-  const numberColor = locked
-    ? 'rgba(232,215,167,0.6)'
-    : completed
-      ? artStyle.colors.cream
-      : artStyle.colors.projectorBlack;
+  const current = status === 'current';
 
   return (
-    <View style={[styles.wrap, { width: chipSize, height: chipHeight }]}>
+    <View
+      style={[
+        styles.wrap,
+        { width: ringSize, height: ringSize + (current ? 30 : 0) },
+      ]}>
       <View
-        style={[styles.chipBody, locked && styles.lockedChip, completed && styles.completedChip]}
+        style={[
+          styles.ring,
+          {
+            width: ringSize,
+            height: ringSize,
+            borderRadius: ringSize / 2,
+          },
+          completed && styles.ringCompleted,
+          current && styles.ringCurrent,
+          locked && styles.ringLocked,
+        ]}
         pointerEvents="none">
-        <ChipSprite size={chipSize} view="threeQuarter" />
-        <Text
+        <View
           style={[
-            styles.number,
-            display,
+            styles.chipClip,
             {
-              color: numberColor,
-              fontSize: chipSize * 0.42,
-              top: chipHeight * 0.18,
+              width: chipSize,
+              height: chipSize,
+              borderRadius: chipSize / 2,
             },
+            locked && styles.lockedChip,
           ]}>
-          {number}
-        </Text>
+          <ChipSprite size={chipSize} view="face" />
+        </View>
+        {completed ? (
+          <View
+            style={[
+              styles.goldRing,
+              {
+                width: ringSize - 4,
+                height: ringSize - 4,
+                borderRadius: (ringSize - 4) / 2,
+              },
+            ]}
+          />
+        ) : null}
+        {completed ? (
+          <View style={styles.stars} accessibilityElementsHidden>
+            <View style={styles.star} />
+            <View style={[styles.star, styles.starMid]} />
+            <View style={styles.star} />
+          </View>
+        ) : null}
         {locked ? (
-          <View style={[styles.lock, { bottom: chipHeight * 0.18 }]} accessibilityElementsHidden>
-            <View style={styles.shackle} />
+          <View style={styles.lockBadge}>
+            <PadlockIcon size={Math.round(chipSize * 0.38)} />
           </View>
         ) : null}
       </View>
+      {current ? (
+        <View style={styles.playPlate} accessibilityElementsHidden>
+          <PlayPlateIcon width={64} height={24} />
+          <Text style={[styles.playLabel, display]}>PLAY</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -60,46 +97,69 @@ export function MapNodeMedallion({ number, status, size = MAP_NODE_CHIP_SIZE }: 
 const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     overflow: 'visible',
   },
-  chipBody: {
+  ring: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'visible',
+    backgroundColor: 'rgba(232,215,167,0.92)',
+    borderWidth: 2.5,
+    borderColor: artStyle.colors.tobacco,
+  },
+  ringCompleted: {
+    borderColor: artStyle.colors.gold,
+  },
+  ringCurrent: {
+    borderColor: artStyle.colors.goldBright,
+  },
+  ringLocked: {
+    backgroundColor: 'rgba(118,83,55,0.55)',
+    borderColor: artStyle.colors.projectorBlack,
+  },
+  chipClip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   lockedChip: {
-    opacity: 0.72,
+    opacity: 0.78,
   },
-  completedChip: {
-    opacity: 0.96,
-  },
-  number: {
+  goldRing: {
     position: 'absolute',
-    letterSpacing: 0.6,
-    textShadowColor: 'rgba(17,23,20,0.55)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1.5,
+    borderWidth: 3,
+    borderColor: artStyle.colors.goldBright,
   },
-  lock: {
+  stars: {
     position: 'absolute',
-    width: 8,
-    height: 6,
-    borderRadius: 1.5,
-    backgroundColor: artStyle.colors.gold,
-    borderWidth: 1,
-    borderColor: artStyle.colors.tobacco,
+    top: -6,
+    flexDirection: 'row',
+    gap: 3,
+  },
+  star: {
+    width: 7,
+    height: 7,
+    borderRadius: 1,
+    backgroundColor: artStyle.colors.goldBright,
+    transform: [{ rotate: '45deg' }],
+  },
+  starMid: {
+    marginTop: -2,
+  },
+  lockBadge: {
+    position: 'absolute',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  shackle: {
+  playPlate: {
+    marginTop: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playLabel: {
     position: 'absolute',
-    top: -3,
-    width: 5,
-    height: 4,
-    borderTopLeftRadius: 2.5,
-    borderTopRightRadius: 2.5,
-    borderWidth: 1.2,
-    borderBottomWidth: 0,
-    borderColor: artStyle.colors.gold,
+    color: artStyle.colors.projectorBlack,
+    fontSize: 13,
+    letterSpacing: 1.4,
   },
 });

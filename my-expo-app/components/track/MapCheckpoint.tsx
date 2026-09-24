@@ -1,5 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -14,36 +13,31 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-  MAP_NODE_CAPTION_WIDTH,
-  MAP_NODE_CHIP_HEIGHT,
   MAP_NODE_CHIP_SIZE,
   stageProgressPercent,
   type StageStatus,
 } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
-import { MapNodeMedallion } from './MapNodeMedallion';
+import { MapNodeMedallion, MAP_NODE_RING_SIZE } from './MapNodeMedallion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const HIT = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;
 
 type Props = {
-  number: number;
   title: string;
   status: StageStatus;
   spotsCompleted: number;
   onPress: () => void;
 };
 
-export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+export function MapCheckpoint({ title, status, spotsCompleted, onPress }: Props) {
   const reducedMotion = useReducedMotion();
   const pulse = useSharedValue(0);
   const press = useSharedValue(1);
+  const shake = useSharedValue(0);
+  const [hint, setHint] = useState<string | null>(null);
   const percent = stageProgressPercent(spotsCompleted);
   const locked = status === 'locked';
-  const completed = status === 'completed';
-  const percentColor = completed ? artStyle.colors.feltGreen : artStyle.colors.goldBright;
 
   useEffect(() => {
     cancelAnimation(pulse);
@@ -51,7 +45,6 @@ export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }
       pulse.value = 0;
       return;
     }
-    // Soft scale pulse only — no lift, so the chip stays seated on the path.
     pulse.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 520, easing: Easing.out(Easing.quad) }),
@@ -67,10 +60,11 @@ export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }
     };
   }, [pulse, reducedMotion, status]);
 
+  // Uniform scale keeps the status ring a perfect circle while pulsing.
   const nodeStyle = useAnimatedStyle(() => ({
     transform: [
-      { scaleX: (1 + pulse.value * 0.03) * press.value },
-      { scaleY: (1 + pulse.value * 0.02) * press.value },
+      { translateX: shake.value },
+      { scale: (1 + pulse.value * 0.03) * press.value },
     ],
   }));
 
@@ -80,10 +74,27 @@ export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }
       ? `${title}, completed`
       : `${title}, ${percent}% complete, start`;
 
+  function handlePress() {
+    if (locked) {
+      setHint('Finish the previous stage first.');
+      if (!reducedMotion) {
+        shake.value = withSequence(
+          withTiming(-6, { duration: 50 }),
+          withTiming(6, { duration: 50 }),
+          withTiming(-4, { duration: 50 }),
+          withTiming(0, { duration: 50 })
+        );
+      }
+      return;
+    }
+    setHint(null);
+    onPress();
+  }
+
   return (
     <View style={[styles.wrap, locked && styles.lockedWrap]}>
       <AnimatedPressable
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={() => {
           press.value = withTiming(0.94, { duration: 90 });
         }}
@@ -93,58 +104,42 @@ export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }
             withSpring(1, { damping: 14, stiffness: 220 })
           );
         }}
-        disabled={false}
         hitSlop={Math.max(8, Math.ceil((HIT - MAP_NODE_CHIP_SIZE) / 2))}
-        style={[styles.node, nodeStyle, locked && styles.lockedNode]}
+        style={[styles.node, nodeStyle]}
         accessibilityRole="button"
         accessibilityState={{ disabled: locked }}
         accessibilityLabel={accessibilityLabel}>
-        <MapNodeMedallion number={number} status={status} />
+        <MapNodeMedallion status={status} />
       </AnimatedPressable>
-      {!locked ? (
-        <Text style={[styles.percent, display, { color: percentColor }]}>{`${percent}%`}</Text>
+      {hint && locked ? (
+        <Text style={styles.hint} accessibilityLiveRegion="polite">
+          {hint}
+        </Text>
       ) : null}
-      <Text style={styles.caption} numberOfLines={2}>
-        {title}
-      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    width: MAP_NODE_CAPTION_WIDTH,
+    width: MAP_NODE_RING_SIZE,
     alignItems: 'center',
   },
   lockedWrap: {
-    opacity: 0.92,
+    opacity: 0.96,
   },
   node: {
-    width: MAP_NODE_CHIP_SIZE,
-    height: MAP_NODE_CHIP_HEIGHT,
+    width: MAP_NODE_RING_SIZE,
+    height: MAP_NODE_RING_SIZE + 28,
     alignItems: 'center',
     justifyContent: 'flex-end',
     overflow: 'visible',
     backgroundColor: 'transparent',
   },
-  lockedNode: {
-    opacity: 0.88,
-  },
-  percent: {
-    marginTop: 1,
-    fontSize: 10,
-    lineHeight: 12,
-    letterSpacing: 0.6,
-    textShadowColor: artStyle.colors.projectorBlack,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  caption: {
-    marginTop: 1,
-    width: MAP_NODE_CAPTION_WIDTH,
+  hint: {
+    marginTop: 4,
     color: artStyle.colors.cream,
-    fontSize: 9,
-    lineHeight: 11,
+    fontSize: 11,
     textAlign: 'center',
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },

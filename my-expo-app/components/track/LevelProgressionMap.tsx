@@ -1,10 +1,8 @@
-import type { ImageSourcePropType } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { svgRouteSegment, walkWorldTrail } from '../../lib/track/worldMapGeometry';
+import { svgRouteSegment } from '../../lib/track/worldMapGeometry';
 import type { FogPhase } from '../../lib/track/fogCycle';
-import { durationForLength, pathLength, type Point } from '../../lib/track/mapPath';
 import {
   CAMERA_CLIMB_MS,
   levelMarkers,
@@ -15,8 +13,8 @@ import {
   type MapNode,
 } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
-import { MapAvatar, MAP_AVATAR_SIZE } from './MapAvatar';
 import { MapCheckpoint } from './MapCheckpoint';
+import { MapHeroPin } from './MapHeroPin';
 import { WorldMap } from './WorldMap';
 import type { WorldMapTemplate } from './worldMapTemplates';
 
@@ -29,39 +27,15 @@ type Props = {
   completedCount: number;
   spotsByStage?: Record<number, number>;
   standing: number;
-  trail: Point[];
-  trailKey: number;
-  walkDuration: number;
-  avatarSource?: ImageSourcePropType;
+  hopKey?: number;
   onPressNode: (stageNumber: number) => void;
-  onArrived?: () => void;
   onCameraSettled?: () => void;
   mapActive?: boolean;
 };
 
-export function avatarAnchor(point: Point): Point {
-  return {
-    x: point.x - MAP_AVATAR_SIZE / 2,
-    y: point.y - MAP_AVATAR_SIZE + 10,
-  };
-}
-
-export function trailForWalk(
-  fromStage: number,
-  toStage: number,
-  map: { width: number; height: number },
-  world: Pick<WorldMapTemplate, 'nodes' | 'chunks'>
-): Point[] {
-  return walkWorldTrail(fromStage, toStage, map, world.nodes, world.chunks).map(avatarAnchor);
-}
-
-export function walkDurationMs(trail: Point[]): number {
-  return durationForLength(pathLength(trail));
-}
-
 /**
  * Shared world-map mechanic: dynamic art, dotted ink trail, chip checkpoints,
- * and the player's avatar. Each world supplies percentage-based coordinates.
+ * and a pinned hero badge on the current node (no walking avatar).
  */
 export function LevelProgressionMap({
   width,
@@ -72,12 +46,8 @@ export function LevelProgressionMap({
   completedCount,
   spotsByStage = {},
   standing,
-  trail,
-  trailKey,
-  walkDuration,
-  avatarSource,
+  hopKey = 0,
   onPressNode,
-  onArrived,
   onCameraSettled,
   mapActive = true,
 }: Props) {
@@ -86,7 +56,7 @@ export function LevelProgressionMap({
   const markers = levelMarkers(completedCount, currentWorld.nodes, spotsByStage);
   const map = { width, height };
   const standingNode = nodeByNumber(standing, currentWorld.nodes) ?? currentWorld.nodes[0]!;
-  const standingPoint = avatarAnchor(nodePixels(standingNode, map, chunkCount));
+  const standingPoint = nodePixels(standingNode, map, chunkCount);
 
   return (
     <WorldMap
@@ -109,7 +79,7 @@ export function LevelProgressionMap({
                 key={`path-under-${index}`}
                 d={d}
                 stroke={artStyle.colors.projectorBlack}
-                strokeWidth={12}
+                strokeWidth={14}
                 strokeLinecap="round"
                 strokeDasharray="1 17"
                 fill="none"
@@ -126,7 +96,7 @@ export function LevelProgressionMap({
                 key={`path-${index}`}
                 d={d}
                 stroke={opened ? artStyle.colors.gold : artStyle.colors.cream}
-                strokeWidth={6}
+                strokeWidth={8}
                 strokeLinecap="round"
                 strokeDasharray="1 17"
                 fill="none"
@@ -155,7 +125,6 @@ export function LevelProgressionMap({
                 },
               ]}>
               <MapCheckpoint
-                number={marker.number}
                 title={marker.title}
                 status={marker.status}
                 spotsCompleted={marker.spotsCompleted}
@@ -165,16 +134,7 @@ export function LevelProgressionMap({
           );
         })}
 
-        <MapAvatar
-          x={standingPoint.x}
-          y={standingPoint.y}
-          trail={trail}
-          trailKey={trailKey}
-          duration={walkDuration}
-          source={avatarSource}
-          walkSoundEnabled={currentWorld.id === 'bennys-garden'}
-          onArrived={onArrived}
-        />
+        <MapHeroPin x={standingPoint.x} y={standingPoint.y} hopKey={hopKey} />
       </View>
     </WorldMap>
   );
