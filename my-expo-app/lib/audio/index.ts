@@ -28,6 +28,7 @@ export type SfxName =
   | 'fold'
   | 'chipPickup'
   | 'call'
+  | 'check'
   | 'raise'
   | 'correct'
   | 'correctCasinoCoins'
@@ -83,6 +84,7 @@ const sfxSources: Record<SfxName, number> = {
   fold: require('../../assets/audio/fold.wav'),
   chipPickup: require('../../assets/audio/chip-pickup.wav'),
   call: require('../../assets/audio/call.wav'),
+  check: require('../../assets/audio/check.wav'),
   raise: require('../../assets/audio/raise.wav'),
   correct: require('../../assets/audio/correct.wav'),
   correctCasinoCoins: require('../../assets/audio/correct-casino-coins.wav'),
@@ -120,12 +122,67 @@ type Player = {
 
 const sfxPlayers: Partial<Record<SfxName, Player>> = {};
 const ambiencePlayers: Partial<Record<AmbienceName, Player>> = {};
+let nativeAudio: typeof import('expo-audio') | null | undefined;
+let audioModeReady = false;
 
 async function ensureNative(): Promise<typeof import('expo-audio') | null> {
+  if (nativeAudio !== undefined) return nativeAudio;
   try {
-    return await import('expo-audio');
+    nativeAudio = await import('expo-audio');
   } catch {
-    return null;
+    nativeAudio = null;
+  }
+  return nativeAudio;
+}
+
+async function ensureAudioMode(
+  audio: NonNullable<Awaited<ReturnType<typeof ensureNative>>>
+): Promise<void> {
+  if (audioModeReady) return;
+  try {
+    await audio.setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      interruptionMode: 'mixWithOthers',
+    });
+    audioModeReady = true;
+  } catch {
+    // Keep gameplay running if the session cannot be configured.
+  }
+}
+
+async function ensureSfxPlayer(name: SfxName): Promise<Player | undefined> {
+  if (sfxPlayers[name]) return sfxPlayers[name];
+  const audio = await ensureNative();
+  if (!audio) return undefined;
+  await ensureAudioMode(audio);
+  if (sfxPlayers[name]) return sfxPlayers[name];
+  try {
+    const player = audio.createAudioPlayer(sfxSources[name]) as Player;
+    player.loop = false;
+    player.pause();
+    sfxPlayers[name] = player;
+    return player;
+  } catch {
+    return undefined;
+  }
+}
+
+async function ensureAmbiencePlayer(name: AmbienceName): Promise<Player | undefined> {
+  if (ambiencePlayers[name]) return ambiencePlayers[name];
+  const source = ambienceSources[name];
+  if (source == null) return undefined;
+  const audio = await ensureNative();
+  if (!audio) return undefined;
+  await ensureAudioMode(audio);
+  if (ambiencePlayers[name]) return ambiencePlayers[name];
+  try {
+    const player = audio.createAudioPlayer(source) as Player;
+    player.loop = true;
+    ambiencePlayers[name] = player;
+    return player;
+  } catch {
+    return undefined;
   }
 }
 
@@ -153,35 +210,27 @@ export async function preloadAudio(): Promise<Settings> {
   const next = await loadAudioSettings();
   const audio = await ensureNative();
   if (!audio) return next;
-  try {
-    await audio.setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: false,
-      interruptionMode: 'mixWithOthers',
-    });
-  } catch {
-    // Keep gameplay running if the session cannot be configured.
-  }
-  for (const [name, source] of Object.entries(sfxSources) as [SfxName, number][]) {
-    try {
-      const player = audio.createAudioPlayer(source) as Player;
-      player.loop = false;
-      player.pause();
-      sfxPlayers[name] = player;
-    } catch {
-      // Missing native player is a silent fallback.
-    }
-  }
-  for (const [name, source] of Object.entries(ambienceSources) as [AmbienceName, number][]) {
-    try {
-      const player = audio.createAudioPlayer(source) as Player;
-      player.loop = true;
-      ambiencePlayers[name] = player;
-    } catch {
-      // Missing native player is a silent fallback.
-    }
-  }
+  await ensureAudioMode(audio);
   return next;
+}
+
+export async function prepareWorldAmbience(
+  worldId?: AudioWorldId,
+  lighting: AudioLighting = 'light'
+): Promise<void> {
+  const next = resolveBed(worldId, lighting);
+  await ensureAmbiencePlayer(next);
+}
+
+/** Warm the first table cues during welcome so Deal Me In does not create players and decode art together. */
+export async function preparePeekTableAudio(): Promise<void> {
+  await Promise.all([
+    ensureSfxPlayer('deal'),
+    ensureSfxPlayer('peek'),
+    ensureSfxPlayer('check'),
+    ensureSfxPlayer('settle'),
+    prepareWorldAmbience('bennys-garden', 'night'),
+  ]);
 }
 
 function guarded(name: SfxName | AmbienceName, gapMs = 80): boolean {
@@ -216,11 +265,22 @@ function pauseOneShotSfx(except?: SfxName): void {
   });
 }
 
-export function playSfx(name: SfxName): void {
-  if (settings.muted || settings.sfxVolume <= 0) return;
-  if (!guarded(name, name === 'fold' ? 400 : 80)) return;
-  const player = sfxPlayers[name];
-  if (!player) return;
+function duckTableBed(): void {
+  const ambience = ambiencePlayers[activeBed];
+  if (!ambience) return;
+  const bedVolume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
+  ambience.volume = bedVolume * 0.32;
+  setTimeout(() => {
+    if (ambiencePlayers[activeBed] && !settings.muted) {
+      ambiencePlayers[activeBed]!.volume = ambiencePlaybackVolume(
+        activeBed,
+        settings.ambienceVolume
+      );
+    }
+  }, 220);
+}
+
+function playReadySfx(name: SfxName, player: Player): void {
   try {
     pauseOneShotSfx(name);
     player.loop = false;
@@ -231,22 +291,119 @@ export function playSfx(name: SfxName): void {
     } else {
       player.play();
     }
-    const ambience = ambiencePlayers[activeBed];
-    if (ambience && !DRY_SFX.has(name) && name !== 'step') {
-      const bedVolume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
-      ambience.volume = bedVolume * 0.32;
-      setTimeout(() => {
-        if (ambiencePlayers[activeBed] && !settings.muted) {
-          ambiencePlayers[activeBed]!.volume = ambiencePlaybackVolume(
-            activeBed,
-            settings.ambienceVolume
-          );
-        }
-      }, 220);
-    }
+    if (!DRY_SFX.has(name) && name !== 'step') duckTableBed();
   } catch {
     // Ignore playback errors.
   }
+}
+
+/**
+ * Check is a double-tap. The first press parks the cue at the start so the
+ * second press can call play() without waiting on seekTo.
+ */
+let checkToken = 0;
+let checkReadyFor = -1;
+let checkSeekDone: Promise<void> | null = null;
+
+function seekCheckToStart(player: Player, token: number): void {
+  try {
+    player.loop = false;
+    player.pause();
+    player.volume = settings.sfxVolume;
+    const done = () => {
+      if (token === checkToken) checkReadyFor = token;
+    };
+    const seek = player.seekTo?.(0) as unknown as Promise<void> | void;
+    if (seek && typeof (seek as Promise<void>).then === 'function') {
+      checkSeekDone = (seek as Promise<void>).then(done, done);
+    } else {
+      checkSeekDone = null;
+      done();
+    }
+  } catch {
+    checkSeekDone = null;
+  }
+}
+
+/** Park the check cue at the start. Call on the first tap of a check. */
+export function queueCheckSfx(): void {
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  const existing = sfxPlayers.check;
+  if (existing && checkReadyFor === checkToken && checkReadyFor !== -1) return;
+  const token = ++checkToken;
+  checkReadyFor = -1;
+  if (existing) {
+    seekCheckToStart(existing, token);
+    return;
+  }
+  void ensureSfxPlayer('check').then((player) => {
+    if (player && token === checkToken) seekCheckToStart(player, token);
+  });
+}
+
+function startCheckPlayer(player: Player, token: number): void {
+  if (token !== checkToken) return;
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  try {
+    pauseOneShotSfx('check');
+    stopPeekSfx();
+    player.loop = false;
+    player.volume = settings.sfxVolume;
+    player.play();
+    duckTableBed();
+    checkReadyFor = -1;
+  } catch {
+    // Ignore playback errors.
+  }
+}
+
+/** Start the parked check cue. Call on the second tap's finger-down. */
+export function playCheckSfx(): void {
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  if (!guarded('check', 80)) return;
+  const token = checkToken;
+  const player = sfxPlayers.check;
+  const afterSeek = (ready: Player) => startCheckPlayer(ready, token);
+  if (!player) {
+    void ensureSfxPlayer('check').then((ready) => {
+      if (!ready) return;
+      const seek = ready.seekTo?.(0) as unknown as Promise<void> | void;
+      if (seek && typeof (seek as Promise<void>).then === 'function') {
+        void (seek as Promise<void>).then(() => afterSeek(ready)).catch(() => afterSeek(ready));
+      } else {
+        afterSeek(ready);
+      }
+    });
+    return;
+  }
+  if (checkReadyFor === token) {
+    afterSeek(player);
+    return;
+  }
+  const pending = checkSeekDone;
+  if (pending) {
+    void pending.then(() => afterSeek(player));
+    return;
+  }
+  const seek = player.seekTo?.(0) as unknown as Promise<void> | void;
+  if (seek && typeof (seek as Promise<void>).then === 'function') {
+    void (seek as Promise<void>).then(() => afterSeek(player)).catch(() => afterSeek(player));
+  } else {
+    afterSeek(player);
+  }
+}
+
+export function playSfx(name: SfxName): void {
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  if (!guarded(name, name === 'fold' ? 400 : 80)) return;
+  const existing = sfxPlayers[name];
+  if (existing) {
+    playReadySfx(name, existing);
+    return;
+  }
+  void ensureSfxPlayer(name).then((player) => {
+    if (player) playReadySfx(name, player);
+  });
 }
 
 export function playDecisionSfx(outcome: 'correct' | 'incorrect', key?: string): void {
@@ -297,19 +454,28 @@ export function stopIdleWatch(): void {
   idleTimer = null;
 }
 
-export function startWalkSfx(): void {
-  walking = true;
-  if (settings.muted || settings.sfxVolume <= 0) return;
-  const player = sfxPlayers.step;
-  if (!player) return;
+function startLoopedSfx(player: Player, volume: number): void {
   try {
     player.loop = true;
-    player.volume = settings.sfxVolume * 0.85;
+    player.volume = volume;
     player.seekTo?.(0);
     player.play();
   } catch {
     // Ignore playback errors.
   }
+}
+
+export function startWalkSfx(): void {
+  walking = true;
+  if (settings.muted || settings.sfxVolume <= 0) return;
+  const player = sfxPlayers.step;
+  if (player) {
+    startLoopedSfx(player, settings.sfxVolume * 0.85);
+    return;
+  }
+  void ensureSfxPlayer('step').then((ready) => {
+    if (ready && walking && !settings.muted) startLoopedSfx(ready, settings.sfxVolume * 0.85);
+  });
 }
 
 function pauseWalkPlayer(): void {
@@ -333,15 +499,13 @@ export function startDialSfx(): void {
   dialing = true;
   if (settings.muted || settings.sfxVolume <= 0) return;
   const player = sfxPlayers.dial;
-  if (!player) return;
-  try {
-    player.loop = true;
-    player.volume = settings.sfxVolume;
-    player.seekTo?.(0);
-    player.play();
-  } catch {
-    // Ignore playback errors.
+  if (player) {
+    startLoopedSfx(player, settings.sfxVolume);
+    return;
   }
+  void ensureSfxPlayer('dial').then((ready) => {
+    if (ready && dialing && !settings.muted) startLoopedSfx(ready, settings.sfxVolume);
+  });
 }
 
 function pauseDialPlayer(): void {
@@ -365,15 +529,13 @@ export function startPeekSfx(): void {
   peeking = true;
   if (settings.muted || settings.sfxVolume <= 0) return;
   const player = sfxPlayers.peek;
-  if (!player) return;
-  try {
-    player.loop = true;
-    player.volume = settings.sfxVolume;
-    player.seekTo?.(0);
-    player.play();
-  } catch {
-    // Ignore playback errors.
+  if (player) {
+    startLoopedSfx(player, settings.sfxVolume);
+    return;
   }
+  void ensureSfxPlayer('peek').then((ready) => {
+    if (ready && peeking && !settings.muted) startLoopedSfx(ready, settings.sfxVolume);
+  });
 }
 
 function pausePeekPlayer(): void {
@@ -400,22 +562,12 @@ function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): 
   return next;
 }
 
-export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): void {
-  if (settings.muted || settings.ambienceVolume <= 0) return;
-  const next = resolveBed(worldId, lighting);
-  if (activeBed !== next) {
-    pauseAllBeds();
-    activeBed = next;
-  }
-  const player = ambiencePlayers[activeBed];
-  if (!player) return;
+function playAmbiencePlayer(player: Player, bed: AmbienceName): void {
   try {
     player.loop = true;
-    player.volume = ambiencePlaybackVolume(activeBed, settings.ambienceVolume);
+    player.volume = ambiencePlaybackVolume(bed, settings.ambienceVolume);
     if (
-      (activeBed === 'garden-ambience' ||
-        activeBed === 'poker-table' ||
-        activeBed.startsWith('local-casino-vip-')) &&
+      (bed === 'garden-ambience' || bed === 'poker-table' || bed.startsWith('local-casino-vip-')) &&
       player.duration &&
       player.duration > 1
     ) {
@@ -425,6 +577,24 @@ export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 
   } catch {
     // Ignore.
   }
+}
+
+export function startAmbience(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): void {
+  if (settings.muted || settings.ambienceVolume <= 0) return;
+  const next = resolveBed(worldId, lighting);
+  if (activeBed !== next) {
+    pauseAllBeds();
+    activeBed = next;
+  }
+  const player = ambiencePlayers[activeBed];
+  if (player) {
+    playAmbiencePlayer(player, activeBed);
+    return;
+  }
+  const bed = activeBed;
+  void ensureAmbiencePlayer(bed).then((ready) => {
+    if (ready && activeBed === bed && !settings.muted) playAmbiencePlayer(ready, bed);
+  });
 }
 
 export function stopAmbience(): void {

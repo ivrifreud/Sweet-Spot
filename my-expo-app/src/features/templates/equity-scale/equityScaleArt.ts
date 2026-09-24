@@ -12,8 +12,6 @@ export const equityScaleArt = {
   },
   scale: {
     body: require('../../../../assets/tables/equity-scale/scale-body-slot.png'),
-    leftArm: require('../../../../assets/tables/equity-scale/scale-left-arm.png'),
-    rightArm: require('../../../../assets/tables/equity-scale/scale-right-arm.png'),
   },
   scaleFrames: [
     require('../../../../assets/tables/equity-scale/scale-frame-l28.png'),

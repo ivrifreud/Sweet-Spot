@@ -1,8 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { useEventListener } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { VideoView } from 'expo-video';
+import { useEffect } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -12,12 +11,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { safePauseVideoPlayer } from '../../lib/video/safePause';
+import { useReadyVideo } from '../../lib/video/useReadyVideo';
 import { artStyle } from '../../theme/artStyle';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const LOCKOUT_EMOTE = require('../../assets/brand/artstyle/coach-broke-lockout.mp4');
 const LOCKOUT_POSTER = require('../../assets/brand/artstyle/coach-broke-lockout.png');
+/** ~5MB clip — give Expo Go time before falling back to the still. */
+const LOCKOUT_READY_MS = 12_000;
 
 function pressPlaceholder() {
   // Premium rebuy and rewarded ads are placeholders this sprint.
@@ -40,31 +41,18 @@ function LockoutEmote() {
 }
 
 function LockoutEmoteVideo() {
-  const [ready, setReady] = useState(false);
-  const player = useVideoPlayer(LOCKOUT_EMOTE, (nextPlayer) => {
-    nextPlayer.loop = true;
-    nextPlayer.muted = true;
+  const { player, showPoster, onFirstFrame } = useReadyVideo({
+    source: LOCKOUT_EMOTE,
+    generation: 'lockout',
+    muted: true,
+    loop: true,
+    resolveSeek: () => 0,
+    timeoutMs: LOCKOUT_READY_MS,
   });
-
-  const start = useCallback(() => {
-    if (!player.playing) player.play();
-  }, [player]);
-
-  useEventListener(player, 'sourceLoad', () => start());
-  useEventListener(player, 'statusChange', ({ status }) => {
-    if (status === 'readyToPlay') start();
-  });
-
-  useEffect(() => {
-    start();
-    return () => {
-      safePauseVideoPlayer(player);
-    };
-  }, [player, start]);
 
   return (
     <View style={styles.emoteMedia}>
-      {ready ? null : (
+      {showPoster ? (
         <Image
           source={LOCKOUT_POSTER}
           style={styles.emotePoster}
@@ -72,14 +60,14 @@ function LockoutEmoteVideo() {
           accessibilityIgnoresInvertColors
           accessible={false}
         />
-      )}
+      ) : null}
       <VideoView
         player={player}
         nativeControls={false}
         contentFit="cover"
         playsInline
-        surfaceType="textureView"
-        onFirstFrameRender={() => setReady(true)}
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
+        onFirstFrameRender={onFirstFrame}
         style={styles.emoteMedia}
       />
     </View>

@@ -2,8 +2,9 @@
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playSfx } from '../../../../lib/audio';
@@ -31,7 +32,7 @@ import {
   EQUITY_OUTS_MAX,
   EQUITY_OUTS_MIN,
 } from './config';
-import { dialValueToTilt } from './components/scaleArmLayout';
+import { dialValueToTilt, scaleFramePosition } from './components/scaleArmLayout';
 import { percent, requiredEquity } from './equityMath';
 import { equityScaleArt } from './equityScaleArt';
 import { EQUITY_STRINGS, equityStreetTitle } from './strings';
@@ -78,6 +79,9 @@ export function EquityScaleTemplate({
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
+  const hosePosition = useSharedValue(
+    scaleFramePosition(dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX))
+  );
   const [lockedOuts, setLockedOuts] = useState<number | null>(null);
   const [phase, setPhase] = useState<EquityScalePhase>('entering');
   const submittedRef = useRef(false);
@@ -129,7 +133,12 @@ export function EquityScaleTemplate({
 
   useEffect(() => {
     if (forceTutorial) {
-      tutorialDoneRef.current = false;
+      // Keep a finished/skipped coach off for this mount even if deps re-fire.
+      if (tutorialDoneRef.current) {
+        setTutorialActive(false);
+        setTutorialReady(true);
+        return;
+      }
       tutorialBusyRef.current = false;
       setTutorialIndex(0);
       setTutorialSuccess(false);
@@ -165,13 +174,12 @@ export function EquityScaleTemplate({
 
   const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
   const showingOuts = phase === 'entering' || phase === 'stage1';
-  const tilt = useMemo(
-    () =>
-      showingOuts
-        ? dialValueToTilt(selectedOuts, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
-        : dialValueToTilt(selectedEquity, EQUITY_DIAL_MIN, EQUITY_DIAL_MAX),
-    [selectedEquity, selectedOuts, showingOuts]
-  );
+  useEffect(() => {
+    const value = showingOuts ? selectedOuts : selectedEquity;
+    const min = showingOuts ? EQUITY_OUTS_MIN : EQUITY_DIAL_MIN;
+    const max = showingOuts ? EQUITY_OUTS_MAX : EQUITY_DIAL_MAX;
+    hosePosition.value = scaleFramePosition(dialValueToTilt(value, min, max));
+  }, [hosePosition, resetKey, selectedEquity, selectedOuts, showingOuts]);
   const stage1Live = !disabled && phase === 'stage1';
   const stage2Live = !disabled && phase === 'stage2';
   const revealing =
@@ -328,13 +336,17 @@ export function EquityScaleTemplate({
         </Text>
       </View>
 
-      <View style={[styles.scaleWrap, { top: scaleTop }]}>
+      <View style={[styles.scaleWrap, { top: scaleTop, height: table.scaleHeight }]}>
         <ScaleScene
-          tilt={tilt}
+          position={hosePosition}
+          initialPosition={scaleFramePosition(
+            dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
+          )}
           outcome={activeOutcome}
           stagesCorrect={grade?.stagesCorrect ?? null}
           width={table.scaleWidth}
           height={table.scaleHeight}
+          resetKey={resetKey}
         />
       </View>
 

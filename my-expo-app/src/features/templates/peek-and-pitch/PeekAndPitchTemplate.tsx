@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability, react-hooks/refs, react-hooks/set-state-in-effect -- Reanimated shared values and callback refs. */
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -19,7 +20,7 @@ import {
   type HoleCards as HoleCardsTuple,
 } from '@/lib/cards';
 
-import { playSfx, startAmbience, stopAmbience } from '../../../../lib/audio';
+import { playSfx, queueCheckSfx, startAmbience, stopAmbience } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
 import { CHIP_EDGE_RATIO } from '../../../../theme/chipArt';
 import { ActionBanner } from './components/ActionBanner';
@@ -43,6 +44,7 @@ import { DEFAULT_SPOT, SKINS, STACK_HIT, CHIP_CARD_GAP, mapBackdropPoint } from 
 import { STRINGS } from './strings';
 import type { PeekAndPitchSpot, SpotDecision, TableSkin, TemplatePhase } from './types';
 import { GestureTutorialOverlay } from '../../gesture-tutorial';
+import { shouldApplyDealComplete } from '../../../../lib/peek-and-pitch/handReset';
 import {
   PEEK_AND_PITCH_TUTORIAL,
   advanceStep,
@@ -160,6 +162,12 @@ export function PeekAndPitchTemplate({
   onTutorialSettledRef.current = onTutorialSettled;
   const onTutorialUiRef = useRef(onTutorialUi);
   onTutorialUiRef.current = onTutorialUi;
+  const dealGenerationRef = useRef(0);
+  const applyDealComplete = useCallback((generation: number) => {
+    if (shouldApplyDealComplete(generation, dealGenerationRef.current, true)) {
+      setPhase('live');
+    }
+  }, []);
 
   const deal = useSharedValue(0);
   const peek = useSharedValue(0);
@@ -308,22 +316,31 @@ export function PeekAndPitchTemplate({
       resolvedRef.current = false;
       playSfx('deal');
 
+      cancelAnimation(deal);
+      cancelAnimation(peek);
+      cancelAnimation(muck);
+      cancelAnimation(commit);
       peek.value = 0;
       muck.value = 0;
       commit.value = 0;
-      cancelAnimation(peek);
+      stackPress.value = 0;
+      stackDragX.value = 0;
+      stackDragY.value = 0;
       deal.value = 0;
+      const generation = dealGenerationRef.current + 1;
+      dealGenerationRef.current = generation;
       deal.value = withTiming(
         1,
         { duration: DEAL_THROW_MS, easing: Easing.out(Easing.cubic) },
         (finished) => {
+          // Worklets may only pass primitives to JS. Never read a React ref here.
           if (finished) {
-            runOnJS(setPhase)('live');
+            runOnJS(applyDealComplete)(generation);
           }
         }
       );
     },
-    [commit, deal, muck, peek]
+    [applyDealComplete, commit, deal, muck, peek, stackDragX, stackDragY, stackPress]
   );
 
   useEffect(() => {
@@ -334,6 +351,10 @@ export function PeekAndPitchTemplate({
     startAmbience(activeSpot.skin === 'casino' ? 'local-casino' : 'bennys-garden', 'night');
     return () => stopAmbience();
   }, [activeSpot.skin]);
+
+  useEffect(() => {
+    queueCheckSfx();
+  }, []);
 
   useEffect(() => {
     return () => {

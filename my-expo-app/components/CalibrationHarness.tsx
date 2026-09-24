@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  InteractionManager,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -18,7 +25,6 @@ import { CalibrationWelcomeScreen } from '../screens/CalibrationWelcomeScreen';
 import { LevelRevealScreen } from '../screens/LevelRevealScreen';
 import { StagePlayScreen } from '../screens/StagePlayScreen';
 import { TrackMapScreen } from '../screens/TrackMapScreen';
-import { LOCAL_CASINO_WORLD, BENNYS_GARDEN_WORLD } from './track/worldMapTemplates';
 import { signOut } from '../lib/auth';
 import {
   applyLocalRegen,
@@ -34,6 +40,11 @@ import {
   worldForPlacement,
   type ReadyWorldId,
 } from '../lib/track/worldForPlacement';
+import { prepareKnownWorldAssets, prepareLockoutCoachAssets, prepareTemplateAssets } from '../lib/assets/prepareRouteAssets';
+import { preparePeekTableAudio, prepareWorldAmbience } from '../lib/audio';
+import { createExclusiveLock } from '../lib/exclusiveLock';
+import { shouldMountTrackMap } from '../lib/track/stagePlayPhase';
+import { markPerf, measurePerf } from '../lib/performance/marks';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
 import { nextCalibrationAction } from '../lib/calibration/flow';
@@ -140,6 +151,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
   } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmingRegen = useRef(false);
+  const submitLock = useRef(createExclusiveLock());
 
   useEffect(() => {
     return () => {
@@ -212,10 +224,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             startingElo: session.startingElo,
             reason: 'already_placed',
           });
-          const seen = await hasSeenPlacement(userId);
-          const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, session.placement);
-          const streakState = await readStreakState();
+          const [seen, stack, progress, streakState] = await Promise.all([
+            hasSeenPlacement(userId),
+            readChipStack(),
+            loadStageProgress(userId, session.placement),
+            readStreakState(),
+          ]);
           if (!cancelled) {
             setContinued(seen);
             setChipStack(stack);
@@ -230,10 +244,12 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
         const shouldFinalize = applyAnswers(loaded, session.answers);
         if (shouldFinalize) {
           const placed = await finalizeSession(session.sessionId);
-          const seen = await hasSeenPlacement(userId);
-          const stack = await readChipStack();
-          const progress = await loadStageProgress(userId, placed.placement);
-          const streakState = await readStreakState();
+          const [seen, stack, progress, streakState] = await Promise.all([
+            hasSeenPlacement(userId),
+            readChipStack(),
+            loadStageProgress(userId, placed.placement),
+            readStreakState(),
+          ]);
           if (!cancelled) {
             setResult(placed);
             setContinued(seen);
@@ -248,7 +264,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
           setError(err instanceof Error ? err.message : 'Failed to start calibration');
         }
       } finally {
-        if (!cancelled) setBooting(false);
+        if (!cancelled) {
+          markPerf('harness-ready');
+          measurePerf('harness-boot', 'app-shell-ready', 'harness-ready');
+          setBooting(false);
+        }
       }
     }
 
@@ -257,6 +277,27 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       cancelled = true;
     };
   }, [applyAnswers, devMode, userId]);
+
+  useEffect(() => {
+    if (result) {
+      const worldId = currentWorldIdForPlacement(result.placement) ?? 'bennys-garden';
+      const handle = InteractionManager.runAfterInteractions(() => {
+        void prepareKnownWorldAssets(worldId);
+        void prepareWorldAmbience(worldId, 'light');
+        void prepareTemplateAssets(2);
+        void prepareLockoutCoachAssets();
+      });
+      return () => handle.cancel();
+    }
+    if (!welcomeSeen) {
+      const handle = InteractionManager.runAfterInteractions(() => {
+        void prepareTemplateAssets(1);
+        void preparePeekTableAudio();
+      });
+      return () => handle.cancel();
+    }
+    return undefined;
+  }, [result, welcomeSeen]);
 
   async function handleSignOut() {
     if (devMode) {
@@ -322,17 +363,11 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
 
   async function onChoose(decision: SpotDecision) {
     if (!spots || !sessionId || !current || busy || feedback) return;
+    if (!submitLock.current.tryAcquire()) return;
     setBusy(true);
     setError(null);
     try {
       const chosen = pokerActionForDecision(decision, current);
-      const copy = buildDecisionFeedbackCopy({
-        correct: isAnswerCorrect(current, chosen),
-        chosen,
-        correctAnswer: current.correctAnswer,
-        lesson: current.prompt,
-        continueLabel: 'Deal me the next hand',
-      });
 
       const nextAnswers = devMode
         ? [
@@ -348,11 +383,21 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
             answersSoFar: answers,
           });
 
+      const persisted =
+        nextAnswers.find((answer) => answer.spotId === current.id)?.chosen ?? chosen;
+      const copy = buildDecisionFeedbackCopy({
+        correct: isAnswerCorrect(current, persisted),
+        chosen: persisted,
+        correctAnswer: current.correctAnswer,
+        lesson: current.prompt,
+        continueLabel: 'Deal me the next hand',
+      });
+
       setAnswers(nextAnswers);
       const pending: PendingFeedback = {
         copy,
         nextAnswers,
-        key: `${current.id}-${chosen}`,
+        key: `${current.id}-${persisted}`,
         tempo: tempoForDecision(decision),
       };
       if (feedbackTimer.current) {
@@ -362,11 +407,13 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
       const delay = feedbackRevealMs(decision);
       if (delay <= 0) {
         setFeedback(pending);
+        submitLock.current.release();
         setBusy(false);
       } else {
         feedbackTimer.current = setTimeout(() => {
           feedbackTimer.current = null;
           setFeedback(pending);
+          submitLock.current.release();
           setBusy(false);
         }, delay);
         return;
@@ -374,6 +421,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save answer');
       setResetKey((value) => value + 1);
+      submitLock.current.release();
       setBusy(false);
     }
   }
@@ -426,8 +474,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     })();
   }
 
-  const stageLabel =
-    current?.spotType === 'calibration_stage1' ? 'Stage 1' : 'Stage 2';
+  const stageLabel = current?.spotType === 'calibration_stage1' ? 'Stage 1' : 'Stage 2';
   const progress = current ? `${current.sequenceOrder} / 6` : result ? 'Done' : '…';
   const tableSpot = useMemo(
     () => (current ? toPeekAndPitchSpot(current, `${stageLabel} · ${progress}`) : null),
@@ -478,88 +525,82 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
 
     const placedWorldId = currentWorldIdForPlacement(reveal.placement);
     const previewWorldId = devMode && devWorldId ? devWorldId : placedWorldId;
-    const currentWorld =
-      previewWorldId === 'local-casino'
-        ? LOCAL_CASINO_WORLD
-        : previewWorldId === 'bennys-garden'
-          ? BENNYS_GARDEN_WORLD
-          : undefined;
 
     return (
       <View style={styles.treeStack}>
-        <TrackMapScreen
-          key={previewWorldId ?? 'map'}
-          reveal={reveal}
-          currentWorld={currentWorld}
-          remainingChips={chipStack.chips}
-          lockMessage={
-            chipStack.lockedOut && chipStack.regenAt
-              ? `Chips are spent. Refills in ${formatRegenCountdown(chipStack.regenAt, now)}.`
-              : chipStack.lockedOut
-                ? 'Chips are spent. They refill in 12 hours.'
-                : null
-          }
-          goldBars={0}
-          streakDays={streak.currentStreak}
-          streakBestDays={streak.bestStreak}
-          completedCount={completedCount}
-          spotsByStage={spotsByStage}
-          isActive={playingStage == null}
-          devMode={devMode}
-          onDevCycleWorld={
-            devMode && placedWorldId
-              ? () => setDevWorldId((current) => nextDevPreviewWorld(current ?? placedWorldId))
-              : undefined
-          }
-          onPlayStage={(stageNumber) => void openStage(stageNumber)}
-          onSignOut={() => void handleSignOut()}
-        />
+        {shouldMountTrackMap(playingStage) ? (
+          <TrackMapScreen
+            key={previewWorldId ?? 'map'}
+            reveal={reveal}
+            worldId={previewWorldId ?? undefined}
+            remainingChips={chipStack.chips}
+            lockMessage={
+              chipStack.lockedOut && chipStack.regenAt
+                ? `Chips are spent. Refills in ${formatRegenCountdown(chipStack.regenAt, now)}.`
+                : chipStack.lockedOut
+                  ? 'Chips are spent. They refill in 12 hours.'
+                  : null
+            }
+            goldBars={0}
+            streakDays={streak.currentStreak}
+            streakBestDays={streak.bestStreak}
+            completedCount={completedCount}
+            spotsByStage={spotsByStage}
+            isActive
+            devMode={devMode}
+            onDevCycleWorld={
+              devMode && placedWorldId
+                ? () => setDevWorldId((current) => nextDevPreviewWorld(current ?? placedWorldId))
+                : undefined
+            }
+            onPlayStage={(stageNumber) => void openStage(stageNumber)}
+            onSignOut={() => void handleSignOut()}
+          />
+        ) : playingStage != null ? (
+          <StagePlayScreen
+            reveal={reveal}
+            stageNumber={playingStage}
+            remainingChips={chipStack.chips}
+            goldBars={0}
+            streakDays={streak.currentStreak}
+            streakBestDays={streak.bestStreak}
+            initialSpotsCompleted={stageSpotsCompleted}
+            stageProgressId={stageProgressId}
+            forceTutorial={devMode}
+            onResolved={(update) => {
+              setChipStack({
+                chips: update.remainingChips,
+                lockedOut: update.lockedOut,
+                regenAt: update.regenAt,
+              });
+              if (update.stageComplete) {
+                setCompletedCount((count) => Math.max(count, playingStage));
+              }
+              setSpotsByStage((current) => ({
+                ...current,
+                [playingStage]: update.spotsCompleted,
+              }));
+              setStageSpotsCompleted(update.spotsCompleted);
+              if (
+                typeof update.streakCurrent === 'number' ||
+                typeof update.streakBest === 'number'
+              ) {
+                setStreak((current) => ({
+                  currentStreak: update.streakCurrent ?? current.currentStreak,
+                  bestStreak: update.streakBest ?? current.bestStreak,
+                  lastActiveDay: current.lastActiveDay,
+                }));
+              }
+            }}
+            onBack={() => {
+              setPlayingStage(null);
+              setStageProgressId(null);
+            }}
+          />
+        ) : null}
         {error ? (
           <View style={styles.treeError} pointerEvents="none">
             <Text style={styles.errorBannerText}>{error}</Text>
-          </View>
-        ) : null}
-        {playingStage != null ? (
-          <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
-            <StagePlayScreen
-              reveal={reveal}
-              stageNumber={playingStage}
-              remainingChips={chipStack.chips}
-              goldBars={0}
-              streakDays={streak.currentStreak}
-              streakBestDays={streak.bestStreak}
-              initialSpotsCompleted={stageSpotsCompleted}
-              stageProgressId={stageProgressId}
-              onResolved={(update) => {
-                setChipStack({
-                  chips: update.remainingChips,
-                  lockedOut: update.lockedOut,
-                  regenAt: update.regenAt,
-                });
-                if (update.stageComplete) {
-                  setCompletedCount((count) => Math.max(count, playingStage));
-                }
-                setSpotsByStage((current) => ({
-                  ...current,
-                  [playingStage]: update.spotsCompleted,
-                }));
-                setStageSpotsCompleted(update.spotsCompleted);
-                if (
-                  typeof update.streakCurrent === 'number' ||
-                  typeof update.streakBest === 'number'
-                ) {
-                  setStreak((current) => ({
-                    currentStreak: update.streakCurrent ?? current.currentStreak,
-                    bestStreak: update.streakBest ?? current.bestStreak,
-                    lastActiveDay: current.lastActiveDay,
-                  }));
-                }
-              }}
-              onBack={() => {
-                setPlayingStage(null);
-                setStageProgressId(null);
-              }}
-            />
           </View>
         ) : null}
       </View>

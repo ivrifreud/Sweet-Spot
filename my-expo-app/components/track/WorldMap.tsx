@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/refs -- Camera settle callback is stored in a ref. */
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Image, Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -19,6 +20,8 @@ import {
   fogPartTremble,
 } from '../../lib/track/fogCycle';
 import { agentDebugLog } from '../../lib/agentDebugLog';
+import { markPerf } from '../../lib/performance/marks';
+import { visibleChunkWindow } from '../../lib/track/visibleChunkWindow';
 import { CAMERA_CLIMB_MS, FOG_PART_MS, WORLD_MAP_LAYER_STACK } from '../../lib/track/tree';
 import { shouldApplyFilmTreatment } from '../../lib/track/worldProgression';
 import { artStyle } from '../../theme/artStyle';
@@ -34,6 +37,7 @@ type Props = {
   fogPhase: FogPhase;
   cameraDuration?: number;
   onCameraSettled?: () => void;
+  mapActive?: boolean;
   children: ReactNode;
 };
 
@@ -175,6 +179,7 @@ export function WorldMap({
   fogPhase,
   cameraDuration = CAMERA_CLIMB_MS,
   onCameraSettled,
+  mapActive = true,
   children,
 }: Props) {
   const reducedMotion = useReducedMotion();
@@ -185,12 +190,32 @@ export function WorldMap({
   const prevChunk = useRef(safeChunkIndex);
   const onSettledRef = useRef(onCameraSettled);
   onSettledRef.current = onCameraSettled;
+  const [artIndexes, setArtIndexes] = useState(() =>
+    visibleChunkWindow({
+      chunkCount: world.chunks.length,
+      activeChunkIndex: safeChunkIndex,
+    })
+  );
 
   useEffect(() => {
-    const notifySettled = () => {
+    const settleArt = () => {
+      setArtIndexes(
+        visibleChunkWindow({
+          chunkCount: world.chunks.length,
+          activeChunkIndex: safeChunkIndex,
+        })
+      );
+      markPerf(`map-chunk-settled-${safeChunkIndex}`);
       onSettledRef.current?.();
     };
     cancelAnimation(cameraY);
+    setArtIndexes(
+      visibleChunkWindow({
+        chunkCount: world.chunks.length,
+        activeChunkIndex: safeChunkIndex,
+        travelChunkIndex: mounted.current ? prevChunk.current : null,
+      })
+    );
     if (!mounted.current) {
       mounted.current = true;
       prevChunk.current = safeChunkIndex;
@@ -202,9 +227,10 @@ export function WorldMap({
       return;
     }
     prevChunk.current = safeChunkIndex;
+    markPerf('map-camera-start');
     if (reducedMotion) {
       cameraY.value = targetY;
-      notifySettled();
+      settleArt();
       return;
     }
     cameraY.value = withTiming(
@@ -214,10 +240,17 @@ export function WorldMap({
         easing: Easing.inOut(Easing.cubic),
       },
       (finished) => {
-        if (finished) runOnJS(notifySettled)();
+        if (finished) runOnJS(settleArt)();
       }
     );
-  }, [cameraDuration, cameraY, reducedMotion, safeChunkIndex, targetY]);
+  }, [cameraDuration, cameraY, reducedMotion, safeChunkIndex, targetY, world.chunks.length]);
+
+  const mountedArtIndexes = mapActive
+    ? artIndexes
+    : visibleChunkWindow({
+        chunkCount: world.chunks.length,
+        activeChunkIndex: safeChunkIndex,
+      });
 
   const cameraStyle = useAnimatedStyle(() => ({
     top: cameraY.value,
@@ -265,7 +298,9 @@ export function WorldMap({
         <Animated.View
           collapsable={false}
           style={[styles.worldContent, { width, height: contentHeight }, cameraStyle]}>
-          {world.chunks.map((chunk) => {
+          {world.chunks
+            .filter((chunk) => mountedArtIndexes.includes(chunk.index))
+            .map((chunk) => {
             const top = (world.chunks.length - 1 - chunk.index) * height;
             return (
               <WorldMapArtLayer
@@ -276,6 +311,7 @@ export function WorldMap({
                 chunk={chunk}
                 completedCount={completedCount}
                 film={film}
+                effectsActive={mapActive}
               />
             );
           })}

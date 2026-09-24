@@ -28,6 +28,7 @@ type Props = {
   chunk: WorldMapChunk;
   completedCount: number;
   film?: WorldMapFilm;
+  effectsActive?: boolean;
 };
 
 function FilmFlicker({ maxFlicker }: { maxFlicker: number }): ReactElement {
@@ -75,7 +76,15 @@ function FilmFlicker({ maxFlicker }: { maxFlicker: number }): ReactElement {
 }
 
 /** Inaccessible scenery stack: base chunk, unlocked overlays, then optional film. */
-export function WorldMapArtLayer({ width, height, top, chunk, completedCount, film }: Props) {
+export function WorldMapArtLayer({
+  width,
+  height,
+  top,
+  chunk,
+  completedCount,
+  film,
+  effectsActive = true,
+}: Props) {
   const overlays = visibleProgressionLayers(chunk, completedCount);
   const frame = worldMapChunkFrame(width, height, top);
   const imageSize = worldMapChunkImageSize(width, height);
@@ -175,7 +184,7 @@ export function WorldMapArtLayer({ width, height, top, chunk, completedCount, fi
               { opacity: localCasinoMapTheme.film.dustOpacity },
             ]}
           />
-          <FilmFlicker maxFlicker={localCasinoMapTheme.film.maxFlicker} />
+          {effectsActive ? <FilmFlicker maxFlicker={localCasinoMapTheme.film.maxFlicker} /> : null}
           <LinearGradient
             colors={[
               `${artStyle.colors.projectorBlack}14`,

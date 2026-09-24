@@ -36,6 +36,7 @@ type Props = {
   onPressNode: (stageNumber: number) => void;
   onArrived?: () => void;
   onCameraSettled?: () => void;
+  mapActive?: boolean;
 };
 
 export function avatarAnchor(point: Point): Point {
@@ -78,6 +79,7 @@ export function LevelProgressionMap({
   onPressNode,
   onArrived,
   onCameraSettled,
+  mapActive = true,
 }: Props) {
   const chunkCount = currentWorld.chunks.length;
   const contentHeight = height * chunkCount;
@@ -95,7 +97,8 @@ export function LevelProgressionMap({
       completedCount={completedCount}
       fogPhase={fogPhase}
       cameraDuration={CAMERA_CLIMB_MS}
-      onCameraSettled={onCameraSettled}>
+      onCameraSettled={onCameraSettled}
+      mapActive={mapActive}>
       <View collapsable={false} style={[styles.mapLayer, { width, height: contentHeight }]}>
         <Svg width={width} height={contentHeight} style={styles.pathLayer} pointerEvents="none">
           {currentWorld.nodes.slice(1).map((toNode, index) => {

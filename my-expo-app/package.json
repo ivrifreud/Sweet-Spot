@@ -13,7 +13,8 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "assets:check:local-casino": "python scripts/validate-local-casino-assets.py"
+    "assets:check:local-casino": "python scripts/validate-local-casino-assets.py",
+    "assets:audit": "node scripts/audit-runtime-assets.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/bebas-neue": "^0.4.1",

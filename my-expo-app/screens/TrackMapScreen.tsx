@@ -21,12 +21,16 @@ import { ChipLockoutCard } from '../components/track/ChipLockoutCard';
 import { FogClimbPreviewButton } from '../components/track/FogClimbPreviewButton';
 import { StreakModal } from '../components/track/StreakModal';
 import { TrackHud } from '../components/track/TrackHud';
+import type { ReadyWorldId } from '../lib/track/worldForPlacement';
 import {
+  BENNYS_GARDEN_WORLD,
+  LOCAL_CASINO_WORLD,
   createBennysGardenWorld,
   type WorldMapTemplate,
 } from '../components/track/worldMapTemplates';
 import { agentDebugLog } from '../lib/agentDebugLog';
 import { playSfx, startAmbience, startIdleWatch, stopAmbience, stopIdleWatch } from '../lib/audio';
+import { markPerf } from '../lib/performance/marks';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { initialFogPhase, reduceFog, type FogPhase } from '../lib/track/fogCycle';
 import type { Point } from '../lib/track/mapPath';
@@ -51,6 +55,7 @@ type Props = {
   streakBestDays: number;
   completedCount: number;
   spotsByStage?: Record<number, number>;
+  worldId?: ReadyWorldId;
   currentWorld?: WorldMapTemplate;
   avatarSource?: ImageSourcePropType;
   /** False while a level covers the map so Benny's shoes stay put until focus. */
@@ -62,6 +67,16 @@ type Props = {
   onPlayStage: (stageNumber: number) => void;
   onSignOut: () => void;
 };
+
+function resolveWorld(
+  worldId?: ReadyWorldId,
+  currentWorld?: WorldMapTemplate
+): WorldMapTemplate | undefined {
+  if (currentWorld) return currentWorld;
+  if (worldId === 'local-casino') return LOCAL_CASINO_WORLD;
+  if (worldId === 'bennys-garden') return BENNYS_GARDEN_WORLD;
+  return undefined;
+}
 
 function initialStanding(completedCount: number, nodeCount: number): number {
   const current = currentStageNumber(completedCount, nodeCount);
@@ -77,6 +92,7 @@ export function TrackMapScreen({
   streakBestDays,
   completedCount,
   spotsByStage = {},
+  worldId,
   currentWorld,
   avatarSource,
   isActive = true,
@@ -91,8 +107,10 @@ export function TrackMapScreen({
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
-  const [sessionWorld] = useState(() => currentWorld ?? createBennysGardenWorld());
-  const world = currentWorld ?? sessionWorld;
+  const [sessionWorld] = useState(
+    () => resolveWorld(worldId, currentWorld) ?? createBennysGardenWorld()
+  );
+  const world = resolveWorld(worldId, currentWorld) ?? sessionWorld;
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [nativeMap, setNativeMap] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() =>
@@ -152,7 +170,10 @@ export function TrackMapScreen({
     const play = pendingPlay.current;
     if (play === null) return;
     pendingPlay.current = null;
-    if (play === stageNumber) playStageRef.current(play);
+    if (play === stageNumber) {
+      markPerf('map-stage-requested');
+      playStageRef.current(play);
+    }
   }
 
   function startWalk(stageNumber: number): boolean {
@@ -373,6 +394,7 @@ export function TrackMapScreen({
 
     if (world.id === 'bennys-garden') playSfx('nodePress');
     if (alreadyThere) {
+      markPerf('map-stage-requested');
       onPlayStage(stageNumber);
       return;
     }
@@ -455,6 +477,7 @@ export function TrackMapScreen({
               onPressNode={handlePress}
               onArrived={handleArrived}
               onCameraSettled={handleCameraSettled}
+              mapActive={isActive}
             />
           </View>
         ) : null}
@@ -476,9 +499,11 @@ export function TrackMapScreen({
         <Text style={[styles.kicker, display]} accessibilityRole="header" numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
-        <Text style={styles.debugLine} pointerEvents="none">
-          {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
-        </Text>
+        {__DEV__ ? (
+          <Text style={styles.debugLine} pointerEvents="none">
+            {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
+          </Text>
+        ) : null}
         {!lockMessage && notice ? (
           <View
             accessible

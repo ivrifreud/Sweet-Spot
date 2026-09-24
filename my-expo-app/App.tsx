@@ -1,5 +1,5 @@
 import './global.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Session } from '@supabase/supabase-js';
 import * as ExpoSplashScreen from 'expo-splash-screen';
@@ -12,6 +12,7 @@ import { CalibrationHarness } from './components/CalibrationHarness';
 import { ViewportBadge } from './components/dev/ViewportBadge';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { noteActivity, preloadAudio, startIdleWatch, stopIdleWatch } from './lib/audio';
+import { markPerf, measurePerf } from './lib/performance/marks';
 import { DEV_BYPASS_USER_ID } from './lib/devBypass';
 import { supabase, supabaseConfigError } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
@@ -47,12 +48,26 @@ function AppInner() {
   const [bootError, setBootError] = useState<string | null>(supabaseConfigError);
   const [started, setStarted] = useState(false);
   const [devBypassActive, setDevBypassActive] = useState(false);
+  const queuedStartRef = useRef(false);
 
   const activeUserId = session?.user.id ?? (devBypassActive ? DEV_BYPASS_USER_ID : null);
 
   useEffect(() => {
+    markPerf('app-inner-mount');
     hideSplash();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      markPerf('app-shell-ready');
+      measurePerf('app-shell', 'app-mount', 'app-shell-ready');
+      hideSplash();
+      if (queuedStartRef.current) {
+        queuedStartRef.current = false;
+        setStarted(true);
+      }
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (!supabase) {
@@ -76,7 +91,6 @@ function AppInner() {
       .finally(() => {
         if (!cancelled) {
           setLoading(false);
-          hideSplash();
         }
       });
 
@@ -94,7 +108,13 @@ function AppInner() {
   }
 
   if (loading) {
-    return <BootScreen message="Restoring session…" />;
+    return (
+      <SplashScreen
+        onPressStart={() => {
+          queuedStartRef.current = true;
+        }}
+      />
+    );
   }
 
   return (
@@ -123,6 +143,7 @@ function AppInner() {
 
 export default function App() {
   useEffect(() => {
+    markPerf('app-mount');
     let cancelled = false;
     void preloadAudio().then(() => {
       if (!cancelled) startIdleWatch();

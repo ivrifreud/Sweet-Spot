@@ -13,6 +13,7 @@ import {
   dialIsSpinning,
   shortestAngleDelta,
   valueToDialAngle,
+  dialAngleToExactValue,
 } from '../../src/features/templates/equity-scale/dialMath';
 
 describe('Equity Scale dial math', () => {
@@ -31,6 +32,16 @@ describe('Equity Scale dial math', () => {
     expect(valueToDialAngle(0, 0, 70)).toBe(DIAL_MIN_DEG);
     expect(valueToDialAngle(70, 0, 70)).toBe(DIAL_MAX_DEG);
     expect(dialAngleToValue(valueToDialAngle(33, 0, 70), 0, 70)).toBe(33);
+  });
+
+  it('keeps fractional dial travel so the hose can move between detents', () => {
+    const justPastCenter = DIAL_MIN_DEG + (DIAL_MAX_DEG - DIAL_MIN_DEG) * 0.51;
+    const exact = dialAngleToExactValue(justPastCenter, 0, 20);
+    const snapped = dialAngleToValue(justPastCenter, 0, 20);
+    expect(exact).toBeGreaterThan(10);
+    expect(exact).toBeLessThan(11);
+    expect(snapped).toBe(10);
+    expect(exact).not.toBe(snapped);
   });
 
   it('wraps angle deltas so a clockwise roll from either side stays continuous', () => {
