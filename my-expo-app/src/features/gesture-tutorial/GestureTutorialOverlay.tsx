@@ -15,6 +15,7 @@ import {
   overlayViewport,
   rectCenter,
   spotlightForTarget,
+  tutorialCopyTop,
   type GestureTutorialAction,
   type GestureTutorialConfig,
   type GestureTutorialStep,
@@ -26,6 +27,8 @@ import { artStyle } from '../../../theme/artStyle';
 import { PointingGesture } from './PointingGesture';
 
 export type HitRect = TutorialRect;
+
+const COPY_HEIGHT = 108;
 
 type Props = {
   config: GestureTutorialConfig;
@@ -93,6 +96,7 @@ export function GestureTutorialOverlay({
         }
       : spotlightForTarget(step.target, cards, stack, viewport, extras);
   const { from, control, to } = fingerPathForStep(step, cards, stack, pot, viewport, extras);
+  const copyTop = tutorialCopyTop(viewport, { from, control, to }, insets.top, COPY_HEIGHT);
 
   useEffect(() => {
     if (rejectTick <= 0) {
@@ -143,14 +147,16 @@ export function GestureTutorialOverlay({
 
       <Animated.View
         pointerEvents="none"
-        style={[styles.copy, { paddingTop: insets.top + 10 }, rootStyle]}
+        style={[styles.copy, { top: copyTop }, rootStyle]}
         accessible
         accessibilityRole="text"
         accessibilityLabel={step.copy}>
-        <Text style={styles.index}>
-          {stepIndex + 1} / {config.steps.length}
-        </Text>
-        <Text style={styles.instruction}>{step.copy}</Text>
+        <View style={styles.copyPlate}>
+          <Text style={styles.index}>
+            {stepIndex + 1} / {config.steps.length}
+          </Text>
+          <Text style={styles.instruction}>{step.copy}</Text>
+        </View>
       </Animated.View>
 
       {__DEV__ && onSkip ? (
@@ -211,29 +217,38 @@ const styles = StyleSheet.create({
   },
   copy: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     zIndex: 2,
+  },
+  copyPlate: {
+    maxWidth: 360,
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(17, 23, 20, 0.72)',
   },
   index: {
     color: artStyle.colors.goldBright,
-    fontSize: 18,
-    letterSpacing: 3,
-    marginBottom: 8,
+    fontSize: 22,
+    letterSpacing: 3.5,
+    marginBottom: 6,
     fontWeight: '800',
+    textAlign: 'center',
   },
   instruction: {
     color: artStyle.colors.cream,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+    lineHeight: 40,
     textAlign: 'center',
     fontWeight: '800',
-    textShadowColor: 'rgba(17, 23, 20, 0.92)',
+    textShadowColor: 'rgba(17, 23, 20, 0.95)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
   },
   skip: {
     position: 'absolute',

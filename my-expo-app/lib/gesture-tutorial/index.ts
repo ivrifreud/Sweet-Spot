@@ -11,15 +11,19 @@ export { PEEK_AND_PITCH_TUTORIAL, PEEK_AND_PITCH_TUTORIAL_ID } from './peekAndPi
 export { hasSeenTemplateTutorial, markTemplateTutorialSeen, tutorialSeenKey } from './tutorialAck';
 export {
   glovePoseDeg,
+  heldTravelProgress,
   horizonHeadingForDial,
   horizonHeadingForSwipe,
   pairTapProgress,
   rightHandEdgeLift,
+  rotateTravelDirection,
+  rotateTravelProgress,
   visualMotionForHand,
 } from './visualMotion';
 export type { GestureVisualMotion } from './visualMotion';
 export {
   approxQuadLength,
+  buildTearDropOutline,
   cometDashOffset,
   cometTailLength,
   dialArcLength,
@@ -36,6 +40,8 @@ export {
   pointOnQuad,
   rectCenter,
   rectsOverlap,
+  sampleTrailCenterline,
+  smoothClosedOutline,
   spotlightForTarget,
   quadPathD,
   swipeArcForAction,
@@ -43,16 +49,22 @@ export {
   tapOriginForTarget,
   tangentOnDialArc,
   tangentOnQuad,
-  warmthTrailLayers,
+  tutorialCopyTop,
+  warmthTrailProfile,
+  outlineToSvgPathD,
+  CONTACT_GLOW_RADIUS,
 } from './tutorialGeometry';
 export type {
+  TrailCenterlineInput,
   TutorialArc,
   TutorialControlHits,
   TutorialDialArc,
   TutorialPoint,
   TutorialRect,
   TutorialSpotlight,
-  WarmthTrailLayer,
+  WarmthTrailHeatStop,
+  WarmthTrailProfile,
+  WarmthTrailSize,
 } from './tutorialGeometry';
 export type {
   GestureTutorialAction,

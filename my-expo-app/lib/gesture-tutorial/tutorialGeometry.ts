@@ -292,6 +292,39 @@ export function fingerPathForStep(
   return { from, control, to };
 }
 
+/**
+ * Vertical top for the tutorial title: upper-center of the phone, shifted
+ * clear of the guide-hand path so copy never sits on the fingertip.
+ */
+export function tutorialCopyTop(
+  viewport: { width: number; height: number },
+  path: Pick<TutorialArc, 'from' | 'control' | 'to'>,
+  safeTop: number,
+  copyHeight = 96
+): number {
+  const handMinY = Math.min(path.from.y, path.control.y, path.to.y);
+  const handMaxY = Math.max(path.from.y, path.control.y, path.to.y);
+  // Upper-middle of the screen — more centered than flush-to-status-bar.
+  const preferred = Math.max(safeTop + 12, viewport.height * 0.16);
+  const clearance = 36;
+  const preferredBottom = preferred + copyHeight;
+
+  if (preferredBottom + clearance <= handMinY) {
+    return preferred;
+  }
+
+  const aboveHand = handMinY - copyHeight - clearance;
+  if (aboveHand >= safeTop) {
+    return aboveHand;
+  }
+
+  // Hand occupies the top — park the title just below the gesture band.
+  return Math.min(
+    Math.max(handMaxY + clearance, safeTop + 12),
+    viewport.height * 0.46 - copyHeight
+  );
+}
+
 export function pointOnQuad(
   from: TutorialPoint,
   control: TutorialPoint,
@@ -340,20 +373,237 @@ export function cometDashOffset(travel: number, pathLength: number, tailLength: 
   return tailLength - travel * pathLength;
 }
 
-export type WarmthTrailLayer = {
-  role: 'vapor' | 'warmth' | 'ember';
-  width: number;
-  length: number;
+export type WarmthTrailHeatStop = {
+  offset: number;
+  color: string;
   opacity: number;
 };
 
-export function warmthTrailLayers(pathLength: number): WarmthTrailLayer[] {
-  const tail = cometTailLength(pathLength);
-  return [
-    { role: 'vapor', width: 30, length: tail, opacity: 0.28 },
-    { role: 'warmth', width: 17, length: tail * 0.64, opacity: 0.56 },
-    { role: 'ember', width: 7, length: tail * 0.3, opacity: 0.96 },
-  ];
+export type WarmthTrailProfile = {
+  tailLength: number;
+  tipHalfWidth: number;
+  taperPower: number;
+  heatStops: WarmthTrailHeatStop[];
+};
+
+/** Heat palette matches ContactGlow: warm tip → cold fading tail. */
+export type WarmthTrailSize = 'default' | 'finger';
+
+export function warmthTrailProfile(
+  pathLength: number,
+  size: WarmthTrailSize = 'default'
+): WarmthTrailProfile {
+  // Dial / finger-sized: bulb matches the contact glow, short streak behind the tip.
+  if (size === 'finger') {
+    return {
+      tailLength: Math.min(Math.max(pathLength * 0.14, 28), 42),
+      tipHalfWidth: 8,
+      taperPower: 2.35,
+      heatStops: [
+        { offset: 0, color: '#E6C46A', opacity: 1 },
+        { offset: 0.28, color: '#C89B3C', opacity: 0.9 },
+        { offset: 0.62, color: '#E8D7A7', opacity: 0.45 },
+        { offset: 1, color: '#4F8580', opacity: 0 },
+      ],
+    };
+  }
+
+  return {
+    tailLength: Math.min(Math.max(pathLength * 0.32, 44), 78),
+    tipHalfWidth: 14,
+    taperPower: 2.2,
+    heatStops: [
+      { offset: 0, color: '#E6C46A', opacity: 1 },
+      { offset: 0.28, color: '#C89B3C', opacity: 0.9 },
+      { offset: 0.62, color: '#E8D7A7', opacity: 0.45 },
+      { offset: 1, color: '#4F8580', opacity: 0 },
+    ],
+  };
+}
+
+export type TrailCenterlineInput =
+  | {
+      kind: 'quad';
+      from: TutorialPoint;
+      control: TutorialPoint;
+      to: TutorialPoint;
+      along: number;
+      direction?: 1 | -1;
+      pathLength: number;
+      tailLength: number;
+      /** Pull the tip back from the fingertip so it sits on the glow rim. */
+      tipInset?: number;
+      samples?: number;
+    }
+  | {
+      kind: 'dial';
+      center: TutorialPoint;
+      radius: number;
+      along: number;
+      direction?: 1 | -1;
+      pathLength: number;
+      tailLength: number;
+      tipInset?: number;
+      samples?: number;
+    };
+
+/** Matches ContactGlow circle radius in PointingGesture. */
+export const CONTACT_GLOW_RADIUS = 26;
+
+/** Tip-first centerline samples from the fingertip back along the path. */
+export function sampleTrailCenterline(input: TrailCenterlineInput): TutorialPoint[] {
+  const samples = Math.max(2, input.samples ?? 16);
+  const inset = Math.max(0, input.tipInset ?? 0) / Math.max(input.pathLength, 1);
+  const span = Math.min(1, Math.max(0, input.tailLength / Math.max(input.pathLength, 1)));
+  const tipT = Math.min(1, Math.max(0, input.along - inset));
+  const direction = input.direction ?? 1;
+  const tailT = Math.min(1, Math.max(0, tipT - span * direction));
+  const points: TutorialPoint[] = [];
+  for (let index = 0; index <= samples; index += 1) {
+    const u = index / samples;
+    const t = tipT + (tailT - tipT) * u;
+    if (input.kind === 'quad') {
+      points.push(pointOnQuad(input.from, input.control, input.to, t));
+    } else {
+      points.push(pointOnDialArc(input.center, input.radius, t));
+    }
+  }
+  return points;
+}
+
+function halfWidthAt(u: number, tipHalfWidth: number, taperPower: number): number {
+  const clamped = Math.min(1, Math.max(0, u));
+  // Cosine bulb near the tip, then power taper — rounder tear-drop, less wedge.
+  const bulb = 0.5 + 0.5 * Math.cos(Math.PI * clamped);
+  return tipHalfWidth * Math.pow(bulb, taperPower * 0.55) * Math.pow(1 - clamped, taperPower * 0.45);
+}
+
+function unitNormal(dx: number, dy: number): TutorialPoint {
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-6) {
+    return { x: 0, y: 1 };
+  }
+  return { x: -dy / length, y: dx / length };
+}
+
+/**
+ * Closed tear-drop silhouette: bulb at the tip (index 0), pointed cold tail.
+ * Outline is tip-cap → right side → left side reverse → close.
+ */
+export function buildTearDropOutline(
+  centerline: TutorialPoint[],
+  profile: Pick<WarmthTrailProfile, 'tipHalfWidth' | 'taperPower'>
+): TutorialPoint[] {
+  if (centerline.length < 2) {
+    return centerline.length === 1 ? [centerline[0]!, centerline[0]!] : [];
+  }
+
+  const left: TutorialPoint[] = [];
+  const right: TutorialPoint[] = [];
+  const last = centerline.length - 1;
+
+  for (let index = 0; index <= last; index += 1) {
+    const point = centerline[index]!;
+    const prev = centerline[Math.max(0, index - 1)]!;
+    const next = centerline[Math.min(last, index + 1)]!;
+    const normal = unitNormal(next.x - prev.x, next.y - prev.y);
+    const half = halfWidthAt(index / last, profile.tipHalfWidth, profile.taperPower);
+    left.push({ x: point.x + normal.x * half, y: point.y + normal.y * half });
+    right.push({ x: point.x - normal.x * half, y: point.y - normal.y * half });
+  }
+
+  const tip = centerline[0]!;
+  const tipNext = centerline[1]!;
+  const travelX = tip.x - tipNext.x;
+  const travelY = tip.y - tipNext.y;
+  const travelLen = Math.hypot(travelX, travelY) || 1;
+  const fwd = { x: travelX / travelLen, y: travelY / travelLen };
+  // Keep the nose inside the fingertip glow so the trail starts under that blob.
+  const noseReach = Math.min(profile.tipHalfWidth * 0.45, CONTACT_GLOW_RADIUS * 0.35);
+  const left0 = left[0]!;
+  const right0 = right[0]!;
+  const tipCap: TutorialPoint[] = [];
+  const capSteps = 16;
+  for (let step = 0; step <= capSteps; step += 1) {
+    const t = step / capSteps;
+    const ox =
+      (1 - t) * (left0.x - tip.x) + t * (right0.x - tip.x) + Math.sin(Math.PI * t) * fwd.x * noseReach;
+    const oy =
+      (1 - t) * (left0.y - tip.y) + t * (right0.y - tip.y) + Math.sin(Math.PI * t) * fwd.y * noseReach;
+    tipCap.push({ x: tip.x + ox, y: tip.y + oy });
+  }
+
+  const outline: TutorialPoint[] = [...tipCap];
+  for (let index = 1; index <= last; index += 1) {
+    outline.push(right[index]!);
+  }
+  for (let index = last; index >= 1; index -= 1) {
+    outline.push(left[index]!);
+  }
+  outline.push(tipCap[0]!);
+  // One light pass — extra Chaikin shrinks the nose away from the glow.
+  return smoothClosedOutline(outline, 1);
+}
+
+/** Chaikin corner-cutting on a closed ring (first == last). Softens faceted edges. */
+export function smoothClosedOutline(points: TutorialPoint[], passes = 1): TutorialPoint[] {
+  if (points.length < 4) {
+    return points;
+  }
+  let ring = points;
+  const iterations = Math.max(0, Math.min(4, Math.floor(passes)));
+  for (let pass = 0; pass < iterations; pass += 1) {
+    const open =
+      ring.length > 1 &&
+      ring[0]!.x === ring[ring.length - 1]!.x &&
+      ring[0]!.y === ring[ring.length - 1]!.y
+        ? ring.slice(0, -1)
+        : ring;
+    if (open.length < 3) {
+      return points;
+    }
+    const next: TutorialPoint[] = [];
+    for (let index = 0; index < open.length; index += 1) {
+      const a = open[index]!;
+      const b = open[(index + 1) % open.length]!;
+      next.push({ x: 0.75 * a.x + 0.25 * b.x, y: 0.75 * a.y + 0.25 * b.y });
+      next.push({ x: 0.25 * a.x + 0.75 * b.x, y: 0.25 * a.y + 0.75 * b.y });
+    }
+    next.push(next[0]!);
+    ring = next;
+  }
+  return ring;
+}
+
+/** Smooth closed SVG path via Catmull-Rom → cubic Beziers (no faceted edges). */
+export function outlineToSvgPathD(outline: TutorialPoint[]): string {
+  if (outline.length === 0) {
+    return '';
+  }
+  const open =
+    outline.length > 1 &&
+    outline[0]!.x === outline[outline.length - 1]!.x &&
+    outline[0]!.y === outline[outline.length - 1]!.y
+      ? outline.slice(0, -1)
+      : outline;
+  if (open.length < 2) {
+    return `M ${outline[0]!.x} ${outline[0]!.y} Z`;
+  }
+  const n = open.length;
+  let d = `M ${open[0]!.x} ${open[0]!.y}`;
+  for (let index = 0; index < n; index += 1) {
+    const p0 = open[(index - 1 + n) % n]!;
+    const p1 = open[index]!;
+    const p2 = open[(index + 1) % n]!;
+    const p3 = open[(index + 2) % n]!;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
+  }
+  d += ' Z';
+  return d;
 }
 
 export function quadPathD(from: TutorialPoint, control: TutorialPoint, to: TutorialPoint): string {

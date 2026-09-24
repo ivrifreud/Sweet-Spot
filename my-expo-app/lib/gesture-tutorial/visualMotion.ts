@@ -59,3 +59,27 @@ export function pairTapProgress(phase: number): number {
   'worklet';
   return phase < 0.5 ? 0 : 1;
 }
+
+/** Shared swipe progress for the glove, contact glow, and warmth trail. */
+export function heldTravelProgress(phase: number): number {
+  'worklet';
+  if (phase <= 0.12) return 0;
+  if (phase >= 0.8) return 1;
+  return (phase - 0.12) / (0.8 - 0.12);
+}
+
+/** Shared dial progress for the glove, contact glow, and warmth trail. */
+export function rotateTravelProgress(phase: number): number {
+  'worklet';
+  const cycle = Math.min(2, Math.max(0, phase));
+  const linear = cycle <= 1 ? cycle : 2 - cycle;
+  return linear < 0.5
+    ? 4 * linear * linear * linear
+    : 1 - Math.pow(-2 * linear + 2, 3) / 2;
+}
+
+/** 1 while turning clockwise; -1 while returning anti-clockwise. */
+export function rotateTravelDirection(phase: number): 1 | -1 {
+  'worklet';
+  return phase <= 1 ? 1 : -1;
+}

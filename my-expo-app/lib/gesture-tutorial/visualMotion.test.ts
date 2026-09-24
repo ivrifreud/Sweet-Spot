@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   glovePoseDeg,
+  heldTravelProgress,
   horizonHeadingForDial,
   horizonHeadingForSwipe,
   pairTapProgress,
   rightHandEdgeLift,
+  rotateTravelDirection,
+  rotateTravelProgress,
   visualMotionForHand,
 } from './visualMotion';
 
@@ -30,6 +33,19 @@ describe('visualMotionForHand', () => {
 
   it('maps the scale decision to alternating button taps', () => {
     expect(visualMotionForHand('tapPair')).toEqual({ kind: 'tapPair' });
+  });
+
+  it('uses one shared travel curve for the hand, glow, and trail', () => {
+    expect(heldTravelProgress(0.12)).toBe(0);
+    expect(heldTravelProgress(0.46)).toBeCloseTo(0.5);
+    expect(heldTravelProgress(0.8)).toBe(1);
+    expect(rotateTravelProgress(-1)).toBe(0);
+    expect(rotateTravelProgress(0.5)).toBe(0.5);
+    expect(rotateTravelProgress(1)).toBe(1);
+    expect(rotateTravelProgress(1.5)).toBe(0.5);
+    expect(rotateTravelProgress(2)).toBe(0);
+    expect(rotateTravelDirection(0.5)).toBe(1);
+    expect(rotateTravelDirection(1.5)).toBe(-1);
   });
 
   it('aims the glove along the horizon toward the swipe side', () => {
