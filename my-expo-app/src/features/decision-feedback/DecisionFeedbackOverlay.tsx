@@ -205,10 +205,7 @@ function ContinueInbox({
       testID="decision-feedback-continue"
       style={[
         styles.continueBox,
-        {
-          borderColor: outcome === 'correct' ? artStyle.colors.gold : artStyle.colors.tobacco,
-          backgroundColor: outcome === 'correct' ? artStyle.colors.teal : artStyle.colors.tealFaded,
-        },
+        outcome === 'correct' ? styles.continueBoxCorrect : styles.continueBoxMiss,
       ]}>
       <Image
         source={chipArt.threeQuarter}
@@ -228,10 +225,15 @@ function ContinueInbox({
         resizeMode="contain"
         accessibilityElementsHidden
       />
-      <Animated.Text style={[styles.tapCue, display, pulseStyle]} maxFontSizeMultiplier={1.2}>
+      <Animated.Text
+        style={[styles.tapCue, styles.cueInk, display, pulseStyle]}
+        maxFontSizeMultiplier={1.2}>
         TAP ANYWHERE
       </Animated.Text>
-      <Text style={[styles.dealCue, display]} maxFontSizeMultiplier={1.1} numberOfLines={2}>
+      <Text
+        style={[styles.dealCue, styles.cueInk, display]}
+        maxFontSizeMultiplier={1.1}
+        numberOfLines={2}>
         {continueLabel.toUpperCase()}
       </Text>
     </View>
@@ -841,6 +843,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'visible',
   },
+  continueBoxCorrect: {
+    backgroundColor: artStyle.colors.goldBright,
+    borderColor: artStyle.colors.cream,
+  },
+  continueBoxMiss: {
+    backgroundColor: artStyle.colors.gold,
+    borderColor: artStyle.colors.tobacco,
+  },
   tapCue: {
     color: CREAM,
     fontSize: 16,
@@ -853,6 +863,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cueInk: {
+    color: artStyle.colors.projectorBlack,
+    textShadowColor: 'transparent',
+    ...({
+      WebkitTextStrokeWidth: 0,
+    } as Record<string, unknown>),
   },
   dealCue: {
     width: '100%',
