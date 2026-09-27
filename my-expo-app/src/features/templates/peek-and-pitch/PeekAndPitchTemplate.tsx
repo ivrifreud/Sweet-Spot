@@ -2,10 +2,12 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import {
+import Animated, {
   Easing,
   cancelAnimation,
   runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withSequence,
   withTiming,
@@ -30,6 +32,7 @@ import { CardPicker } from './components/CardPicker';
 import { ChipStack, CHIP_SIZE } from './components/ChipStack';
 import { ChipStackTarget } from './components/ChipStackTarget';
 import { ChipToss, type ChipFlight } from './components/ChipToss';
+import { chipThrowCueAtMs } from './components/chipThrowCue';
 import { CommunityCards } from './components/CommunityCards';
 import { FeltPlane } from './components/FeltPlane';
 import { GestureHints } from './components/GestureHints';
@@ -153,6 +156,9 @@ export function PeekAndPitchTemplate({
   const resolvedRef = useRef(false);
   const pendingChipRef = useRef<'call' | 'raise' | null>(null);
   const chipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chipCueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reducedMotion = useReducedMotion();
+  const nextHandPress = useSharedValue(0);
   const tutorialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tutorialActiveRef = useRef(false);
   const tutorialIndexRef = useRef(0);
@@ -176,6 +182,9 @@ export function PeekAndPitchTemplate({
   const stackPress = useSharedValue(0);
   const stackDragX = useSharedValue(0);
   const stackDragY = useSharedValue(0);
+  const nextHandStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - nextHandPress.value * 0.04 }],
+  }));
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   tutorialActiveRef.current = tutorialActive;
@@ -312,6 +321,10 @@ export function PeekAndPitchTemplate({
         clearTimeout(chipTimer.current);
         chipTimer.current = null;
       }
+      if (chipCueTimer.current) {
+        clearTimeout(chipCueTimer.current);
+        chipCueTimer.current = null;
+      }
       setPhase('dealing');
       resolvedRef.current = false;
       playSfx('deal');
@@ -360,6 +373,9 @@ export function PeekAndPitchTemplate({
     return () => {
       if (chipTimer.current) {
         clearTimeout(chipTimer.current);
+      }
+      if (chipCueTimer.current) {
+        clearTimeout(chipCueTimer.current);
       }
       if (tutorialTimer.current) {
         clearTimeout(tutorialTimer.current);
@@ -535,8 +551,6 @@ export function PeekAndPitchTemplate({
         return;
       }
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      playSfx(nextDecision);
       pendingChipRef.current = nextDecision;
       setPitching(true);
 
@@ -585,8 +599,18 @@ export function PeekAndPitchTemplate({
         40;
       if (chipTimer.current) clearTimeout(chipTimer.current);
       chipTimer.current = setTimeout(() => finishChipDecisionRef.current(), waitMs);
+      const firstFlight = nextFlights[0];
+      const cueAt = firstFlight
+        ? chipThrowCueAtMs(firstFlight.delayMs, firstFlight.durationMs, Boolean(reducedMotion))
+        : 0;
+      if (chipCueTimer.current) clearTimeout(chipCueTimer.current);
+      chipCueTimer.current = setTimeout(() => {
+        chipCueTimer.current = null;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        playSfx(nextDecision);
+      }, cueAt);
     },
-    [chipSize, commit, geometry, peek, rejectTutorial]
+    [chipSize, commit, geometry, peek, reducedMotion, rejectTutorial]
   );
 
   const denyCheck = useCallback(() => {
@@ -606,12 +630,10 @@ export function PeekAndPitchTemplate({
       denyCheck();
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     resolve('check');
   }, [activeSpot.canCheck, completeTutorialAction, denyCheck, resolve]);
 
   const completeMuck = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (tutorialActiveRef.current) {
       completeTutorialAction('fold');
       return;
@@ -857,9 +879,16 @@ export function PeekAndPitchTemplate({
           pointerEvents="box-none">
           <Pressable
             testID="deal-next-hand"
-            style={styles.nextButton}
+            onPressIn={() => {
+              nextHandPress.value = withTiming(1, { duration: 100 });
+            }}
+            onPressOut={() => {
+              nextHandPress.value = withTiming(0, { duration: 100 });
+            }}
             onPress={() => dealHand(activeSpot)}>
-            <Text style={styles.nextButtonText}>{STRINGS.nextHand}</Text>
+            <Animated.View style={[styles.nextButton, nextHandStyle]}>
+              <Text style={styles.nextButtonText}>{STRINGS.nextHand}</Text>
+            </Animated.View>
           </Pressable>
         </View>
       ) : null}
@@ -939,13 +968,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButton: {
+    minHeight: 44,
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 999,
-    backgroundColor: '#C89B3C',
+    backgroundColor: artStyle.colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   nextButtonText: {
-    color: '#111714',
+    color: artStyle.colors.projectorBlack,
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.4,

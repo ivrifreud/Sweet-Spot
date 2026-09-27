@@ -12,6 +12,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import * as Haptics from 'expo-haptics';
+
 import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
 import {
   playCheckSfx,
@@ -195,8 +197,11 @@ export function TableGestures({
     startPeekSfx();
     onPeekHoldRef.current?.();
   }, []);
-  const endPeekCue = useCallback(() => {
-    stopPeekSfx();
+  const endPeekCue = useCallback((settle = false) => {
+    if (stopPeekSfx() && settle) playSfx('settle');
+  }, []);
+  const lightTap = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, []);
   const firePeeked = useCallback(() => {
     onPeekedRef.current();
@@ -213,8 +218,9 @@ export function TableGestures({
     muckCueTimer.current = setTimeout(() => {
       muckCueTimer.current = null;
       playSfx('fold');
+      lightTap();
     }, MUCK_CUE_DELAY_MS);
-  }, []);
+  }, [lightTap]);
   const fireIllegalCheck = useCallback(() => {
     onIllegalCheckRef.current();
   }, []);
@@ -226,7 +232,8 @@ export function TableGestures({
   }, []);
   const startCheckCue = useCallback(() => {
     playCheckSfx();
-  }, []);
+    lightTap();
+  }, [lightTap]);
 
   useEffect(() => {
     liveEnabled.value = live ? 1 : 0;
@@ -379,7 +386,7 @@ export function TableGestures({
         if (!shouldLongPressSettleLocal(gestureMode.value === MODE_PEEK)) {
           return;
         }
-        runOnJS(endPeekCue)();
+        runOnJS(endPeekCue)(true);
         if (muckLocked.value === 1 || ignoreFelt.value === 1) {
           return;
         }
@@ -468,7 +475,7 @@ export function TableGestures({
         }
 
         if (gestureMode.value === MODE_PEEK) {
-          runOnJS(endPeekCue)();
+          runOnJS(endPeekCue)(true);
           const revealed = peek.value >= PEEK_REVEAL_THRESHOLD;
           peekArmed.value = 0;
           flattenPeek(peek);
@@ -519,7 +526,7 @@ export function TableGestures({
         }
       })
       .onFinalize(() => {
-        runOnJS(endPeekCue)();
+        runOnJS(endPeekCue)(true);
         ignoreFelt.value = 0;
         peekArmed.value = 0;
         if (muckLocked.value !== 1) {

@@ -162,6 +162,7 @@ async function ensureSfxPlayer(name: SfxName): Promise<Player | undefined> {
     player.loop = false;
     player.pause();
     sfxPlayers[name] = player;
+    if (PRIMED_GESTURE_SET.has(name)) primeSfxPlayer(name, player);
     return player;
   } catch {
     return undefined;
@@ -222,15 +223,77 @@ export async function prepareWorldAmbience(
   await ensureAmbiencePlayer(next);
 }
 
+const PRIMED_GESTURE_SFX: readonly SfxName[] = [
+  'fold',
+  'call',
+  'raise',
+  'chipPickup',
+  'settle',
+];
+const PRIMED_GESTURE_SET: ReadonlySet<SfxName> = new Set(PRIMED_GESTURE_SFX);
+const primedReady: Partial<Record<SfxName, boolean>> = {};
+const reprimeTimers: Partial<Record<SfxName, ReturnType<typeof setTimeout>>> = {};
+
+function primeSfxPlayer(name: SfxName, player: Player): void {
+  try {
+    player.loop = false;
+    player.pause();
+    player.volume = settings.sfxVolume;
+    primedReady[name] = false;
+    const seek = player.seekTo?.(0) as unknown as Promise<void> | void;
+    if (seek && typeof (seek as Promise<void>).then === 'function') {
+      void (seek as Promise<void>)
+        .then(() => {
+          primedReady[name] = true;
+        })
+        .catch(() => {
+          primedReady[name] = true;
+        });
+      return;
+    }
+    primedReady[name] = true;
+  } catch {
+    primedReady[name] = false;
+  }
+}
+
+function scheduleReprime(name: SfxName, player: Player): void {
+  const existing = reprimeTimers[name];
+  if (existing) clearTimeout(existing);
+  const waitMs = Math.max(80, Math.round((player.duration ?? 0.35) * 1000));
+  reprimeTimers[name] = setTimeout(() => {
+    reprimeTimers[name] = undefined;
+    if (sfxPlayers[name] === player) primeSfxPlayer(name, player);
+  }, waitMs);
+}
+
+function playPrimedSfx(name: SfxName, player: Player): void {
+  try {
+    pauseOneShotSfx(name);
+    player.loop = false;
+    player.volume = settings.sfxVolume * (name === 'confetti' ? 0.55 : 1);
+    primedReady[name] = false;
+    player.play();
+    if (!DRY_SFX.has(name) && name !== 'step') duckTableBed();
+    scheduleReprime(name, player);
+  } catch {
+    // Ignore playback errors.
+  }
+}
+
 /** Warm the first table cues during welcome so Deal Me In does not create players and decode art together. */
 export async function preparePeekTableAudio(): Promise<void> {
   await Promise.all([
     ensureSfxPlayer('deal'),
     ensureSfxPlayer('peek'),
     ensureSfxPlayer('check'),
-    ensureSfxPlayer('settle'),
+    ...PRIMED_GESTURE_SFX.map((name) => ensureSfxPlayer(name)),
     prepareWorldAmbience('bennys-garden', 'night'),
   ]);
+  PRIMED_GESTURE_SFX.forEach((name) => {
+    const player = sfxPlayers[name];
+    if (player) primeSfxPlayer(name, player);
+  });
 }
 
 function guarded(name: SfxName | AmbienceName, gapMs = 80): boolean {
@@ -398,11 +461,20 @@ export function playSfx(name: SfxName): void {
   if (!guarded(name, name === 'fold' ? 400 : 80)) return;
   const existing = sfxPlayers[name];
   if (existing) {
+    if (PRIMED_GESTURE_SET.has(name) && primedReady[name]) {
+      playPrimedSfx(name, existing);
+      return;
+    }
     playReadySfx(name, existing);
     return;
   }
   void ensureSfxPlayer(name).then((player) => {
-    if (player) playReadySfx(name, player);
+    if (!player) return;
+    if (PRIMED_GESTURE_SET.has(name) && primedReady[name]) {
+      playPrimedSfx(name, player);
+      return;
+    }
+    playReadySfx(name, player);
   });
 }
 
@@ -550,9 +622,11 @@ function pausePeekPlayer(): void {
   }
 }
 
-export function stopPeekSfx(): void {
+export function stopPeekSfx(): boolean {
+  const wasPeeking = peeking;
   peeking = false;
   pausePeekPlayer();
+  return wasPeeking;
 }
 
 function resolveBed(worldId?: AudioWorldId, lighting: AudioLighting = 'light'): AmbienceName {
