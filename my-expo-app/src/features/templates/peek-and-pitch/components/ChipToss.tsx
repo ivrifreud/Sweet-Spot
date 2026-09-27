@@ -14,6 +14,7 @@ import Animated, {
 import { CHIP_3Q_ASPECT } from '../../../../../theme/chipArt';
 import { ChipSprite } from './ChipSprite';
 import { CHIP_SIZE } from './ChipStack';
+import { CHIP_FLIGHT_END, CHIP_LIFT_END, chipFlightClock } from './chipThrowCue';
 
 export type ChipFlight = {
   id: string;
@@ -38,10 +39,6 @@ type ChipTossProps = {
   onComplete?: () => void;
 };
 
-/** Chip has peeled off the stack. */
-const LIFT_END = 0.16;
-/** Chip has reached the felt. */
-const FLIGHT_END = 0.72;
 
 /**
  * Individual chips in the air between the player's glove and the pot.
@@ -93,27 +90,27 @@ function verticalOffset(progress: number, arc: number, lift: number) {
     return 0;
   }
 
-  if (progress < LIFT_END) {
-    const t = progress / LIFT_END;
+  if (progress < CHIP_LIFT_END) {
+    const t = progress / CHIP_LIFT_END;
     return -lift * (1 - (1 - t) * (1 - t));
   }
 
-  if (progress < FLIGHT_END) {
-    const t = (progress - LIFT_END) / (FLIGHT_END - LIFT_END);
+  if (progress < CHIP_FLIGHT_END) {
+    const t = (progress - CHIP_LIFT_END) / (CHIP_FLIGHT_END - CHIP_LIFT_END);
     return -lift * (1 - t) - arc * arcHeight(t);
   }
 
-  const u = (progress - FLIGHT_END) / (1 - FLIGHT_END);
+  const u = (progress - CHIP_FLIGHT_END) / (1 - CHIP_FLIGHT_END);
   return -arc * 0.1 * (1 - u) * Math.abs(Math.sin(u * Math.PI * 2));
 }
 
 /** Fraction of the way from the stack to the pot. */
 function travelEase(progress: number) {
   'worklet';
-  if (progress <= LIFT_END) {
+  if (progress <= CHIP_LIFT_END) {
     return 0;
   }
-  const t = Math.min(1, (progress - LIFT_END) / (FLIGHT_END - LIFT_END));
+  const t = Math.min(1, (progress - CHIP_LIFT_END) / (CHIP_FLIGHT_END - CHIP_LIFT_END));
   return 1 - (1 - t) * (1 - t);
 }
 
@@ -124,8 +121,11 @@ function FlyingChip({ flight, onLanded }: { flight: ChipFlight; onLanded?: () =>
   const landScale = flight.landScale ?? 0.82;
 
   useEffect(() => {
-    const duration = reducedMotion ? Math.min(flight.durationMs, 280) : flight.durationMs;
-    const delay = reducedMotion ? 0 : flight.delayMs;
+    const { durationMs: duration, delayMs: delay } = chipFlightClock(
+      flight.delayMs,
+      flight.durationMs,
+      Boolean(reducedMotion)
+    );
     progress.value = 0;
     progress.value = withDelay(
       delay,
@@ -156,10 +156,10 @@ function FlyingChip({ flight, onLanded }: { flight: ChipFlight; onLanded?: () =>
         { translateX: dx * eased },
         { translateY: dy * eased + verticalOffset(p, arc, lift) },
         {
-          rotate: `${interpolate(p, [0, LIFT_END, FLIGHT_END, 1], [0, flight.spin * 12, flight.spin * 170, flight.restRotate])}deg`,
+          rotate: `${interpolate(p, [0, CHIP_LIFT_END, CHIP_FLIGHT_END, 1], [0, flight.spin * 12, flight.spin * 170, flight.restRotate])}deg`,
         },
-        { scale: interpolate(p, [0, LIFT_END, FLIGHT_END, 1], [1, 1.1, 0.94, landScale]) },
-        { scaleY: interpolate(p, [FLIGHT_END, 1], [1, 0.62]) },
+        { scale: interpolate(p, [0, CHIP_LIFT_END, CHIP_FLIGHT_END, 1], [1, 1.1, 0.94, landScale]) },
+        { scaleY: interpolate(p, [CHIP_FLIGHT_END, 1], [1, 0.62]) },
       ],
     };
   });

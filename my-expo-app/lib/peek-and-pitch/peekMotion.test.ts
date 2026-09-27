@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PEEK_DRAG_DEAD_ZONE,
+  PEEK_LIFT_MS,
+  PEEK_PINCH_MS,
   PEEK_REVEAL_THRESHOLD,
+  PEEK_SETTLE_MS,
   hasRevealedPeek,
   mergePeekDrag,
   normalizePeekDrag,
@@ -10,6 +13,17 @@ import {
   shouldArmPeekPan,
   shouldLongPressSettle,
 } from '../../src/features/templates/peek-and-pitch/peekMotion';
+
+describe('peek pose clocks', () => {
+  it('keeps pinch, lift, and settle inside the frozen brief', () => {
+    expect(PEEK_PINCH_MS).toBeGreaterThanOrEqual(90);
+    expect(PEEK_PINCH_MS).toBeLessThanOrEqual(120);
+    expect(PEEK_LIFT_MS).toBeGreaterThanOrEqual(180);
+    expect(PEEK_LIFT_MS).toBeLessThanOrEqual(240);
+    expect(PEEK_SETTLE_MS).toBeGreaterThanOrEqual(180);
+    expect(PEEK_SETTLE_MS).toBeLessThanOrEqual(240);
+  });
+});
 
 describe('normalizePeekDrag', () => {
   it('rejects upward movement and holds a short dead zone', () => {

@@ -8,7 +8,9 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { playCheckSfx, queueCheckSfx } from '../../../../../lib/audio';
+import * as Haptics from 'expo-haptics';
+
+import { playCheckSfx, playSfx, queueCheckSfx } from '../../../../../lib/audio';
 import { GESTURES } from '../config';
 import type { GestureTutorialAction } from '../../../../../lib/gesture-tutorial';
 
@@ -102,6 +104,10 @@ export function ChipStackTarget({
   }, []);
   const startCheckCue = useCallback(() => {
     playCheckSfx();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+  const firePickup = useCallback(() => {
+    playSfx('chipPickup');
   }, []);
 
   useEffect(() => {
@@ -191,6 +197,7 @@ export function ChipStackTarget({
         }
         raiseArmed.value = 0;
         stackPress.value = 1;
+        runOnJS(firePickup)();
         stackDragX.value = 0;
         stackDragY.value = 0;
       })
@@ -240,6 +247,7 @@ export function ChipStackTarget({
           return;
         }
         stackPress.value = 1;
+        runOnJS(firePickup)();
       })
       .onEnd((_event, success) => {
         if (!success || liveEnabled.value !== 1) {
@@ -281,6 +289,7 @@ export function ChipStackTarget({
     stackDragY,
     stackPress,
     startCheckCue,
+    firePickup,
   ]);
 
   return (
@@ -301,6 +310,7 @@ export function ChipStackTarget({
             event.nativeEvent.actionName === 'activate' ||
             event.nativeEvent.actionName === 'magicTap'
           ) {
+            playSfx('chipPickup');
             onCall();
           }
         }}
