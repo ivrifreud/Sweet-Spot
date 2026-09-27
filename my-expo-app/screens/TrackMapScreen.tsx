@@ -1,6 +1,6 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -107,7 +107,6 @@ export function TrackMapScreen({
   );
   const world = resolveWorld(worldId, currentWorld) ?? sessionWorld;
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const [nativeMap, setNativeMap] = useState({ width: 0, height: 0 });
   const [standing, setStanding] = useState(() =>
     initialStanding(completedCount, world.nodes.length)
   );
@@ -435,22 +434,7 @@ export function TrackMapScreen({
           );
         }}>
         {map.width > 0 ? (
-          <View
-            collapsable={false}
-            onLayout={(event) => {
-              const { width, height } = event.nativeEvent.layout;
-              // #region agent log
-              agentDebugLog({
-                hypothesisId: 'G',
-                location: 'TrackMapScreen.tsx:nativeMap',
-                message: 'native map wrapper laid out',
-                data: { width, height, fittedW: map.width, fittedH: map.height },
-              });
-              // #endregion
-              setNativeMap((current) =>
-                current.width === width && current.height === height ? current : { width, height }
-              );
-            }}>
+          <View collapsable={false}>
             <LevelProgressionMap
               width={map.width}
               height={map.height}
@@ -483,11 +467,6 @@ export function TrackMapScreen({
           numberOfLines={1}>
           {`${world.name.toUpperCase()}  ·  LEVEL ${reveal.placement}  ·  ${reveal.levelName.toUpperCase()}`}
         </Text>
-        {__DEV__ ? (
-          <Text style={styles.debugLine} pointerEvents="none">
-            {`DBG ${Platform.OS} area ${Math.round(area.width)}x${Math.round(area.height)} map ${Math.round(map.width)}x${Math.round(map.height)} native ${Math.round(nativeMap.width)}x${Math.round(nativeMap.height)}`}
-          </Text>
-        ) : null}
         {!lockMessage && notice ? (
           <View
             accessible
@@ -572,11 +551,6 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     gap: 4,
     backgroundColor: 'transparent',
-  },
-  debugLine: {
-    color: artStyle.colors.cream,
-    fontSize: 11,
-    textAlign: 'center',
   },
   notice: {
     borderRadius: 14,

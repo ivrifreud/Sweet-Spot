@@ -251,7 +251,7 @@ export function MarqueeRail({
               style={[
                 styles.goldPill,
                 { height: pillHeight, borderRadius: pillHeight / 2, marginLeft: -icon / 2 },
-                { paddingLeft: icon / 2 + 6, paddingRight: plus / 2 + 8 },
+                { paddingLeft: icon / 2 + 4, paddingRight: Math.round(plus * 0.62) },
               ]}>
               <Text
                 numberOfLines={1}
@@ -267,16 +267,24 @@ export function MarqueeRail({
               onOpenSheet('gold');
             }}
             style={({ pressed }) => [
-              styles.plusButton,
-              { width: plus, height: plus, borderRadius: plus / 2, marginLeft: -plus / 2 - 4 },
+              styles.plusHit,
+              { marginLeft: -Math.round(plus * 0.46) },
               pressed ? styles.pressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Buy more Gold Coins"
             hitSlop={Math.ceil((HIT - plus) / 2)}>
-            <View style={[styles.plusBevel, { borderRadius: plus / 2 }]} pointerEvents="none" />
-            <View style={styles.plusBarH} pointerEvents="none" />
-            <View style={styles.plusBarV} pointerEvents="none" />
+            <View
+              collapsable={false}
+              style={[
+                styles.plusButton,
+                { width: plus, height: plus, borderRadius: plus / 2 },
+              ]}>
+              <Text
+                style={[styles.plusMark, { fontSize: Math.round(plus * 0.7), lineHeight: plus - 4 }]}>
+                +
+              </Text>
+            </View>
           </Pressable>
         </View>
 
@@ -361,17 +369,20 @@ const styles = StyleSheet.create({
   goldCluster: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
+    overflow: 'visible',
   },
   goldSlot: {
     gap: 0,
+    minWidth: 0,
+    flexShrink: 0,
   },
   goldCoinFront: {
     zIndex: 2,
-    elevation: 5,
+    elevation: 2,
   },
   goldPill: {
     zIndex: 1,
-    minWidth: 64,
     borderWidth: 1.5,
     borderColor: artStyle.colors.gold,
     backgroundColor: '#F1E6C8',
@@ -392,41 +403,25 @@ const styles = StyleSheet.create({
   goldAmountCompact: {
     fontSize: 17,
   },
+  plusHit: {
+    zIndex: 8,
+    elevation: 8,
+    flexShrink: 0,
+    backgroundColor: 'transparent',
+  },
   plusButton: {
-    zIndex: 2,
-    borderWidth: 1.5,
-    borderColor: artStyle.colors.gold,
+    borderWidth: 2,
+    borderColor: artStyle.colors.goldBright,
     backgroundColor: artStyle.colors.feltGreen,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
   },
-  plusBevel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: '50%',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  plusBarH: {
-    position: 'absolute',
-    width: '52%',
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: artStyle.colors.cream,
-  },
-  plusBarV: {
-    position: 'absolute',
-    width: 3,
-    height: '52%',
-    borderRadius: 2,
-    backgroundColor: artStyle.colors.cream,
+  plusMark: {
+    color: artStyle.colors.cream,
+    fontWeight: '900',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   pressed: {
     opacity: 0.9,

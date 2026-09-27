@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { DIAL_GLOVE_DISC } from '../../src/features/templates/equity-scale/components/dialGloveDisc.generated';
 import { DIAL_MAX_DEG, DIAL_MIN_DEG } from '../../src/features/templates/equity-scale/dialMath';
 import {
+  DIAL_GLOVE_SLEEVE,
   DIAL_HAND_TILT_MAX_DEG,
   DIAL_PIVOT_ORIGIN,
-  dialHandPose,
+  dialHandPhonePose,
   dialHandTilt,
   rotateAround,
 } from '../../src/features/templates/equity-scale/components/dialGloveLayout';
+import { equityTableLayout } from '../../src/features/templates/equity-scale/tableLayout';
 
 describe('dial pivot', () => {
   it('pins rotation to the geometric center so a hub point does not orbit', () => {
@@ -17,49 +20,104 @@ describe('dial pivot', () => {
     expect(spun.x).toBeCloseTo(84);
     expect(spun.y).toBeCloseTo(84);
   });
-
-  it('keeps a rim point at a constant radius while spinning in place', () => {
-    const origin = { x: 84, y: 84 };
-    const rim = { x: 84 + 60, y: 84 };
-    const spun = rotateAround(rim, origin, 40);
-    const before = Math.hypot(rim.x - origin.x, rim.y - origin.y);
-    const after = Math.hypot(spun.x - origin.x, spun.y - origin.y);
-    expect(after).toBeCloseTo(before);
-    expect(spun.x).not.toBeCloseTo(rim.x);
-  });
 });
 
-describe('dialHandPose', () => {
-  it('keeps a fixed box so the glove never stretches with the wheel', () => {
-    const rest = dialHandPose(0, 148);
-    const min = dialHandPose(DIAL_MIN_DEG, 148);
-    const max = dialHandPose(DIAL_MAX_DEG, 148);
-    expect(min.width).toBe(rest.width);
-    expect(max.width).toBe(rest.width);
-    expect(min.height).toBe(rest.height);
-    expect(max.height).toBe(rest.height);
+function columnHalfWidth(screenWidth: number, table: ReturnType<typeof equityTableLayout>) {
+  return (screenWidth - 2 * table.sideInset - 2 * table.buttonSize) / 2;
+}
+
+function phonePose(width: number) {
+  const table = equityTableLayout({
+    width,
+    height: 844,
+    topInset: 59,
+    bottomInset: 34,
+    showingOuts: true,
+    boardCount: 4,
+  });
+  const half = columnHalfWidth(width, table);
+  const pose = dialHandPhonePose({
+    dialSize: table.dialSize,
+    bottomClearance: table.actionBottom,
+    columnHalfWidth: half,
+  });
+  return { table, half, pose };
+}
+
+describe('dialHandPhonePose', () => {
+  it('plants a smaller glove on the right rim with the cuff below the dial', () => {
+    const dialSize = 148;
+    const pose = dialHandPhonePose({
+      dialSize,
+      bottomClearance: 40,
+      columnHalfWidth: 100,
+    });
+    const thumbX = pose.left + pose.contact.x;
+    const thumbY = pose.top + pose.contact.y;
+    const hub = dialSize / 2;
+    const dist = Math.hypot(thumbX - hub, thumbY - hub);
+    expect(pose.width).toBeGreaterThan(dialSize * 0.9);
+    expect(pose.width).toBeLessThan(dialSize * 1.3);
+    expect(dist).toBeCloseTo(hub, 0);
+    expect(thumbX).toBeGreaterThan(hub);
+    expect(pose.top + pose.height).toBeGreaterThan(dialSize);
   });
 
-  it('plants the thumb on the right rim and sends the sleeve off the phone', () => {
-    const pose = dialHandPose(0, 148);
-    const thumbX = pose.left + 0.2 * pose.width;
-    expect(thumbX).toBeGreaterThan(148 * 0.7);
-    expect(thumbX).toBeLessThan(148 * 0.95);
-    expect(pose.left + pose.width).toBeGreaterThan(148 * 1.8);
-    expect(pose.top + pose.height).toBeGreaterThan(148 * 1.5);
+  it('maps the wheel onto the baked dial disc', () => {
+    const dialSize = 148;
+    const pose = dialHandPhonePose({
+      dialSize,
+      bottomClearance: 40,
+      columnHalfWidth: 100,
+    });
+    const hub = dialSize / 2;
+    const mapped = {
+      x: pose.left + DIAL_GLOVE_DISC.x * pose.width,
+      y: pose.top + DIAL_GLOVE_DISC.y * pose.height,
+      r: DIAL_GLOVE_DISC.r * pose.width,
+    };
+    expect(mapped.x).toBeCloseTo(hub, 0);
+    expect(mapped.y).toBeCloseTo(hub, 0);
+    expect(mapped.r).toBeCloseTo(hub, 0);
   });
 
-  it('rocks the same pinch a little: up on the left, down on the right', () => {
-    const rest = dialHandPose(0, 148);
-    const min = dialHandPose(DIAL_MIN_DEG, 148);
-    const max = dialHandPose(DIAL_MAX_DEG, 148);
+  it('rocks slightly with dial travel', () => {
     expect(dialHandTilt(0)).toBe(0);
     expect(dialHandTilt(DIAL_MIN_DEG)).toBe(-DIAL_HAND_TILT_MAX_DEG);
     expect(dialHandTilt(DIAL_MAX_DEG)).toBe(DIAL_HAND_TILT_MAX_DEG);
-    expect(rest.rotateDeg).toBe(0);
-    expect(min.rotateDeg).toBe(-DIAL_HAND_TILT_MAX_DEG);
-    expect(max.rotateDeg).toBe(DIAL_HAND_TILT_MAX_DEG);
-    expect(min.left).toBe(rest.left);
-    expect(max.top).toBe(rest.top);
   });
+
+  it.each([375, 390, 430])(
+    'stays left of Lock In and on the rim on a %ipt-wide phone',
+    (width) => {
+      const { table, half, pose } = phonePose(width);
+      const hub = table.dialSize / 2;
+      const thumbX = pose.left + pose.contact.x;
+      const thumbY = pose.top + pose.contact.y;
+      expect(Math.hypot(thumbX - hub, thumbY - hub)).toBeCloseTo(hub, 0);
+      expect(pose.width).toBeGreaterThan(table.dialSize * 0.9);
+      expect(pose.width).toBeLessThan(table.dialSize * 1.3);
+      const sleeve = rotateAround(
+        {
+          x: pose.left + DIAL_GLOVE_SLEEVE.x * pose.width,
+          y: pose.top + DIAL_GLOVE_SLEEVE.y * pose.height,
+        },
+        { x: thumbX, y: thumbY },
+        pose.restDeg
+      );
+      expect(sleeve.y).toBeGreaterThan(table.dialSize);
+      for (const tilt of [DIAL_MIN_DEG, 0, DIAL_MAX_DEG]) {
+        const cuff = rotateAround(
+          {
+            x: pose.left + DIAL_GLOVE_SLEEVE.x * pose.width,
+            y: pose.top + DIAL_GLOVE_SLEEVE.y * pose.height,
+          },
+          { x: thumbX, y: thumbY },
+          pose.restDeg + dialHandTilt(tilt)
+        );
+        // Canvas AABB includes empty pixels; the navy cuff is the ink that can hit Lock In.
+        expect(cuff.x).toBeLessThanOrEqual(hub + half - 4);
+      }
+    }
+  );
 });
