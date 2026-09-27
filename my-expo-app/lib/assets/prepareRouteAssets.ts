@@ -17,17 +17,11 @@ export function firstPeekAssets(): number[] {
 }
 
 export async function firstEquityScaleAssets(): Promise<number[]> {
-  const [{ equityScaleArt }, { scaleFrameIndex }] = await Promise.all([
-    import('../../src/features/templates/equity-scale/equityScaleArt'),
-    import('../../src/features/templates/equity-scale/components/scaleArmLayout'),
-  ]);
-  const rest = scaleFrameIndex(0);
-  const neighbors = [rest - 1, rest, rest + 1].filter(
-    (index) => index >= 0 && index < equityScaleArt.scaleFrames.length
+  const { equityScaleArt } = await import(
+    '../../src/features/templates/equity-scale/equityScaleArt'
   );
   return [
-    equityScaleArt.scale.body as number,
-    ...neighbors.map((index) => equityScaleArt.scaleFrames[index] as number),
+    ...(Object.values(equityScaleArt.scale) as number[]),
     equityScaleArt.dial as number,
     equityScaleArt.dialHand.pinchBack as number,
     equityScaleArt.dialHand.pinchFront as number,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LifeChips } from '../components/track/LifeChips';
@@ -39,6 +39,8 @@ import type {
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
 import { StageTemplateRenderer } from '../src/features/templates/StageTemplateRenderer';
 import { artStyle } from '../theme/artStyle';
+
+const EXIT_X = require('../assets/brand/hud/exit-x.png');
 
 export type StagePlayResolved = {
   correct: boolean;
@@ -336,6 +338,15 @@ export function StagePlayScreen({
         }
       />
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Leave level"
+        hitSlop={8}
+        onPress={onBack}
+        style={[styles.exitButton, { top: insets.top + 8 }]}>
+        <Image source={EXIT_X} style={styles.exitArt} resizeMode="contain" />
+      </Pressable>
+
       <View
         pointerEvents="none"
         style={[styles.chipHud, { top: insets.top + 10 }]}
@@ -377,6 +388,22 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: artStyle.colors.projectorBlack,
+  },
+  exitButton: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 90,
+    elevation: 90,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  exitArt: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'transparent',
   },
   chipHud: {
     position: 'absolute',

@@ -30,3 +30,7 @@ android
 # Audio fetch scratch (converted WAVs in assets/audio are committed)
 assets/audio/_raw/
 assets/audio/asset-manifest.json
+
+# Art-cutter debug renders and Python caches
+scripts/_debug/
+scripts/__pycache__/

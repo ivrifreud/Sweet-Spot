@@ -4,7 +4,7 @@ import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playSfx } from '../../../../lib/audio';
@@ -32,7 +32,8 @@ import {
   EQUITY_OUTS_MAX,
   EQUITY_OUTS_MIN,
 } from './config';
-import { dialValueToTilt, scaleFramePosition } from './components/scaleArmLayout';
+import { dialAngleToScaleTilt } from './components/scaleArmLayout';
+import { valueToDialAngle } from './dialMath';
 import { percent, requiredEquity } from './equityMath';
 import { equityScaleArt } from './equityScaleArt';
 import { EQUITY_STRINGS, equityStreetTitle } from './strings';
@@ -79,9 +80,10 @@ export function EquityScaleTemplate({
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
-  const hosePosition = useSharedValue(
-    scaleFramePosition(dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX))
+  const dialAngle = useSharedValue(
+    valueToDialAngle(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
   );
+  const scaleTilt = useDerivedValue(() => dialAngleToScaleTilt(dialAngle.value));
   const [lockedOuts, setLockedOuts] = useState<number | null>(null);
   const [phase, setPhase] = useState<EquityScalePhase>('entering');
   const submittedRef = useRef(false);
@@ -174,12 +176,6 @@ export function EquityScaleTemplate({
 
   const potOdds = requiredEquity(spot.potBeforeCall, spot.priceToCall);
   const showingOuts = phase === 'entering' || phase === 'stage1';
-  useEffect(() => {
-    const value = showingOuts ? selectedOuts : selectedEquity;
-    const min = showingOuts ? EQUITY_OUTS_MIN : EQUITY_DIAL_MIN;
-    const max = showingOuts ? EQUITY_OUTS_MAX : EQUITY_DIAL_MAX;
-    hosePosition.value = scaleFramePosition(dialValueToTilt(value, min, max));
-  }, [hosePosition, resetKey, selectedEquity, selectedOuts, showingOuts]);
   const stage1Live = !disabled && phase === 'stage1';
   const stage2Live = !disabled && phase === 'stage2';
   const revealing =
@@ -319,6 +315,7 @@ export function EquityScaleTemplate({
   const callEnabled =
     tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('call')));
   const showDialHand = !showTutorial || tutorialStep?.hand !== 'turnDial';
+  const dialColumnHalfWidth = (windowWidth - 2 * sideInset - 2 * buttonSize) / 2;
 
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
@@ -338,10 +335,7 @@ export function EquityScaleTemplate({
 
       <View style={[styles.scaleWrap, { top: scaleTop, height: table.scaleHeight }]}>
         <ScaleScene
-          position={hosePosition}
-          initialPosition={scaleFramePosition(
-            dialValueToTilt(EQUITY_INITIAL_OUTS, EQUITY_OUTS_MIN, EQUITY_OUTS_MAX)
-          )}
+          tilt={scaleTilt}
           outcome={activeOutcome}
           stagesCorrect={grade?.stagesCorrect ?? null}
           width={table.scaleWidth}
@@ -374,6 +368,7 @@ export function EquityScaleTemplate({
           <EstimateDial
             key={`outs-${resetKey}-${spot.id}`}
             value={selectedOuts}
+            rotation={dialAngle}
             min={EQUITY_OUTS_MIN}
             max={EQUITY_OUTS_MAX}
             unit={EQUITY_STRINGS.outsUnit}
@@ -381,6 +376,8 @@ export function EquityScaleTemplate({
             accessibilityLabel="Outs dial"
             enabled={dialEnabled}
             size={dialSize}
+            bottomClearance={actionBottom}
+            columnHalfWidth={dialColumnHalfWidth}
             showHand={showDialHand}
             onChange={setSelectedOuts}
             onAdjustStart={() => {}}
@@ -392,6 +389,7 @@ export function EquityScaleTemplate({
           <EstimateDial
             key={`equity-${resetKey}-${spot.id}`}
             value={selectedEquity}
+            rotation={dialAngle}
             min={EQUITY_DIAL_MIN}
             max={EQUITY_DIAL_MAX}
             unit={EQUITY_STRINGS.equityUnit}
@@ -399,6 +397,8 @@ export function EquityScaleTemplate({
             accessibilityLabel="Equity dial"
             enabled={dialEnabled}
             size={dialSize}
+            bottomClearance={actionBottom}
+            columnHalfWidth={dialColumnHalfWidth}
             showHand={showDialHand}
             onChange={setSelectedEquity}
             onAdjustStart={() => {}}
@@ -564,6 +564,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 45,
     overflow: 'visible',
+    pointerEvents: 'box-none',
   },
   actions: {
     position: 'absolute',
@@ -572,7 +573,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    zIndex: 50,
+    zIndex: 60,
+    elevation: 8,
     pointerEvents: 'box-none',
   },
   sideSlot: {

@@ -9,7 +9,7 @@ type Variant = 'hero' | 'board';
 type Props = {
   children: ReactNode;
   variant: Variant;
-  /** Inner size of the card group, before the felt pad. */
+  /** Inner size of the card group, before the mat pad. */
   contentWidth: number;
   contentHeight: number;
 };
@@ -20,8 +20,8 @@ const CARPET = {
 } as const;
 
 /**
- * Felt wash behind a card group. Width and height are numbers so the PNG's
- * intrinsic 360×250 / 740×210 size cannot blow the wrap up on web.
+ * Wood-and-parchment pad behind a card group. Width and height are numbers so
+ * the PNG's intrinsic size cannot blow the wrap up on web.
  */
 export function CardFeltMat({ children, variant, contentWidth, contentHeight }: Props) {
   const width = Math.round(contentWidth + CARD_MAT_PAD_X * 2);
@@ -57,8 +57,10 @@ const styles = StyleSheet.create({
     left: 0,
     overflow: 'hidden',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: artStyle.colors.projectorBlack,
   },
   wash: {
-    backgroundColor: artStyle.colors.teal,
+    backgroundColor: artStyle.colors.tobacco,
   },
 });

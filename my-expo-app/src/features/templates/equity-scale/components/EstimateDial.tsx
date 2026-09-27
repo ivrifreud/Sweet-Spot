@@ -10,6 +10,7 @@ import Animated, {
   withDecay,
   withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import { startDialSfx, stopDialSfx } from '../../../../../lib/audio';
@@ -25,13 +26,11 @@ import {
 } from '../dialMath';
 import { equityScaleArt } from '../equityScaleArt';
 import { EQUITY_PHONE_LAYOUT } from '../tableLayout';
-import { DIAL_GLOVE_CONTACT, DIAL_PIVOT_ORIGIN, dialHandPose } from './dialGloveLayout';
+import { DIAL_PIVOT_ORIGIN, dialHandPhonePose, dialHandTilt } from './dialGloveLayout';
+import { rotateAboutPoint } from './scaleArmLayout';
 
 const FLICK_DEG_PER_SEC = 80;
 const PIVOT = `${DIAL_PIVOT_ORIGIN.x * 100}% ${DIAL_PIVOT_ORIGIN.y * 100}%`;
-const HAND_ORIGIN = {
-  transformOrigin: `${DIAL_GLOVE_CONTACT.x * 100}% ${DIAL_GLOVE_CONTACT.y * 100}%`,
-} as const;
 
 type Props = {
   value: number;
@@ -46,6 +45,12 @@ type Props = {
   onAdjustStart: () => void;
   onAdjustEnd: () => void;
   showHand?: boolean;
+  /** Wheel angle in degrees. Pass one in to let other art (the scale) follow the finger. */
+  rotation?: SharedValue<number>;
+  /** Distance from screen bottom to dial bottom (safe-area + table lift). */
+  bottomClearance: number;
+  /** Half-width of the column above Fold / Call / Lock In. */
+  columnHalfWidth: number;
 };
 
 function tickHaptic() {
@@ -65,8 +70,12 @@ export function EstimateDial({
   onAdjustStart,
   onAdjustEnd,
   showHand = true,
+  rotation: sharedRotation,
+  bottomClearance,
+  columnHalfWidth,
 }: Props) {
-  const rotation = useSharedValue(valueToDialAngle(value, min, max));
+  const ownRotation = useSharedValue(valueToDialAngle(value, min, max));
+  const rotation = sharedRotation ?? ownRotation;
   const lastX = useSharedValue(size / 2);
   const lastY = useSharedValue(0);
   const lastEmitted = useSharedValue(value);
@@ -121,7 +130,8 @@ export function EstimateDial({
 
   const [backFailed, setBackFailed] = useState(false);
   const [frontFailed, setFrontFailed] = useState(false);
-  const useSingleHandFallback = backFailed || frontFailed;
+  const splitHand = showHand && !backFailed && !frontFailed;
+  const fallbackHand = showHand && !backFailed && !splitHand;
   const soundingRef = useRef(false);
   const lastSpinAtRef = useRef(0);
 
@@ -153,7 +163,7 @@ export function EstimateDial({
         .enabled(enabled)
         .minDistance(0)
         .maxPointers(1)
-        .hitSlop(24)
+        .hitSlop(0)
         .shouldCancelWhenOutside(false)
         .onBegin((event) => {
           dragging.value = 1;
@@ -247,16 +257,27 @@ export function EstimateDial({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  const handStyle = useAnimatedStyle(() => {
-    const pose = dialHandPose(rotation.value, dialSize.value);
+  const handLayout = useMemo(
+    () =>
+      dialHandPhonePose({
+        dialSize: size,
+        bottomClearance,
+        columnHalfWidth,
+      }),
+    [bottomClearance, columnHalfWidth, size]
+  );
+
+  const handRotateStyle = useAnimatedStyle(() => {
+    const box = { x: 0, y: 0, w: handLayout.width, h: handLayout.height };
     return {
-      width: pose.width,
-      height: pose.height,
-      left: pose.left,
-      top: pose.top,
-      transform: [{ rotate: `${pose.rotateDeg}deg` }],
+      transform: rotateAboutPoint(
+        box,
+        handLayout.contact,
+        handLayout.restDeg + dialHandTilt(rotation.value),
+        1
+      ),
     };
-  });
+  }, [handLayout]);
 
   const adjust = (delta: number) => {
     if (!enabled) return;
@@ -284,11 +305,21 @@ export function EstimateDial({
           onAccessibilityAction={onAccessibilityAction}
           style={[styles.hitTarget, { width: size, height: size }]}>
           <View collapsable={false} style={[styles.dialStack, { width: size, height: size }]}>
-            {showHand && !useSingleHandFallback ? (
+            {splitHand ? (
               <Animated.View
                 pointerEvents="none"
                 accessibilityElementsHidden
-                style={[styles.handDock, styles.handBack, HAND_ORIGIN, handStyle]}>
+                style={[
+                  styles.handDock,
+                  styles.handBack,
+                  {
+                    left: handLayout.left,
+                    top: handLayout.top,
+                    width: handLayout.width,
+                    height: handLayout.height,
+                  },
+                  handRotateStyle,
+                ]}>
                 <Animated.Image
                   source={equityScaleArt.dialHand.pinchBack}
                   resizeMode="contain"
@@ -310,16 +341,49 @@ export function EstimateDial({
                 accessibilityLabel={label}
               />
             </Animated.View>
-            {showHand ? (
+            {splitHand ? (
               <Animated.View
                 pointerEvents="none"
                 accessibilityElementsHidden
-                style={[styles.handDock, styles.handFront, HAND_ORIGIN, handStyle]}>
+                style={[
+                  styles.handDock,
+                  styles.handFront,
+                  {
+                    left: handLayout.left,
+                    top: handLayout.top,
+                    width: handLayout.width,
+                    height: handLayout.height,
+                  },
+                  handRotateStyle,
+                ]}>
                 <Animated.Image
                   source={equityScaleArt.dialHand.pinchFront}
                   resizeMode="contain"
                   style={styles.handArt}
                   onError={() => setFrontFailed(true)}
+                />
+              </Animated.View>
+            ) : null}
+            {fallbackHand ? (
+              <Animated.View
+                pointerEvents="none"
+                accessibilityElementsHidden
+                style={[
+                  styles.handDock,
+                  styles.handFront,
+                  {
+                    left: handLayout.left,
+                    top: handLayout.top,
+                    width: handLayout.width,
+                    height: handLayout.height,
+                  },
+                  handRotateStyle,
+                ]}>
+                <Animated.Image
+                  source={equityScaleArt.dialHand.pinchBack}
+                  resizeMode="contain"
+                  style={styles.handArt}
+                  onError={() => setBackFailed(true)}
                 />
               </Animated.View>
             ) : null}
@@ -338,6 +402,7 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     overflow: 'visible',
+    pointerEvents: 'box-none',
   },
   hitTarget: {
     alignItems: 'center',
@@ -350,8 +415,12 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   spinLayer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     transformOrigin: PIVOT,
-    zIndex: 1,
+    zIndex: 2,
+    elevation: 2,
   },
   handDock: {
     position: 'absolute',
@@ -360,10 +429,12 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   handBack: {
-    zIndex: 0,
+    zIndex: 1,
+    elevation: 1,
   },
   handFront: {
-    zIndex: 2,
+    zIndex: 3,
+    elevation: 3,
   },
   handArt: {
     width: '100%',
@@ -380,7 +451,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    zIndex: 3,
+    zIndex: 4,
+    elevation: 4,
   },
   value: {
     color: artStyle.colors.cream,
