@@ -44,6 +44,10 @@ const STAMP_MISS = require('../../../../../assets/brand/artstyle/stamp-miss.png'
 
 export function StageResultsReveal({ grade, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
+  const press = useSharedValue(0);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - press.value * 0.04 }],
+  }));
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const clipKind = resultClipKind(grade);
   const showClip = clipKind !== null;
@@ -91,10 +95,18 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Result. Tap to deal the next hand."
+        onPressIn={() => {
+          press.value = withTiming(1, { duration: 100 });
+        }}
+        onPressOut={() => {
+          press.value = withTiming(0, { duration: 100 });
+        }}
         onPress={onComplete}
         style={styles.overlay}>
         <View pointerEvents="none" style={styles.videoBackdrop} />
-        {body}
+        <Animated.View pointerEvents="none" style={pressStyle}>
+          {body}
+        </Animated.View>
       </Pressable>
     );
   }

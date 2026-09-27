@@ -229,6 +229,8 @@ const PRIMED_GESTURE_SFX: readonly SfxName[] = [
   'raise',
   'chipPickup',
   'settle',
+  'scaleButton',
+  'uiClick',
 ];
 const PRIMED_GESTURE_SET: ReadonlySet<SfxName> = new Set(PRIMED_GESTURE_SFX);
 const primedReady: Partial<Record<SfxName, boolean>> = {};
@@ -291,6 +293,15 @@ export async function preparePeekTableAudio(): Promise<void> {
     prepareWorldAmbience('bennys-garden', 'night'),
   ]);
   PRIMED_GESTURE_SFX.forEach((name) => {
+    const player = sfxPlayers[name];
+    if (player) primeSfxPlayer(name, player);
+  });
+}
+
+/** Warm the outs-dial cues so the first turn and the first button press do not wait on a player. */
+export async function prepareEquityScaleAudio(): Promise<void> {
+  await Promise.all([ensureSfxPlayer('scaleButton'), ensureSfxPlayer('dial'), ensureSfxPlayer('uiClick')]);
+  (['scaleButton', 'uiClick'] as const).forEach((name) => {
     const player = sfxPlayers[name];
     if (player) primeSfxPlayer(name, player);
   });
