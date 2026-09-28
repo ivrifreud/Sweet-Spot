@@ -1,4 +1,4 @@
-import { svgPolyline, type Point } from './mapPath';
+import { svgCatmullRom, type Point } from './mapPath';
 import type { MapNode, MapPercent } from './tree';
 import type { WorldRoutePoint } from './worldRoute';
 
@@ -263,5 +263,5 @@ export function svgRouteSegment(
   map: { width: number; height: number },
   chunks: readonly RoutedChunk[]
 ): string {
-  return svgPolyline(routeSegmentPixels(from, to, map, chunks));
+  return svgCatmullRom(routeSegmentPixels(from, to, map, chunks));
 }

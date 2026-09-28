@@ -1,12 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { mapHeroPinSize } from '../../lib/hud/mapHeroPin';
 import { svgRouteSegment } from '../../lib/track/worldMapGeometry';
 import type { FogPhase } from '../../lib/track/fogCycle';
 import {
   CAMERA_CLIMB_MS,
   levelMarkers,
-  mapNodeAnchorOffset,
+  mapNodeMetrics,
   nodeByNumber,
   nodePixels,
   stageStatus,
@@ -29,6 +30,7 @@ type Props = {
   standing: number;
   hopKey?: number;
   onPressNode: (stageNumber: number) => void;
+  onPressInNode?: (stageNumber: number) => void;
   onCameraSettled?: () => void;
   mapActive?: boolean;
 };
@@ -48,6 +50,7 @@ export function LevelProgressionMap({
   standing,
   hopKey = 0,
   onPressNode,
+  onPressInNode,
   onCameraSettled,
   mapActive = true,
 }: Props) {
@@ -57,6 +60,13 @@ export function LevelProgressionMap({
   const map = { width, height };
   const standingNode = nodeByNumber(standing, currentWorld.nodes) ?? currentWorld.nodes[0]!;
   const standingPoint = nodePixels(standingNode, map, chunkCount);
+  const metrics = mapNodeMetrics(width);
+  const heroSize = mapHeroPinSize(width);
+  const standingMarker = markers.find((marker) => marker.number === standing);
+  const heroLift =
+    standingMarker && standingMarker.spotsCompleted > 0
+      ? 6 + metrics.ring / 2 + metrics.labelHeight
+      : 0;
 
   return (
     <WorldMap
@@ -81,6 +91,7 @@ export function LevelProgressionMap({
                 stroke={artStyle.colors.projectorBlack}
                 strokeWidth={14}
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 strokeDasharray="1 17"
                 fill="none"
                 opacity={0.82}
@@ -98,6 +109,7 @@ export function LevelProgressionMap({
                 stroke={opened ? artStyle.colors.gold : artStyle.colors.cream}
                 strokeWidth={8}
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 strokeDasharray="1 17"
                 fill="none"
                 opacity={opened ? 0.96 : 0.38}
@@ -108,7 +120,8 @@ export function LevelProgressionMap({
 
         {markers.map((marker) => {
           const point = nodePixels(marker, map, chunkCount);
-          const anchor = mapNodeAnchorOffset();
+          const labelBlock =
+            marker.status !== 'locked' && marker.spotsCompleted > 0 ? metrics.labelHeight : 0;
           return (
             <View
               key={marker.id}
@@ -120,21 +133,32 @@ export function LevelProgressionMap({
               style={[
                 styles.nodeAnchor,
                 {
-                  left: point.x - anchor.x,
-                  top: point.y - anchor.y,
+                  left: point.x - metrics.anchor.x,
+                  top: point.y - metrics.anchor.y - labelBlock,
                 },
               ]}>
               <MapCheckpoint
                 title={marker.title}
                 status={marker.status}
                 spotsCompleted={marker.spotsCompleted}
+                chipSize={metrics.chip}
+                ringSize={metrics.ring}
+                labelHeight={metrics.labelHeight}
+                frameWidth={metrics.frameWidth}
                 onPress={() => onPressNode(marker.number)}
+                onPressIn={() => onPressInNode?.(marker.number)}
               />
             </View>
           );
         })}
 
-        <MapHeroPin x={standingPoint.x} y={standingPoint.y} hopKey={hopKey} />
+        <MapHeroPin
+          x={standingPoint.x}
+          y={standingPoint.y}
+          hopKey={hopKey}
+          size={heroSize}
+          lift={heroLift}
+        />
       </View>
     </WorldMap>
   );

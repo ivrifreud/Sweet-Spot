@@ -44,6 +44,7 @@ import { prepareKnownWorldAssets, prepareLockoutCoachAssets, prepareTemplateAsse
 import { preparePeekTableAudio, prepareWorldAmbience } from '../lib/audio';
 import { createExclusiveLock } from '../lib/exclusiveLock';
 import { shouldMountTrackMap } from '../lib/track/stagePlayPhase';
+import { resumeSpotsForStage } from '../lib/track/tree';
 import { markPerf, measurePerf } from '../lib/performance/marks';
 import { getStreakState } from '../lib/streak';
 import type { StreakState } from '../lib/streak';
@@ -327,7 +328,7 @@ export function CalibrationHarness({ userId, devMode = false, onSignOut }: Props
     setError(null);
     if (devMode || stageNumber !== 1) {
       setStageProgressId(null);
-      setStageSpotsCompleted(0);
+      setStageSpotsCompleted(resumeSpotsForStage(spotsByStage, stageNumber));
       setPlayingStage(stageNumber);
       return;
     }

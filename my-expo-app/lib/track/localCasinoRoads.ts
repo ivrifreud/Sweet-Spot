@@ -1,97 +1,80 @@
+import { smoothRoute, type RouteControl } from './smoothRoute';
 import type { WorldRoutePoint } from './worldRoute';
 
-function road(left: number, top: number, nodeSafe = true): WorldRoutePoint {
-  return { left, top, surface: 'road', nodeSafe };
+function road(left: number, top: number): RouteControl {
+  return { left, top, surface: 'road' };
 }
 
-/** Permanent chip seat. Do not move these when retuning the road between them. */
-function landing(left: number, top: number): WorldRoutePoint {
-  return { left, top, surface: 'road', nodeSafe: true, landing: true };
+/** Chip seat on a wide stretch of painted road or plaza. */
+function landing(left: number, top: number): RouteControl {
+  return { left, top, surface: 'road', landing: true };
 }
 
-function bridge(left: number, top: number, nodeSafe = false): WorldRoutePoint {
-  return { left, top, surface: 'bridge', nodeSafe };
+function bridge(left: number, top: number): RouteControl {
+  return { left, top, surface: 'bridge' };
 }
 
-function boardwalk(left: number, top: number, nodeSafe = false): WorldRoutePoint {
-  return { left, top, surface: 'boardwalk', nodeSafe };
+function boardwalk(left: number, top: number): RouteControl {
+  return { left, top, surface: 'boardwalk' };
 }
 
 /**
- * Authored bottom-to-top centerlines for the outdoor desert town.
- * Points are [left%, top%]. Exactly four `landing` chips per chunk are frozen;
- * `road` / `bridge` / `boardwalk` points only draw the trail between them.
+ * Painted-road centerlines for the desert town, bottom to top. Points are
+ * [left%, top%] on each chunk JPEG. Four landings per chunk. The painted
+ * chunks only overlap at the road edge, so A/B meet at left 50 and B/C at 60.
  */
-export const LOCAL_CASINO_ROUTES = {
-  a: [
-    road(52.4, 93.0, false),
-    road(51.8, 88.2),
-    landing(51.2, 82.6),
-    road(51.4, 77.6),
-    road(51.8, 72.2),
-    landing(52.2, 66.8),
-    road(51.2, 61.8),
-    road(50.0, 57.2),
-    road(48.8, 52.6),
-    road(50.2, 47.8),
-    road(52.4, 43.6),
-    landing(55.2, 40.0),
-    road(51.6, 36.8, false),
-    road(47.2, 39.2, false),
-    road(41.8, 34.0, false),
-    road(41.2, 30.4, false),
-    road(36.4, 27.0),
-    road(31.4, 23.6),
-    road(26.2, 21.0),
-    landing(21.2, 18.6),
-    road(27.8, 15.4),
-    road(31.6, 13.8),
-    road(35.6, 12.2),
-    road(39.6, 10.8),
-    road(43.8, 9.6),
-    road(51.6, 8.0, false),
-  ],
-  b: [
-    road(50.2, 93.0, false),
-    road(50.6, 87.8),
-    road(47.8, 84.6),
-    landing(45.0, 81.8),
-    road(48.6, 78.2),
-    road(51.0, 73.6),
-    road(50.8, 68.8),
-    road(46.2, 66.0),
-    landing(41.4, 63.2),
-    road(46.8, 60.4, false),
-    boardwalk(50.2, 56.6),
-    boardwalk(50.4, 51.8),
-    boardwalk(51.2, 46.6),
-    landing(53.8, 41.2),
-    road(52.8, 35.2),
-    road(53.6, 29.0),
-    landing(54.6, 22.8),
-    road(53.6, 16.8),
-    road(52.4, 11.2, false),
-  ],
-  c: [
-    road(50.4, 93.0, false),
-    road(50.8, 88.4),
-    landing(53.6, 83.2),
-    road(50.8, 78.6),
-    road(50.0, 73.2),
-    road(50.2, 67.8),
-    road(50.8, 62.4),
-    landing(52.4, 57.2),
-    bridge(51.2, 52.4),
-    bridge(51.6, 47.6),
-    landing(47.0, 43.2),
-    road(50.6, 38.4, false),
-    road(51.6, 33.0),
-    road(51.2, 28.8),
-    landing(45.8, 25.2),
-    road(50.2, 21.0),
-    road(51.8, 16.4),
-    road(52.2, 13.4, false),
-  ],
-} as const satisfies Record<string, readonly WorldRoutePoint[]>;
+export const LOCAL_CASINO_ROUTES: Record<'a' | 'b' | 'c', readonly WorldRoutePoint[]> = {
+  a: smoothRoute([
+    road(54, 98),
+    road(53, 90),
+    landing(51, 82),
+    road(50, 74),
+    landing(51, 66),
+    road(51, 60),
+    road(50, 54),
+    road(48, 49),
+    landing(52, 42),
+    road(44, 37),
+    road(40, 31),
+    road(36, 26),
+    landing(30, 20.5),
+    road(28, 14),
+    road(34, 8),
+    road(42, 4),
+    road(50, 1),
+  ]),
+  b: smoothRoute([
+    road(49, 99),
+    road(44, 92),
+    landing(43, 82),
+    road(44, 74),
+    landing(42, 64),
+    road(44, 58),
+    boardwalk(46, 55),
+    boardwalk(49, 51),
+    road(51, 46),
+    landing(55, 39),
+    road(57, 32),
+    landing(56, 22),
+    road(59, 13),
+    road(61, 6),
+    road(61, 1),
+  ]),
+  c: smoothRoute([
+    road(60, 99),
+    road(55, 92),
+    landing(53, 82),
+    road(51, 72),
+    landing(50, 62),
+    road(49, 52),
+    landing(48, 44),
+    bridge(47, 37),
+    bridge(47, 31),
+    road(48, 26),
+    landing(50, 20),
+    road(52, 12),
+    road(54, 6),
+  ]),
+};
 
 export type LocalCasinoMapVariantId = keyof typeof LOCAL_CASINO_ROUTES;

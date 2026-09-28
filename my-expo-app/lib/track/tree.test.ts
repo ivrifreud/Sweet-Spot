@@ -13,11 +13,16 @@ import {
   WORLD_MAP_LAYER_STACK,
   flattenMapChunks,
   equityWorldSkin,
+  formatSpotPercent,
+  resumeSpotsForStage,
   levelMarkers,
   lockReason,
-  mapPercentToUnit,
   mapNodeAnchorOffset,
+  mapNodeChipSize,
+  mapNodeMetrics,
+  mapPercentToUnit,
   MAP_NODE_CHIP_SIZE,
+  nodeRingPhase,
   nodePixels,
   progressChunkIndex,
   stageProgressPercent,
@@ -91,9 +96,26 @@ describe('overworld unlocks', () => {
     expect(markers[1]?.spotsCompleted).toBe(3);
     expect(markers[1]?.progressFraction).toBeCloseTo(3 / 7);
     expect(stageProgressPercent(3)).toBe(43);
+    expect(formatSpotPercent(1)).toBe('14%');
+    expect(formatSpotPercent(3)).toBe('43%');
+    expect(formatSpotPercent(6)).toBe('86%');
+    expect(formatSpotPercent(7)).toBe('100%');
+    expect(formatSpotPercent(9)).toBe('100%');
+    expect(resumeSpotsForStage({ 2: 3 }, 2)).toBe(3);
+    expect(resumeSpotsForStage({ 2: 3 }, 5)).toBe(0);
+    expect(resumeSpotsForStage({ 2: 7 }, 2)).toBe(0);
+    expect(nodeRingPhase('current', 0)).toBe('open');
+    expect(nodeRingPhase('current', 3)).toBe('progress');
+    expect(nodeRingPhase('completed', 7)).toBe('complete');
+    expect(nodeRingPhase('locked', 0)).toBe('locked');
     expect(MAP_NODE_CHIP_SIZE).toBe(53);
-    expect(mapNodeAnchorOffset().x).toBeCloseTo((53 + 14) / 2);
-    expect(mapNodeAnchorOffset().y).toBeCloseTo((53 + 14) / 2);
+    expect(mapNodeChipSize(390)).toBe(53);
+    expect(mapNodeChipSize(320)).toBe(44);
+    expect(mapNodeChipSize(480)).toBe(64);
+    const metrics = mapNodeMetrics(390);
+    expect(metrics.frameWidth).toBe(metrics.ring);
+    expect(mapNodeAnchorOffset().x).toBeCloseTo(metrics.ring / 2);
+    expect(mapNodeAnchorOffset().y).toBeCloseTo(metrics.ring / 2);
   });
 });
 

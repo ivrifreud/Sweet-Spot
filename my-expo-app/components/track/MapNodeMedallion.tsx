@@ -1,90 +1,170 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 
+import {
+  formatSpotPercent,
+  nodeProgressFraction,
+  nodeRingPhase,
+  type StageStatus,
+} from '../../lib/track/tree';
 import { ChipSprite } from '../../src/features/templates/peek-and-pitch/components/ChipSprite';
-import { MAP_NODE_CHIP_SIZE, type StageStatus } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
 import { PadlockIcon, PlayPlateIcon } from '../hud/HudIcons';
 
-/** Perfect circular status ring diameter (chip + ink rim). */
-export const MAP_NODE_RING_PAD = 14;
-export const MAP_NODE_RING_SIZE = MAP_NODE_CHIP_SIZE + MAP_NODE_RING_PAD;
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const TRACK_WIDTH = 5;
+const OPEN_HAIRLINE = 2.5;
+const FILL_MS = 640;
 
 type Props = {
   status: StageStatus;
-  size?: number;
+  spotsCompleted: number;
+  chipSize: number;
+  ringSize: number;
+  labelHeight: number;
 };
 
 /**
- * Chip medallion inside a perfect circular status ring.
- * No stage number or title — state is ring color, PLAY plate, or padlock.
+ * Chip medallion with a true circular stage ring.
+ * Locked is unlit. Open is a felt-green hairline. Progress lights only the
+ * outer ring, by the percent of the level that is done.
  */
-export function MapNodeMedallion({ status, size = MAP_NODE_CHIP_SIZE }: Props) {
+export function MapNodeMedallion({
+  status,
+  spotsCompleted,
+  chipSize,
+  ringSize,
+  labelHeight,
+}: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
-  const chipSize = size;
-  const ringSize = chipSize + MAP_NODE_RING_PAD;
-  const locked = status === 'locked';
-  const completed = status === 'completed';
+  const reducedMotion = useReducedMotion();
+  const phase = nodeRingPhase(status, spotsCompleted);
+  const target =
+    phase === 'complete' ? 1 : phase === 'progress' ? nodeProgressFraction(spotsCompleted) : 0;
+  const showLabel = phase === 'progress' || phase === 'complete';
   const current = status === 'current';
 
+  const cx = ringSize / 2;
+  const cy = ringSize / 2;
+  const ringRadius = (ringSize - TRACK_WIDTH) / 2;
+  const ringLength = 2 * Math.PI * ringRadius;
+  const chipRadius = chipSize / 2;
+  const chipInset = (ringSize - chipSize) / 2;
+
+  // Completed nodes load full; partial ones fill in so leaving mid-level reads on return.
+  const fill = useSharedValue(phase === 'complete' ? 1 : 0);
+
+  useEffect(() => {
+    fill.value = reducedMotion
+      ? target
+      : withTiming(target, { duration: FILL_MS, easing: Easing.out(Easing.cubic) });
+  }, [fill, reducedMotion, target]);
+
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: ringLength * (1 - fill.value),
+    strokeOpacity: fill.value > 0.005 ? 1 : 0,
+  }));
+
   return (
-    <View
-      style={[
-        styles.wrap,
-        { width: ringSize, height: ringSize + (current ? 30 : 0) },
-      ]}>
+    <View style={[styles.wrap, { width: ringSize }]}>
+      {showLabel ? (
+        <Text
+          style={[
+            styles.percent,
+            display,
+            {
+              height: labelHeight,
+              lineHeight: labelHeight,
+              fontSize: Math.max(14, Math.round(chipSize * 0.3)),
+            },
+          ]}
+          numberOfLines={1}
+          allowFontScaling={false}>
+          {formatSpotPercent(spotsCompleted)}
+        </Text>
+      ) : null}
       <View
         style={[
           styles.ring,
-          {
-            width: ringSize,
-            height: ringSize,
-            borderRadius: ringSize / 2,
-          },
-          completed && styles.ringCompleted,
-          current && styles.ringCurrent,
-          locked && styles.ringLocked,
-        ]}
-        pointerEvents="none">
+          { width: ringSize, height: ringSize, borderRadius: ringSize / 2 },
+          phase === 'locked' && styles.ringLocked,
+        ]}>
         <View
           style={[
             styles.chipClip,
             {
               width: chipSize,
               height: chipSize,
-              borderRadius: chipSize / 2,
+              borderRadius: chipRadius,
+              left: chipInset,
+              top: chipInset,
             },
-            locked && styles.lockedChip,
+            phase === 'locked' && styles.lockedChip,
           ]}>
-          <ChipSprite size={chipSize} view="face" />
-        </View>
-        {completed ? (
-          <View
-            style={[
-              styles.goldRing,
-              {
-                width: ringSize - 4,
-                height: ringSize - 4,
-                borderRadius: (ringSize - 4) / 2,
-              },
-            ]}
+          <ChipSprite
+            size={chipSize}
+            view="face"
+            style={{ width: chipSize, height: chipSize }}
           />
-        ) : null}
-        {completed ? (
-          <View style={styles.stars} accessibilityElementsHidden>
-            <View style={styles.star} />
-            <View style={[styles.star, styles.starMid]} />
-            <View style={styles.star} />
-          </View>
-        ) : null}
-        {locked ? (
+        </View>
+        <Svg
+          width={ringSize}
+          height={ringSize}
+          style={styles.ringSvg}
+          pointerEvents="none">
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={ringRadius}
+            stroke={phase === 'locked' ? artStyle.colors.projectorBlack : artStyle.colors.tobacco}
+            strokeWidth={TRACK_WIDTH}
+            fill="none"
+          />
+          {phase === 'open' ? (
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={ringRadius}
+              stroke={artStyle.colors.feltGreen}
+              strokeWidth={OPEN_HAIRLINE}
+              fill="none"
+            />
+          ) : null}
+          {phase === 'progress' || phase === 'complete' ? (
+            <AnimatedCircle
+              cx={cx}
+              cy={cy}
+              r={ringRadius}
+              originX={cx}
+              originY={cy}
+              rotation={-90}
+              stroke={artStyle.colors.feltGreenLit}
+              strokeWidth={TRACK_WIDTH}
+              strokeLinecap={phase === 'complete' ? 'butt' : 'round'}
+              strokeDasharray={`${ringLength} ${ringLength}`}
+              fill="none"
+              animatedProps={arcProps}
+            />
+          ) : null}
+        </Svg>
+        {phase === 'locked' ? (
           <View style={styles.lockBadge}>
             <PadlockIcon size={Math.round(chipSize * 0.38)} />
           </View>
         ) : null}
       </View>
-      {current ? (
+      {current && phase !== 'complete' ? (
         <View style={styles.playPlate} accessibilityElementsHidden>
           <PlayPlateIcon width={64} height={24} />
           <Text style={[styles.playLabel, display]}>PLAY</Text>
@@ -100,24 +180,31 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     overflow: 'visible',
   },
+  percent: {
+    minWidth: 44,
+    color: artStyle.colors.cream,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    textShadowColor: artStyle.colors.projectorBlack,
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 0,
+  },
   ring: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(232,215,167,0.92)',
-    borderWidth: 2.5,
-    borderColor: artStyle.colors.tobacco,
-  },
-  ringCompleted: {
-    borderColor: artStyle.colors.gold,
-  },
-  ringCurrent: {
-    borderColor: artStyle.colors.goldBright,
+    backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   ringLocked: {
-    backgroundColor: 'rgba(118,83,55,0.55)',
-    borderColor: artStyle.colors.projectorBlack,
+    backgroundColor: 'transparent',
+  },
+  ringSvg: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
   },
   chipClip: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -125,29 +212,8 @@ const styles = StyleSheet.create({
   lockedChip: {
     opacity: 0.78,
   },
-  goldRing: {
-    position: 'absolute',
-    borderWidth: 3,
-    borderColor: artStyle.colors.goldBright,
-  },
-  stars: {
-    position: 'absolute',
-    top: -6,
-    flexDirection: 'row',
-    gap: 3,
-  },
-  star: {
-    width: 7,
-    height: 7,
-    borderRadius: 1,
-    backgroundColor: artStyle.colors.goldBright,
-    transform: [{ rotate: '45deg' }],
-  },
-  starMid: {
-    marginTop: -2,
-  },
   lockBadge: {
-    position: 'absolute',
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },

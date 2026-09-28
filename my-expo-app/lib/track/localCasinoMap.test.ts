@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_PATH_TURN_DEG, maxSegmentTurnDeg } from './mapPath';
 import { LOCAL_CASINO_ROUTES } from './localCasinoRoads';
 import { createLocalCasinoChunkLayouts } from './localCasinoMap';
 import { pickRouteNodes, routeSegmentPixels, routeStepLengths, walkWorldTrail } from './worldMapGeometry';
@@ -22,6 +23,20 @@ describe('authored Local Casino routes', () => {
     expect(maxJump('a')).toBeLessThan(8);
     expect(maxJump('b')).toBeLessThan(8);
     expect(maxJump('c')).toBeLessThan(8);
+  });
+
+  it('keeps every sampled corner under the rounded-trail limit with four landings', () => {
+    for (const variant of ['a', 'b', 'c'] as const) {
+      const route = LOCAL_CASINO_ROUTES[variant];
+      expect(maxSegmentTurnDeg(route)).toBeLessThanOrEqual(MAX_PATH_TURN_DEG);
+      expect(route.filter((point) => point.landing)).toHaveLength(4);
+    }
+  });
+
+  it('joins chunk seams at the same left so the trail does not kink', () => {
+    const { a, b, c } = LOCAL_CASINO_ROUTES;
+    expect(Math.abs(a[a.length - 1]!.left - b[0]!.left)).toBeLessThanOrEqual(3);
+    expect(Math.abs(b[b.length - 1]!.left - c[0]!.left)).toBeLessThanOrEqual(3);
   });
 
   it('keeps map A on the town road instead of cutting through the left lot', () => {
@@ -59,22 +74,22 @@ describe('createLocalCasinoChunkLayouts', () => {
         Number.parseFloat(node.top),
       ]);
     expect(seats(0)).toEqual([
-      [51.2, 82.6],
-      [52.2, 66.8],
-      [55.2, 40],
-      [21.2, 18.6],
+      [51, 82],
+      [51, 66],
+      [52, 42],
+      [30, 20.5],
     ]);
     expect(seats(1)).toEqual([
-      [45, 81.8],
-      [41.4, 63.2],
-      [53.8, 41.2],
-      [54.6, 22.8],
+      [43, 82],
+      [42, 64],
+      [55, 39],
+      [56, 22],
     ]);
     expect(seats(2)).toEqual([
-      [53.6, 83.2],
-      [52.4, 57.2],
-      [47, 43.2],
-      [45.8, 25.2],
+      [53, 82],
+      [50, 62],
+      [48, 44],
+      [50, 20],
     ]);
     const rngA = pickRouteNodes(LOCAL_CASINO_ROUTES.a, 4, () => 0);
     const rngB = pickRouteNodes(LOCAL_CASINO_ROUTES.a, 4, () => 0.99);
@@ -86,15 +101,16 @@ describe('createLocalCasinoChunkLayouts', () => {
     const last = chunk.nodes[3]!;
     const after = LOCAL_CASINO_ROUTES.a.slice(last.routeIndex!);
     for (let i = 1; i < after.length; i += 1) {
-      expect(after[i]!.left).toBeGreaterThan(after[i - 1]!.left);
+      expect(after[i]!.left).toBeGreaterThanOrEqual(after[i - 1]!.left - 1);
     }
+    expect(after[after.length - 1]!.left).toBeGreaterThan(after[0]!.left + 15);
   });
 
-  it('does not climb the Local Casino A stair treads between hitching and the crest', () => {
-    const onSteps = LOCAL_CASINO_ROUTES.a.filter(
-      (point) => point.top >= 28 && point.top <= 38 && point.left >= 43 && point.left <= 50
-    );
-    expect(onSteps).toHaveLength(0);
+  it('climbs the painted Local Casino A stairs on the cliff side of the saloon', () => {
+    const climb = LOCAL_CASINO_ROUTES.a.filter((point) => point.top >= 22 && point.top <= 50);
+    expect(climb.length).toBeGreaterThan(0);
+    expect(climb.every((point) => point.left < 60)).toBe(true);
+    expect(LOCAL_CASINO_ROUTES.a.some((point) => point.left > 60 && point.top < 50)).toBe(false);
   });
 
   it('places four ordered unique safe nodes on each chunk route', () => {

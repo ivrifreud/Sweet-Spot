@@ -1,9 +1,4 @@
-import {
-  MAP_NODE_CHIP_SIZE,
-  mapNodeAnchorOffset,
-  nodePixels,
-  type MapNode,
-} from '../track/tree';
+import { mapNodeMetrics, nodePixels, type MapNode } from '../track/tree';
 
 export type Rect = { left: number; top: number; right: number; bottom: number };
 
@@ -16,10 +11,9 @@ export function nodeLabelRect(
   chunkCount: number
 ): Rect {
   const point = nodePixels(node, map, chunkCount);
-  const anchor = mapNodeAnchorOffset();
-  const ring = MAP_NODE_CHIP_SIZE + 14;
-  const left = point.x - anchor.x;
-  const top = point.y - anchor.y;
+  const ring = mapNodeMetrics(map.width).ring;
+  const left = point.x - ring / 2;
+  const top = point.y - ring / 2;
   return {
     left,
     top,
@@ -77,8 +71,6 @@ export function nodesUnderRailSafeZone(
     .map((node) => node.id);
 }
 
-export const NODE_CHIP_SIZE_TARGET = 53;
-
-export function nodeChipSizeIsTarget(size = MAP_NODE_CHIP_SIZE): boolean {
-  return size === NODE_CHIP_SIZE_TARGET;
+export function nodeChipSizeIsTarget(mapWidth = 390): boolean {
+  return mapNodeMetrics(mapWidth).chip === mapNodeMetrics(390).chip && mapNodeMetrics(390).chip === 53;
 }
