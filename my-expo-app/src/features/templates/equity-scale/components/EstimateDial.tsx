@@ -80,6 +80,7 @@ export function EstimateDial({
   const lastY = useSharedValue(0);
   const lastEmitted = useSharedValue(value);
   const dragging = useSharedValue(0);
+  const decaying = useSharedValue(0);
   const minValue = useSharedValue(min);
   const maxValue = useSharedValue(max);
   const dialSize = useSharedValue(size);
@@ -194,7 +195,6 @@ export function EstimateDial({
           }
         })
         .onEnd((event) => {
-          runOnJS(haltDialSound)();
           const hub = dialSize.value / 2;
           const rx = event.x - hub;
           const ry = event.y - hub;
@@ -204,7 +204,9 @@ export function EstimateDial({
               ? 0
               : ((rx * event.velocityY - ry * event.velocityX) / radiusSq) * (180 / Math.PI);
           const snapToDetent = () => {
+            decaying.value = 0;
             dragging.value = 0;
+            runOnJS(haltDialSound)();
             const snappedValue = dialAngleToValue(rotation.value, minValue.value, maxValue.value);
             const snappedAngle = valueToDialAngle(snappedValue, minValue.value, maxValue.value);
             rotation.value = withSpring(snappedAngle, { damping: 18, stiffness: 220, mass: 0.7 });
@@ -215,6 +217,8 @@ export function EstimateDial({
             snapToDetent();
             return;
           }
+          decaying.value = 1;
+          runOnJS(syncDialSound)(true);
           rotation.value = withDecay(
             {
               velocity: omegaDeg,
@@ -222,20 +226,24 @@ export function EstimateDial({
               deceleration: 0.992,
             },
             (finished) => {
+              decaying.value = 0;
               if (finished) {
                 snapToDetent();
                 return;
               }
               dragging.value = 0;
+              runOnJS(haltDialSound)();
               runOnJS(endAdjust)();
             }
           );
         })
         .onFinalize(() => {
+          if (decaying.value === 1) return;
           runOnJS(haltDialSound)();
         }),
     [
       beginAdjust,
+      decaying,
       dialSize,
       dragging,
       emitValue,
@@ -283,6 +291,11 @@ export function EstimateDial({
     if (!enabled) return;
     onChange(Math.min(max, Math.max(min, value + delta)));
     onAdjustEnd();
+    if (soundingRef.current) return;
+    startDialSfx();
+    setTimeout(() => {
+      if (!soundingRef.current) stopDialSfx();
+    }, 90);
   };
 
   const onAccessibilityAction = (event: AccessibilityActionEvent) => {

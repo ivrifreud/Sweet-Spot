@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { Image, Pressable, StyleSheet, type ImageSourcePropType } from 'react-native';
 import Animated, {
   Easing,
@@ -8,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { playSfx } from '../../../../../lib/audio';
 import { artStyle } from '../../../../../theme/artStyle';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -30,6 +32,8 @@ export function ArtButton({ source, label, enabled, size = 108, round = true, on
 
   const pressIn = () => {
     if (!enabled) return;
+    playSfx('scaleButton');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     scale.value = reducedMotion ? 0.9 : withTiming(0.9, { duration: 90 });
   };
 

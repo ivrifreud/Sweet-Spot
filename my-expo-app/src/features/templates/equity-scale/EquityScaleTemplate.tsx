@@ -1,13 +1,12 @@
 /* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { playSfx } from '../../../../lib/audio';
+import { prepareEquityScaleAudio } from '../../../../lib/audio';
 import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
@@ -103,6 +102,10 @@ export function EquityScaleTemplate({
 
   tutorialActiveRef.current = tutorialActive;
   tutorialIndexRef.current = tutorialIndex;
+
+  useEffect(() => {
+    void prepareEquityScaleAudio();
+  }, []);
 
   useEffect(() => {
     onOutcomeCompleteRef.current = onOutcomeAnimationComplete;
@@ -246,30 +249,23 @@ export function EquityScaleTemplate({
         rejectTutorial();
         return;
       }
-      playSfx('scaleButton');
       setLockedOuts(selectedOuts);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       completeTutorialAction('lockIn');
       return;
     }
-    playSfx('scaleButton');
     setLockedOuts(selectedOuts);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setPhase('stage2');
   }, [completeTutorialAction, rejectTutorial, selectedOuts, stage1Live]);
 
   const submit = useCallback(
     (decision: EquityDecision) => {
       if (tutorialActiveRef.current) {
-        playSfx('scaleButton');
         completeTutorialAction(decision);
         return;
       }
       if (!stage2Live || submittedRef.current) return;
-      playSfx('scaleButton');
       submittedRef.current = true;
       setPhase('submitting');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       onSubmit?.({
         decision,
         selectedOuts: lockedOuts ?? selectedOuts,
