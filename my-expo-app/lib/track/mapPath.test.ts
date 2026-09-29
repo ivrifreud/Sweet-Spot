@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  MAX_PATH_TURN_DEG,
   curveControl,
   durationForLength,
+  maxSegmentTurnDeg,
   pathLength,
   pointAlong,
   quadPoint,
   routeStages,
+  svgCatmullRom,
   svgQuadPath,
   svgPolyline,
   walkPolyline,
 } from './mapPath';
+import { smoothRoute } from './smoothRoute';
 
 describe('overworld path', () => {
   it('walks sequential checkpoints in both directions', () => {
@@ -48,6 +52,16 @@ describe('overworld path', () => {
       4
     );
     expect(d.startsWith('M 0 0 Q')).toBe(true);
+  });
+
+  it('rounds a right-angle elbow into a curve under the turn limit', () => {
+    const elbow = smoothRoute([
+      { left: 0, top: 0, surface: 'road' },
+      { left: 0, top: 40, surface: 'road' },
+      { left: 40, top: 40, surface: 'road' },
+    ]);
+    expect(maxSegmentTurnDeg(elbow)).toBeLessThanOrEqual(MAX_PATH_TURN_DEG);
+    expect(svgCatmullRom(elbow.map((point) => ({ x: point.left, y: point.top })))).toContain(' C ');
   });
 
   it('builds a straight SVG polyline from authored route points', () => {

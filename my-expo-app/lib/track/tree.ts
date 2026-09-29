@@ -32,6 +32,8 @@ export type MapChunk = {
 /** Portrait map box. Width / height — keep in sync with the eventual map art. */
 export const MAP_ASPECT = 9 / 16;
 
+/** Chip size on a 390-wide phone. Other widths scale from this. */
+export const MAP_NODE_REFERENCE_WIDTH = 390;
 export const MAP_NODE_CHIP_SIZE = 53;
 export const MAP_NODE_SIZE = MAP_NODE_CHIP_SIZE;
 export const MAP_NODE_CAPTION_WIDTH = 88;
@@ -40,14 +42,42 @@ export const MAP_NODES_PER_CHUNK = 4;
 /** Visual height of the three-quarter map chip (matches chip-3q aspect). */
 export const MAP_NODE_CHIP_HEIGHT = MAP_NODE_CHIP_SIZE * (450 / 512);
 
-/** Offset from the authored path point to the top-left of the checkpoint wrap.
- * Centers the circular status ring on the road. */
-export function mapNodeAnchorOffset(): { x: number; y: number } {
-  const ring = MAP_NODE_CHIP_SIZE + 14;
+/** Poker-chip diameter as a fraction of the map width, clamped to a phone checkpoint. */
+export function mapNodeChipSize(mapWidth = MAP_NODE_REFERENCE_WIDTH): number {
+  const scaled = Math.round((mapWidth * MAP_NODE_CHIP_SIZE) / MAP_NODE_REFERENCE_WIDTH);
+  return Math.min(64, Math.max(44, scaled));
+}
+
+export type MapNodeMetrics = {
+  chip: number;
+  ringPad: number;
+  ring: number;
+  labelHeight: number;
+  frameWidth: number;
+  anchor: { x: number; y: number };
+};
+
+/** One scale for the chip, the ring, the label, and the anchor that centers them. */
+export function mapNodeMetrics(mapWidth = MAP_NODE_REFERENCE_WIDTH): MapNodeMetrics {
+  const chip = mapNodeChipSize(mapWidth);
+  const ringPad = Math.max(10, Math.round(chip * (14 / MAP_NODE_CHIP_SIZE)));
+  const ring = chip + ringPad;
+  const labelHeight = Math.max(16, Math.round(chip * 0.34));
+  const frameWidth = ring;
   return {
-    x: ring / 2,
-    y: ring / 2,
+    chip,
+    ringPad,
+    ring,
+    labelHeight,
+    frameWidth,
+    anchor: { x: frameWidth / 2, y: ring / 2 },
   };
+}
+
+/** Offset from the authored path point to the top-left of the checkpoint frame.
+ * The ring, not the label, is what sits on the road centerline. */
+export function mapNodeAnchorOffset(mapWidth = MAP_NODE_REFERENCE_WIDTH): { x: number; y: number } {
+  return mapNodeMetrics(mapWidth).anchor;
 }
 
 /** Fog parts left/right this long, then the camera climbs to the next chunk. */
@@ -71,12 +101,36 @@ export function recordSpotAttempt(spotsCompleted: number): {
   return { spotsCompleted: next, stageComplete: next >= SPOTS_PER_STAGE };
 }
 
+/** Spots to resume from when re-entering a stage. A finished stage replays from the first hand. */
+export function resumeSpotsForStage(
+  spotsByStage: Record<number, number>,
+  stageNumber: number
+): number {
+  const saved = Math.max(0, spotsByStage[stageNumber] ?? 0);
+  return saved >= SPOTS_PER_STAGE ? 0 : saved;
+}
+
 export function nodeProgressFraction(spotsCompleted: number): number {
   return Math.min(1, Math.max(0, spotsCompleted) / SPOTS_PER_STAGE);
 }
 
 export function stageProgressPercent(spotsCompleted: number): number {
   return Math.round(nodeProgressFraction(spotsCompleted) * 100);
+}
+
+/** Percent of the level finished, drawn above an opened node. Never a spot count. */
+export function formatSpotPercent(spotsCompleted: number): string {
+  return `${stageProgressPercent(spotsCompleted)}%`;
+}
+
+export type NodeRingPhase = 'locked' | 'open' | 'progress' | 'complete';
+
+/** Duolingo-style ring phase. Completing the node is still what unlocks the next one. */
+export function nodeRingPhase(status: StageStatus, spotsCompleted: number): NodeRingPhase {
+  if (status === 'locked') return 'locked';
+  if (status === 'completed' || spotsCompleted >= SPOTS_PER_STAGE) return 'complete';
+  if (spotsCompleted <= 0) return 'open';
+  return 'progress';
 }
 
 /** World 1 mock data: four stages laid over Benny's painted garden path. */

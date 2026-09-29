@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BENNYS_GARDEN_NODES, MAP_NODE_CHIP_SIZE } from '../track/tree';
+import { BENNYS_GARDEN_NODES, mapNodeChipSize } from '../track/tree';
 import {
   findOverlappingNodePairs,
   nodeChipSizeIsTarget,
@@ -43,8 +43,10 @@ describe('nodesUnderRailSafeZone', () => {
 });
 
 describe('nodeChipSizeIsTarget', () => {
-  it('keeps map chips at two-thirds of the prior 80px size (53px)', () => {
-    expect(MAP_NODE_CHIP_SIZE).toBe(53);
+  it('keeps a 390-wide phone at 53 and scales other widths', () => {
+    expect(mapNodeChipSize(390)).toBe(53);
+    expect(mapNodeChipSize(320)).toBeLessThan(53);
     expect(nodeChipSizeIsTarget()).toBe(true);
+    expect(nodeChipSizeIsTarget(320)).toBe(false);
   });
 });

@@ -21,13 +21,16 @@ type Props = {
   y: number;
   /** Bumps to replay the hop when the player advances. */
   hopKey: number;
+  size?: number;
+  /** Raises the pin so a progress label above the ring stays clear. */
+  lift?: number;
 };
 
 /**
  * Full hero sprite pinned on the current node (idle pose only).
  * Transparent — no badge plate behind the character.
  */
-export function MapHeroPin({ x, y, hopKey }: Props) {
+export function MapHeroPin({ x, y, hopKey, size = MAP_HERO_PIN_SIZE, lift = 0 }: Props) {
   const reducedMotion = useReducedMotion();
   const hop = useSharedValue(0);
   const squash = useSharedValue(1);
@@ -65,8 +68,10 @@ export function MapHeroPin({ x, y, hopKey }: Props) {
       style={[
         styles.wrap,
         {
-          left: x - MAP_HERO_PIN_SIZE / 2,
-          top: y - MAP_HERO_PIN_SIZE + 6,
+          width: size,
+          height: size,
+          left: x - size / 2,
+          top: y - size + 6 - lift,
         },
         style,
       ]}
@@ -79,8 +84,6 @@ export function MapHeroPin({ x, y, hopKey }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    width: MAP_HERO_PIN_SIZE,
-    height: MAP_HERO_PIN_SIZE,
     zIndex: 6,
     backgroundColor: 'transparent',
   },

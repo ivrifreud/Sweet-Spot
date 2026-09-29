@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_PATH_TURN_DEG, maxSegmentTurnDeg } from './mapPath';
 import { BENNYS_GARDEN_ROUTES } from './bennysGardenRoads';
 import {
   createGardenChunkLayouts,
@@ -65,6 +66,20 @@ describe('authored garden routes', () => {
     expect(maxJump('a')).toBeLessThan(8);
     expect(maxJump('b')).toBeLessThan(8);
     expect(maxJump('c')).toBeLessThan(8);
+  });
+
+  it('keeps every sampled corner under the rounded-trail limit with four landings', () => {
+    for (const variant of ['a', 'b', 'c'] as const) {
+      const route = BENNYS_GARDEN_ROUTES[variant];
+      expect(maxSegmentTurnDeg(route)).toBeLessThanOrEqual(MAX_PATH_TURN_DEG);
+      expect(route.filter((point) => point.landing)).toHaveLength(4);
+    }
+  });
+
+  it('joins chunk seams at the same left so the trail does not kink', () => {
+    const { a, b, c } = BENNYS_GARDEN_ROUTES;
+    expect(Math.abs(a[a.length - 1]!.left - b[0]!.left)).toBeLessThanOrEqual(3);
+    expect(Math.abs(b[b.length - 1]!.left - c[0]!.left)).toBeLessThanOrEqual(3);
   });
 
   it('keeps map A on the dirt road around the apple tree and over the painted bridge', () => {
@@ -134,22 +149,22 @@ describe('createGardenChunkLayouts', () => {
         Number.parseFloat(node.top),
       ]);
     expect(seats(0)).toEqual([
-      [55.6, 83.6],
-      [34.2, 66.8],
-      [91.2, 32.4],
-      [40.4, 18.8],
+      [46, 85],
+      [33, 66],
+      [87, 31],
+      [38, 15.5],
     ]);
     expect(seats(1)).toEqual([
-      [55, 84.4],
-      [40.4, 66.8],
-      [42, 39.4],
-      [42.6, 19.6],
+      [51, 84],
+      [40, 65],
+      [41, 39],
+      [42, 19],
     ]);
     expect(seats(2)).toEqual([
-      [56.4, 83.2],
-      [40.4, 74],
-      [40.8, 60.4],
-      [40.6, 40.4],
+      [52, 85],
+      [22, 75.5],
+      [41, 39],
+      [29, 19.5],
     ]);
     const first = pickRouteNodes(BENNYS_GARDEN_ROUTES.a, 4, () => 0);
     const last = pickRouteNodes(BENNYS_GARDEN_ROUTES.a, 4, () => 0.99);

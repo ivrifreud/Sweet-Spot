@@ -29,6 +29,8 @@ export const artStyle = {
     tobacco: '#765337',
     oxblood: '#A43E32',
     feltGreen: '#4D8A5B',
+    /** Felt green lifted toward cream so a map arc reads as lit on the painting. */
+    feltGreenLit: '#7FB88A',
   },
   motion: {
     character:
