@@ -1,4 +1,5 @@
 import { VideoView } from 'expo-video';
+import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { isMuted } from '../../../../../lib/audio';
@@ -29,19 +30,29 @@ const CLIP = {
 type Props = {
   variant: ResultClipKind;
   onFinished?: () => void;
+  onUnavailable?: () => void;
 };
 
-export function ScaleResultClip({ variant }: Props) {
+export function ScaleResultClip({ variant, onUnavailable }: Props) {
   const clip = CLIP[variant];
-  const { player, onFirstFrame } = useReadyVideo({
+  const { player, fallback, onFirstFrame } = useReadyVideo({
     source: clip.source,
     generation: variant,
     muted: resultClipMuted(variant) || isMuted(),
     resolveSeek: (duration) => resultClipStartTime(variant, duration),
   });
 
+  useEffect(() => {
+    if (fallback) onUnavailable?.();
+  }, [fallback, onUnavailable]);
+
+  if (fallback) return null;
+
   return (
-    <View accessibilityLabel={clip.label} style={[styles.box, { borderColor: clip.border }]}>
+    <View
+      pointerEvents="none"
+      accessibilityLabel={clip.label}
+      style={[styles.box, { borderColor: clip.border }]}>
       <VideoView
         player={player}
         nativeControls={false}
@@ -63,6 +74,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 4,
     borderRadius: 18,
+    marginBottom: 16,
+    zIndex: 2,
     backgroundColor: artStyle.colors.projectorBlack,
   },
   video: {

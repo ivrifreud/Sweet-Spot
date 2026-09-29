@@ -126,10 +126,7 @@ export function planPlayback(
 
   if (event.type === 'timeout') {
     const alreadyPlaying =
-      state.phase === 'playing' ||
-      state.phase === 'firstFrame' ||
-      state.phase === 'seeking' ||
-      !state.showPoster;
+      state.phase === 'playing' || state.phase === 'firstFrame' || !state.showPoster;
     if (alreadyPlaying) {
       return {
         state,
@@ -229,6 +226,21 @@ export function planPlayback(
   if (!ready) return ignore(state);
 
   if (duration == null || duration <= 0) {
+    // A null seek means the cue point is not known yet. Starting now and seeking
+    // later runs the player into an ended/seek race and takes the screen down.
+    if (resolveSeek(0) == null) {
+      return {
+        state: { ...state, phase: 'ready', duration: duration ?? null },
+        command: {
+          ignore: false,
+          seekTo: null,
+          shouldPlay: false,
+          muted: state.muted,
+          showPoster: true,
+          fallback: false,
+        },
+      };
+    }
     return {
       state: { ...state, phase: 'playing', duration },
       command: {
