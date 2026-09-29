@@ -75,6 +75,30 @@ describe('playbackPlan', () => {
     expect(error.command.fallback).toBe(true);
   });
 
+  it('waits to cue a clip that cannot seek until duration is known', () => {
+    const requested = planPlayback(initialPlaybackState(), {
+      type: 'request',
+      generation: 3,
+      muted: true,
+    });
+    const ready = planPlayback(
+      requested.state,
+      { type: 'status', generation: 3, status: 'readyToPlay', duration: 0 },
+      () => null
+    );
+    expect(ready.command.shouldPlay).toBe(false);
+    expect(ready.command.seekTo).toBeNull();
+
+    const later = planPlayback(
+      ready.state,
+      { type: 'sourceLoad', generation: 3, duration: 9.96 },
+      () => 0.3
+    );
+    expect(later.command.shouldPlay).toBe(true);
+    expect(later.command.seekTo).toBeCloseTo(0.3);
+    expect(later.state.phase).toBe('seeking');
+  });
+
   it('plays on readyToPlay even when duration is still unknown', () => {
     const requested = planPlayback(initialPlaybackState(), {
       type: 'request',
@@ -97,6 +121,24 @@ describe('playbackPlan', () => {
     );
     expect(later.command.shouldPlay).toBe(true);
     expect(later.command.seekTo).toBe(0);
+  });
+
+  it('gives up when a cue seek never starts', () => {
+    let state = planPlayback(initialPlaybackState(), {
+      type: 'request',
+      generation: 9,
+      muted: true,
+    }).state;
+    state = planPlayback(
+      state,
+      { type: 'status', generation: 9, status: 'readyToPlay', duration: 9.96 },
+      () => 0.3
+    ).state;
+    expect(state.phase).toBe('seeking');
+
+    const timeout = planPlayback(state, { type: 'timeout', generation: 9 });
+    expect(timeout.command.fallback).toBe(true);
+    expect(timeout.command.shouldPlay).toBe(false);
   });
 
   it('does not overlay a poster after timeout once the generation is playing', () => {

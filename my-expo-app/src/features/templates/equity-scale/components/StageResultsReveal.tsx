@@ -1,5 +1,5 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { lazy, Suspense, useEffect } from 'react';
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -42,6 +42,27 @@ const STAMPS = [
 const STAMP_HIT = require('../../../../../assets/brand/artstyle/stamp-hit.png');
 const STAMP_MISS = require('../../../../../assets/brand/artstyle/stamp-miss.png');
 
+/** A player failure stays on the stamps. The root boundary would replace the whole app. */
+class ResultClipBoundary extends Component<
+  { children: ReactNode; onError: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  componentDidCatch(): void {
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.failed) return null;
+    return this.props.children;
+  }
+}
+
 export function StageResultsReveal({ grade, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
   const press = useSharedValue(0);
@@ -49,8 +70,9 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
     transform: [{ scale: 1 - press.value * 0.04 }],
   }));
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const [clipDown, setClipDown] = useState(false);
   const clipKind = resultClipKind(grade);
-  const showClip = clipKind !== null;
+  const showClip = clipKind !== null && !clipDown;
   const showResults = Boolean(grade) && shouldShowResultStamps(grade!, true);
 
   useEffect(() => {
@@ -79,16 +101,15 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
     </View>
   ) : null;
 
-  const body = (
-    <View style={styles.stack}>
-      {showClip && clipKind ? (
+  const clipLayer =
+    showClip && clipKind ? (
+      <ResultClipBoundary onError={() => setClipDown(true)}>
+        <View pointerEvents="none" style={styles.videoBackdrop} />
         <Suspense fallback={null}>
-          <ScaleResultClip variant={clipKind} />
+          <ScaleResultClip variant={clipKind} onUnavailable={() => setClipDown(true)} />
         </Suspense>
-      ) : null}
-      {stamps}
-    </View>
-  );
+      </ResultClipBoundary>
+    ) : null;
 
   if (showClip) {
     return (
@@ -103,9 +124,9 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
         }}
         onPress={onComplete}
         style={styles.overlay}>
-        <View pointerEvents="none" style={styles.videoBackdrop} />
-        <Animated.View pointerEvents="none" style={pressStyle}>
-          {body}
+        {clipLayer}
+        <Animated.View pointerEvents="none" style={[styles.stack, pressStyle]}>
+          {stamps}
         </Animated.View>
       </Pressable>
     );
@@ -113,7 +134,7 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
 
   return (
     <View pointerEvents="none" style={styles.overlay} accessibilityLiveRegion="polite">
-      {body}
+      <View style={styles.stack}>{stamps}</View>
     </View>
   );
 }
