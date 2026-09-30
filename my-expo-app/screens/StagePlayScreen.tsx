@@ -25,6 +25,7 @@ import {
   ScreenShakeHost,
   buildDecisionFeedbackCopy,
   type DecisionFeedbackCopy,
+  type FeedbackSeatRow,
   type FeedbackTempo,
 } from '../src/features/decision-feedback';
 import {
@@ -37,6 +38,8 @@ import type {
   EquityScaleSubmission,
 } from '../src/features/templates/equity-scale/types';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
+import { buildHotSeatFeedback, settleHotSeatResult } from '../src/features/templates/hot-seats/feedback';
+import type { HotSeatPlay } from '../src/features/templates/hot-seats/storyEngine';
 import { StageTemplateRenderer } from '../src/features/templates/StageTemplateRenderer';
 import { artStyle } from '../theme/artStyle';
 
@@ -72,6 +75,7 @@ type Pending = {
   copy: DecisionFeedbackCopy;
   key: string;
   tempo: FeedbackTempo;
+  rows?: FeedbackSeatRow[];
 };
 
 function tempoForDecision(decision: SpotDecision | EquityDecision): FeedbackTempo {
@@ -272,6 +276,60 @@ export function StagePlayScreen({
     ]
   );
 
+  const handleHotSeatComplete = useCallback(
+    (play: HotSeatPlay) => {
+      if (play.outcome !== 'win' && play.outcome !== 'loss') return;
+      if (!canAcceptStageDecision(playPhase, busy) || feedback || pendingFeedback) return;
+      if (!submitLock.current.tryAcquire()) return;
+      setPlayPhase('submitting');
+      markPerf('stage-decision-start');
+      setBusy(true);
+      setPlayError(null);
+      try {
+        const result = settleHotSeatResult({
+          outcome: play.outcome,
+          chips: remainingChips,
+          spotsCompleted,
+        });
+        const nextChips = result.remainingChips as ChipCount;
+        const nextLockedOut = nextChips === 0;
+        const lastHand = result.stageComplete || nextLockedOut;
+        const built = buildHotSeatFeedback(
+          play,
+          lastHand ? 'Back to the tree' : 'Deal me the next hand'
+        );
+        setHudChips(nextChips);
+        setLockedOut(nextLockedOut);
+        onResolved({
+          correct: play.outcome === 'win',
+          remainingChips: nextChips,
+          lockedOut: nextLockedOut,
+          regenAt,
+          stageComplete: result.stageComplete,
+          spotsCompleted: result.spotsCompleted,
+        });
+        setSpotsCompleted(result.spotsCompleted);
+        setStageComplete(result.stageComplete);
+        setSettled(play.outcome === 'win');
+        setPlayPhase('feedback');
+        setFeedback({
+          copy: built.copy,
+          rows: built.rows,
+          key: `${play.story.id}-${play.outcome}-${Date.now()}`,
+          tempo: 'default',
+        });
+      } catch (err) {
+        setPlayError(err instanceof Error ? err.message : 'Could not save that hand');
+        setPlayPhase('interactive');
+        setResetKey((value) => value + 1);
+      } finally {
+        submitLock.current.release();
+        setBusy(false);
+      }
+    },
+    [busy, feedback, onResolved, pendingFeedback, playPhase, regenAt, remainingChips, spotsCompleted]
+  );
+
   const continueAfterFeedback = useCallback(() => {
     if (!feedback) return;
     const next = resolveContinueAfterFeedback({ stageComplete, lockedOut });
@@ -303,6 +361,7 @@ export function StagePlayScreen({
         grade={equityGrade}
         onPeekDecision={(decision) => handleDecision(decision)}
         onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
+        onHotSeatComplete={handleHotSeatComplete}
         onOutcomeAnimationComplete={() => {
           const next = resolvePostEquityReveal({
             grade: equityGrade,
@@ -367,6 +426,7 @@ export function StagePlayScreen({
             : (feedback?.copy.explanation ?? '')
         }
         continueLabel={feedback?.copy.continueLabel ?? 'Deal me the next hand'}
+        rows={feedback?.rows}
         feedbackKey={feedback?.key}
         tempo={feedback?.tempo ?? 'default'}
         shakeScreen={false}

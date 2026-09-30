@@ -57,6 +57,16 @@ const CORRECT_POSTER = require('../../../assets/brand/artstyle/coach-wave-correc
 const POINT_CORRECT = require('../../../assets/brand/artstyle/point-correct.png');
 const POINT_MISS = require('../../../assets/brand/artstyle/point-miss.png');
 
+export type FeedbackSeatRow = {
+  position: string;
+  cards: string;
+  stackLabel: string;
+  correctAction: string;
+  chosenAction: string | null;
+  explanation: string;
+  missed: boolean;
+};
+
 export type DecisionFeedbackOverlayProps = {
   visible: boolean;
   outcome: DecisionOutcome;
@@ -64,6 +74,7 @@ export type DecisionFeedbackOverlayProps = {
   kicker: string;
   explanation: string;
   continueLabel: string;
+  rows?: FeedbackSeatRow[];
   onContinue: () => void;
   /** Remount key so a new decision restarts flash/confetti. */
   feedbackKey?: string;
@@ -89,6 +100,7 @@ export function DecisionFeedbackOverlay({
   kicker,
   explanation,
   continueLabel,
+  rows,
   onContinue,
   feedbackKey,
   celebrateJackpot = false,
@@ -167,16 +179,26 @@ export function DecisionFeedbackOverlay({
               pace={pace}
             />
 
-            <CoachCard
-              outcome={outcome}
-              kicker={kicker}
-              explanation={explanation}
-              reducedMotion={reducedMotion}
-              restartKey={feedbackKey}
-              onDragStart={() => {
-                explanationDragged.current = true;
-              }}
-            />
+            {rows && rows.length > 0 ? (
+              <SeatRows
+                rows={rows}
+                takeaway={explanation}
+                onDragStart={() => {
+                  explanationDragged.current = true;
+                }}
+              />
+            ) : (
+              <CoachCard
+                outcome={outcome}
+                kicker={kicker}
+                explanation={explanation}
+                reducedMotion={reducedMotion}
+                restartKey={feedbackKey}
+                onDragStart={() => {
+                  explanationDragged.current = true;
+                }}
+              />
+            )}
 
             <ContinueInbox
               reducedMotion={reducedMotion}
@@ -728,6 +750,47 @@ function ConfettiShape({ particle }: { particle: Particle }) {
   );
 }
 
+function SeatRows({
+  rows,
+  takeaway,
+  onDragStart,
+}: {
+  rows: FeedbackSeatRow[];
+  takeaway: string;
+  onDragStart: () => void;
+}) {
+  return (
+    <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.seatList}>
+      <Text pointerEvents="none" style={styles.explanation}>
+        {takeaway}
+      </Text>
+      <ScrollView
+        style={styles.seatScroll}
+        contentContainerStyle={styles.seatScrollContent}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+        pointerEvents={explanationPointerEvents(true)}
+        onScrollBeginDrag={onDragStart}>
+        {rows.map((row) => (
+          <View
+            key={row.position}
+            style={[styles.seatRow, row.missed ? styles.seatRowMissed : styles.seatRowClear]}>
+            <Text style={styles.kicker}>
+              {row.position} · {row.cards} · {row.stackLabel}
+            </Text>
+            <Text style={styles.explanation}>
+              {row.correctAction}. {row.explanation}
+            </Text>
+            {row.missed ? (
+              <Text style={styles.missedLabel}>Missed · You went {row.chosenAction}</Text>
+            ) : null}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
@@ -816,6 +879,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
+  },
+  seatList: {
+    gap: 8,
+  },
+  seatScroll: {
+    maxHeight: 320,
+  },
+  seatScrollContent: {
+    gap: 8,
+  },
+  seatRow: {
+    borderWidth: 3,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: CREAM,
+  },
+  seatRowClear: {
+    borderColor: artStyle.colors.feltGreen,
+  },
+  seatRowMissed: {
+    borderColor: artStyle.colors.oxblood,
+  },
+  missedLabel: {
+    marginTop: 4,
+    color: artStyle.colors.oxblood,
+    fontSize: 13,
+    fontWeight: '800',
   },
   portraitWrap: {
     width: 122,

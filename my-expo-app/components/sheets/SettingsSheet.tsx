@@ -18,6 +18,8 @@ type Props = {
   /** Toggle Garden / Casino map preview (dev bypass). */
   onCycleWorld?: () => void;
   worldCycleLabel?: string;
+  /** Open The Hot Seats preview for the world on screen. */
+  onPlayHotSeats?: () => void;
 };
 
 export function SettingsSheet({
@@ -29,6 +31,7 @@ export function SettingsSheet({
   onPreviewLockout,
   onCycleWorld,
   worldCycleLabel,
+  onPlayHotSeats,
 }: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
@@ -118,6 +121,16 @@ export function SettingsSheet({
           <Text style={[styles.buttonTextDark, display]}>
             {worldCycleLabel ?? 'CASINO / GARDEN'}
           </Text>
+        </Pressable>
+      ) : null}
+
+      {onPlayHotSeats ? (
+        <Pressable
+          onPress={() => runAndClose(onPlayHotSeats)}
+          style={({ pressed }) => [styles.button, styles.secondary, pressed ? styles.pressed : null]}
+          accessibilityRole="button"
+          accessibilityLabel="Play The Hot Seats">
+          <Text style={[styles.buttonTextDark, display]}>THE HOT SEATS</Text>
         </Pressable>
       ) : null}
 
