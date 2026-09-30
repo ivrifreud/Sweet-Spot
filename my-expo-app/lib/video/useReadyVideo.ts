@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/immutability -- Expo VideoPlayer is mutable media state. */
 import { useEventListener } from 'expo';
 import { useVideoPlayer } from 'expo-video';
 import { useEffect, useRef, useState } from 'react';
@@ -39,23 +38,34 @@ export function useReadyVideo(options: {
     nextPlayer.muted = muted;
   });
 
+  const depth = useRef(0);
   const apply = (event: PlaybackEvent) => {
-    const planned = planPlayback(stateRef.current, event, resolveSeek);
-    stateRef.current = planned.state;
-    if (planned.command.ignore) return;
-    setShowPoster(planned.command.showPoster);
-    setFallback(planned.command.fallback);
-    if (planned.command.muted != null) player.muted = planned.command.muted;
-    if (planned.command.seekTo != null) player.currentTime = planned.command.seekTo;
-    if (planned.command.shouldPlay && !player.playing) {
-      markPerf(`video-play-${generationId}`);
+    if (depth.current > 2) return;
+    depth.current += 1;
+    try {
+      const planned = planPlayback(stateRef.current, event, resolveSeek);
+      stateRef.current = planned.state;
+      if (planned.command.ignore) return;
+      setShowPoster(planned.command.showPoster);
+      setFallback(planned.command.fallback);
+      if (planned.command.muted != null) player.muted = planned.command.muted;
+      const seekTo = planned.command.seekTo;
+      const begin = planned.command.shouldPlay && !player.playing;
+      if (seekTo == null && !begin) return;
       try {
-        player.play();
+        if (player.playing && seekTo != null) player.pause();
+        if (seekTo != null) player.currentTime = seekTo;
+        if (begin) {
+          markPerf(`video-play-${generationId}`);
+          player.play();
+        }
       } catch {
         if (!player.playing) {
           apply({ type: 'timeout', generation: generationId });
         }
       }
+    } finally {
+      depth.current -= 1;
     }
   };
 
@@ -79,6 +89,20 @@ export function useReadyVideo(options: {
   useEffect(() => {
     markPerf(`video-request-${generationId}`);
     apply({ type: 'request', generation: generationId, muted });
+    // A local file is often already ready before this effect subscribes, so the
+    // load event never arrives and the cue would sit on a black frame.
+    try {
+      if (player.status === 'readyToPlay' || player.status === 'error') {
+        apply({
+          type: 'status',
+          generation: generationId,
+          status: player.status,
+          duration: player.duration > 0 ? player.duration : 0,
+        });
+      }
+    } catch {
+      apply({ type: 'timeout', generation: generationId });
+    }
     const timeout = setTimeout(() => {
       if (player.playing) return;
       apply({ type: 'timeout', generation: generationId });

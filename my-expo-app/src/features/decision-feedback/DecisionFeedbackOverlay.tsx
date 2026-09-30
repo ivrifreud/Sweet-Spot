@@ -1,7 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { VideoView } from 'expo-video';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -26,6 +26,11 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playDecisionSfx } from '../../../lib/audio';
+import {
+  EXPLANATION_BOX_MAX_HEIGHT,
+  continueAfterExplanationTouch,
+  explanationPointerEvents,
+} from '../../../lib/decision-feedback/explanationScroll';
 import { useReadyVideo } from '../../../lib/video/useReadyVideo';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
@@ -117,6 +122,11 @@ export function DecisionFeedbackOverlay({
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const pace = tempoScale(tempo);
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const explanationDragged = useRef(false);
+
+  useEffect(() => {
+    explanationDragged.current = false;
+  }, [explanation, feedbackKey]);
 
   if (!visible) {
     return null;
@@ -189,7 +199,21 @@ export function DecisionFeedbackOverlay({
             accessibilityRole="button"
             accessibilityLabel={`${summary}. Tap anywhere to continue.`}
             accessibilityHint="Tap anywhere on the screen to continue"
-            onPress={onContinue}
+            onPress={() => {
+              if (
+                !continueAfterExplanationTouch({
+                  overflows: true,
+                  dragged: explanationDragged.current,
+                })
+              ) {
+                explanationDragged.current = false;
+                return;
+              }
+              onContinue();
+            }}
+            onTouchStart={() => {
+              explanationDragged.current = false;
+            }}
             style={[styles.stage, frameStyle]}>
             <View style={styles.column}>
               {mark}
@@ -199,6 +223,9 @@ export function DecisionFeedbackOverlay({
                 explanation={explanation}
                 reducedMotion={reducedMotion}
                 restartKey={feedbackKey}
+                onDragStart={() => {
+                  explanationDragged.current = true;
+                }}
               />
               {continueInbox}
             </View>
@@ -380,12 +407,14 @@ function CoachCard({
   explanation,
   reducedMotion,
   restartKey,
+  onDragStart,
 }: {
   outcome: DecisionOutcome;
   kicker: string;
   explanation: string;
   reducedMotion: boolean | undefined;
   restartKey?: string;
+  onDragStart: () => void;
 }) {
   const playEmoteVideo = !reducedMotion;
   const portrait =
@@ -405,7 +434,9 @@ function CoachCard({
         <ScrollView
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          pointerEvents={explanationPointerEvents(true)}
+          onScrollBeginDrag={onDragStart}>
           <Text style={styles.explanation}>{explanation}</Text>
         </ScrollView>
       </View>
@@ -900,7 +931,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   explanationScroll: {
-    maxHeight: 72,
+    maxHeight: EXPLANATION_BOX_MAX_HEIGHT,
   },
   explanationContent: {
     paddingBottom: 2,

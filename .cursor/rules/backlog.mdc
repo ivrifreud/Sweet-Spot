@@ -1,0 +1,26 @@
+---
+description: Update docs/backlog.md when Moogi adds, closes, or asks what is next on the someday backlog
+alwaysApply: true
+---
+
+# Someday backlog
+
+`docs/backlog.md` is the someday list. It is not sprint scope. `docs/mvp.md` and `docs/sprint-current.md` still decide what gets built now.
+
+Read `docs/backlog.md` and follow **How to talk to it** when Moogi:
+
+- adds a bug, look change, motion change, sound change, feature, or copy change to remember
+- says something is fixed or dropped
+- asks what is next on the backlog
+- reorders or pins an item
+
+Then update the file. Refresh **Do next** when an item is added or closed, unless a card has `- Pin: yes`.
+
+Do not start a fix from this list unless Moogi asks to fix a named item.
+
+Examples:
+
+- “Add to the backlog: the gold plus looks off center.”
+- “Fixed: B-08”
+- “Drop: B-12”
+- “What’s next on the backlog?”
