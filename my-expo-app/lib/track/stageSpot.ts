@@ -2,13 +2,48 @@ import { LEVEL1_STAGE1_SPOTS } from '../calibration/spots';
 import { toPeekAndPitchSpot } from '../calibration/presentation';
 import type { CalibrationSpot, Placement } from '../calibration/types';
 import type { EquityScaleSpot } from '../../src/features/templates/equity-scale';
+import type { HotSeatStory } from '../../src/features/templates/hot-seats/types';
 import type { PeekAndPitchSpot } from '../../src/features/templates/peek-and-pitch/types';
 import { EQUITY_SCALE_DEMO_SPOTS } from './equityScaleSpots';
 import { SPOTS_PER_STAGE, nextSpotIndex, equityWorldSkin, worldBackdrop } from './tree';
 
 export type StageTemplateSpot =
   | { templateId: 1; grading: CalibrationSpot; table: PeekAndPitchSpot }
-  | { templateId: 2; grading: CalibrationSpot; table: EquityScaleSpot };
+  | { templateId: 2; grading: CalibrationSpot; table: EquityScaleSpot }
+  | { templateId: 7; grading: CalibrationSpot; table: HotSeatStory };
+
+const GRADING_POSITION = {
+  UTG: 'UTG',
+  MP: 'MP',
+  HJ: 'CO',
+  CO: 'CO',
+  BTN: 'BTN',
+  SB: 'SB',
+  BB: 'BB',
+} as const;
+
+/** One Hot Seats story is one stage spot. It stays out of the current seven-spot mix until a stage is authored for it. */
+export function hotSeatStageItem(story: HotSeatStory): StageTemplateSpot {
+  const hero = story.seats[0];
+  return {
+    templateId: 7,
+    table: story,
+    grading: {
+      id: story.id,
+      spotType: 'level1_stage1',
+      pillar: 1,
+      sequenceOrder: 1,
+      heroPosition: GRADING_POSITION[hero.position],
+      holeCards: [hero.holeCards[0], hero.holeCards[1]],
+      board: [...story.communityCards],
+      potSize: story.pot,
+      villainAction: hero.priorAction,
+      prompt: story.stageTakeaway,
+      correctAnswer: 'call',
+      isCatastrophicIfWrong: false,
+    },
+  };
+}
 
 function basePool(): StageTemplateSpot[] {
   return [
@@ -41,7 +76,7 @@ export function stageSpots(
 ): {
   items: StageTemplateSpot[];
   calibration: CalibrationSpot[];
-  tables: (PeekAndPitchSpot | EquityScaleSpot)[];
+  tables: (PeekAndPitchSpot | EquityScaleSpot | HotSeatStory)[];
 } {
   const sliced = slicePool(basePool(), stageNumber);
   const skin = worldBackdrop(placement);
@@ -53,6 +88,7 @@ export function stageSpots(
         table: { ...item.table, skin: equityWorldSkin(placement), progressLabel },
       };
     }
+    if (item.templateId === 7) return item;
     return {
       ...item,
       table: { ...item.table, skin, progressLabel },

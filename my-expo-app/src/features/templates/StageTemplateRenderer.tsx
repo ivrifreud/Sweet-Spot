@@ -4,6 +4,8 @@ import type { StageTemplateSpot } from '../../../lib/track/stageSpot';
 import type { DecisionOutcome } from '../decision-feedback/types';
 import { EquityScaleTemplate } from './equity-scale';
 import type { EquityGrade, EquityScaleSubmission } from './equity-scale/types';
+import { HotSeatsTemplate } from './hot-seats/HotSeatsTemplate';
+import type { HotSeatPlay } from './hot-seats/storyEngine';
 import { PeekAndPitchTemplate } from './peek-and-pitch';
 import type { SpotDecision } from './peek-and-pitch/types';
 
@@ -16,6 +18,7 @@ type Props = {
   forceTutorial?: boolean;
   onPeekDecision: (decision: SpotDecision) => void;
   onEquitySubmit: (submission: EquityScaleSubmission) => void;
+  onHotSeatComplete: (play: HotSeatPlay) => void;
   onOutcomeAnimationComplete: () => void;
 };
 
@@ -56,6 +59,17 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
         disabled={disabled}
         resetKey={resetKey}
         forceTutorial={forceTutorial}
+      />
+    );
+  },
+  7: ({ item, disabled, resetKey, onHotSeatComplete }) => {
+    if (item.templateId !== 7) throw new Error('Hot Seats renderer received the wrong spot');
+    return (
+      <HotSeatsTemplate
+        key={resetKey}
+        story={item.table}
+        disabled={disabled}
+        onStoryComplete={onHotSeatComplete}
       />
     );
   },

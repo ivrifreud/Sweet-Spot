@@ -36,7 +36,9 @@ import {
   lockReason,
   shouldAutoWalkOnFocus,
 } from '../lib/track/tree';
+import { CASINO_FLOP_STORY, GARDEN_PREFLOP_STORY } from '../src/features/templates/hot-seats/fixtures';
 import { artStyle } from '../theme/artStyle';
+import { HotSeatsPreview } from './HotSeatsPreview';
 
 type Props = {
   reveal: LevelReveal;
@@ -99,6 +101,7 @@ export function TrackMapScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const [previewLockout, setPreviewLockout] = useState(false);
+  const [hotSeatsOpen, setHotSeatsOpen] = useState(false);
   const reducedMotion = useReducedMotion();
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
@@ -515,7 +518,14 @@ export function TrackMapScreen({
         worldCycleLabel={
           world.id === 'local-casino' ? 'GARDEN' : 'CASINO'
         }
+        onPlayHotSeats={() => setHotSeatsOpen(true)}
       />
+      {hotSeatsOpen ? (
+        <HotSeatsPreview
+          story={world.id === 'local-casino' ? CASINO_FLOP_STORY : GARDEN_PREFLOP_STORY}
+          onClose={() => setHotSeatsOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }

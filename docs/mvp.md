@@ -17,7 +17,7 @@ This revision folds in the Adaptive Calibration Engine, the Six Pillars curricul
 2. [Onboarding — The Adaptive Calibration Engine](#2-onboarding--the-adaptive-calibration-engine)
 3. [The Six Pillars — Curriculum Architecture](#3-the-six-pillars--curriculum-architecture)
 4. [Player Progression Tracks (Levels 1–3)](#4-player-progression-tracks-levels-1–3)
-5. [The Six Question Templates](#5-the-six-question-templates)
+5. [The Question Templates](#5-the-question-templates)
 6. [Visual & Sensory Design — The Four Worlds](#6-visual--sensory-design--the-four-worlds)
 7. [Daily Challenge (Multiplayer-Themed)](#7-daily-challenge-multiplayer-themed)
 8. [Bankroll Management Screen](#8-bankroll-management-screen)
@@ -75,7 +75,7 @@ A residual misplacement doesn't need a dedicated contest UI. The Elo Gap Multipl
 
 ## 3. The Six Pillars — Curriculum Architecture
 
-Every procedurally-generated spot is categorized into one of six pillars, which directly target the core leaks defined per Elo level ([Section 4](#4-player-progression-tracks-levels-1–3)) and drive which UI template ([Section 5](#5-the-six-question-templates)) is deployed.
+Every procedurally-generated spot is categorized into one of six pillars, which directly target the core leaks defined per Elo level ([Section 4](#4-player-progression-tracks-levels-1–3)) and drive which UI template ([Section 5](#5-the-question-templates)) is deployed.
 
 | Pillar | Strategic Focus | MVP Levels |
 | --- | --- | --- |
@@ -128,9 +128,9 @@ Per spot, the shared engine reads the user's hidden Elo, identifies the leak(s) 
 
 ---
 
-## 5. The Six Question Templates
+## 5. The Question Templates
 
-Each pillar maps to exactly one tactile, mobile-first UI mechanic — replacing traditional multiple-choice answers with gestures that mimic physical poker actions. The mechanical interaction stays constant; only its visual skin changes by World ([Section 6](#6-visual--sensory-design--the-four-worlds)).
+Each pillar has one headline tactile mechanic — replacing traditional multiple-choice answers with gestures that mimic physical poker actions. The mechanical interaction stays constant; only its visual skin changes by World ([Section 6](#6-visual--sensory-design--the-four-worlds)). The Hot Seats is an extra Pillar I drill for position and prior action. It does not replace The Peek and Pitch, and it is not the Arena.
 
 | Template | Pillar | Core Interaction | MVP |
 | --- | --- | --- | --- |
@@ -140,6 +140,7 @@ Each pillar maps to exactly one tactile, mobile-first UI mechanic — replacing 
 | 4 — The Sniper Slider | IV | Drag a slider to set bet size; haptic stops at 33% / 50% / 75% / Overbet. | Yes |
 | 5 — Tag the Target | V | Drag a Badge (e.g., Nit, Maniac, Calling Station) onto the opponent, then pick the exploit. | Yes |
 | 6 — The Pressure Radar | VI | Tap the radar blip of the specific opponent stack to target with an all-in shove. | Deferred (Level 4/5) |
+| 7 — The Hot Seats | I | One four-seat story. A correct action whooshes you clockwise into the next seat; a wrong action ends the story. | Yes |
 
 Canonical naming: “The Peek and Pitch” supersedes the earlier name “The Swipe” used in the Ranking & Elo source doc; the tagging tray items are called “Badges,” not “Profile Tags.”
 
