@@ -1,7 +1,7 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { VideoView } from 'expo-video';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Platform,
@@ -26,6 +26,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { playDecisionSfx } from '../../../lib/audio';
+import {
+  EXPLANATION_BOX_MAX_HEIGHT,
+  FEEDBACK_PASS_THROUGH,
+  continueAfterExplanationTouch,
+  explanationPointerEvents,
+} from '../../../lib/decision-feedback/explanationScroll';
 import { useReadyVideo } from '../../../lib/video/useReadyVideo';
 import { artStyle } from '../../../theme/artStyle';
 import { brand } from '../../../theme/brand';
@@ -106,10 +112,28 @@ export function DecisionFeedbackOverlay({
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const pace = tempoScale(tempo);
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const explanationDragged = useRef(false);
+
+  useEffect(() => {
+    explanationDragged.current = false;
+  }, [explanation, feedbackKey]);
 
   if (!visible) {
     return null;
   }
+
+  const handleContinue = () => {
+    if (
+      !continueAfterExplanationTouch({
+        overflows: true,
+        dragged: explanationDragged.current,
+      })
+    ) {
+      explanationDragged.current = false;
+      return;
+    }
+    onContinue();
+  };
 
   return (
     <ScreenShakeHost
@@ -118,29 +142,35 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-      <Pressable
-        testID="decision-feedback-overlay"
-        accessibilityViewIsModal
-        accessibilityRole="button"
-        accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to continue.`}
-        accessibilityHint="Tap anywhere on the screen to continue"
-        onPress={onContinue}
-        style={StyleSheet.absoluteFill}>
-        <FlashWash
-          outcome={outcome}
-          reducedMotion={reducedMotion}
-          restartKey={feedbackKey}
-          pace={pace}
-          celebrateJackpot={celebrateJackpot}
-        />
+      <View style={StyleSheet.absoluteFill} pointerEvents={FEEDBACK_PASS_THROUGH}>
+        <Pressable
+          testID="decision-feedback-overlay"
+          accessibilityViewIsModal
+          accessibilityRole="button"
+          accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to continue.`}
+          accessibilityHint="Tap anywhere on the screen to continue"
+          onPress={handleContinue}
+          onTouchStart={() => {
+            explanationDragged.current = false;
+          }}
+          style={StyleSheet.absoluteFill}>
+          <FlashWash
+            outcome={outcome}
+            reducedMotion={reducedMotion}
+            restartKey={feedbackKey}
+            pace={pace}
+            celebrateJackpot={celebrateJackpot}
+          />
+        </Pressable>
 
         <View
-          pointerEvents="none"
+          pointerEvents={FEEDBACK_PASS_THROUGH}
           style={[
             styles.stage,
+            StyleSheet.absoluteFill,
             { paddingTop: insets.top + 48, paddingBottom: Math.max(insets.bottom, 16) + 8 },
           ]}>
-          <View style={styles.column}>
+          <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.column}>
             <OutcomeMark
               outcome={outcome}
               reducedMotion={reducedMotion}
@@ -150,7 +180,13 @@ export function DecisionFeedbackOverlay({
             />
 
             {rows && rows.length > 0 ? (
-              <SeatRows rows={rows} takeaway={explanation} />
+              <SeatRows
+                rows={rows}
+                takeaway={explanation}
+                onDragStart={() => {
+                  explanationDragged.current = true;
+                }}
+              />
             ) : (
               <CoachCard
                 outcome={outcome}
@@ -158,6 +194,9 @@ export function DecisionFeedbackOverlay({
                 explanation={explanation}
                 reducedMotion={reducedMotion}
                 restartKey={feedbackKey}
+                onDragStart={() => {
+                  explanationDragged.current = true;
+                }}
               />
             )}
 
@@ -176,7 +215,7 @@ export function DecisionFeedbackOverlay({
             <ConfettiBurst restartKey={feedbackKey} pace={pace} />
           </View>
         ) : null}
-      </Pressable>
+      </View>
     </ScreenShakeHost>
   );
 }
@@ -218,6 +257,7 @@ function ContinueInbox({
 
   return (
     <View
+      pointerEvents="none"
       testID="decision-feedback-continue"
       style={[
         styles.continueBox,
@@ -293,7 +333,7 @@ function OutcomeMark({
   const accent = outcome === 'correct' ? brand.goldBright : artStyle.colors.cream;
 
   return (
-    <Animated.View style={[styles.markWrap, popStyle]}>
+    <Animated.View pointerEvents="none" style={[styles.markWrap, popStyle]}>
       <Image
         source={outcome === 'correct' ? POINT_CORRECT : POINT_MISS}
         style={styles.markArt}
@@ -318,12 +358,14 @@ function CoachCard({
   explanation,
   reducedMotion,
   restartKey,
+  onDragStart,
 }: {
   outcome: DecisionOutcome;
   kicker: string;
   explanation: string;
   reducedMotion: boolean | undefined;
   restartKey?: string;
+  onDragStart: () => void;
 }) {
   const playEmoteVideo = !reducedMotion;
   const portrait =
@@ -331,6 +373,7 @@ function CoachCard({
 
   return (
     <View
+      pointerEvents={FEEDBACK_PASS_THROUGH}
       style={[
         styles.card,
         {
@@ -338,17 +381,25 @@ function CoachCard({
           backgroundColor: CREAM,
         },
       ]}>
-      <View style={styles.cardCopy}>
-        <Text style={styles.kicker}>{kicker}</Text>
+      <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.cardCopy}>
+        <Text pointerEvents="none" style={styles.kicker}>
+          {kicker}
+        </Text>
         <ScrollView
+          testID="decision-feedback-explanation"
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
-          showsVerticalScrollIndicator={false}>
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          pointerEvents={explanationPointerEvents(true)}
+          onScrollBeginDrag={onDragStart}>
           <Text style={styles.explanation}>{explanation}</Text>
         </ScrollView>
       </View>
 
-      <View style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
+      <View
+        pointerEvents="none"
+        style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
         {playEmoteVideo ? (
           outcome === 'incorrect' ? (
             <MissCoachVideo restartKey={restartKey} />
@@ -699,11 +750,27 @@ function ConfettiShape({ particle }: { particle: Particle }) {
   );
 }
 
-function SeatRows({ rows, takeaway }: { rows: FeedbackSeatRow[]; takeaway: string }) {
+function SeatRows({
+  rows,
+  takeaway,
+  onDragStart,
+}: {
+  rows: FeedbackSeatRow[];
+  takeaway: string;
+  onDragStart: () => void;
+}) {
   return (
-    <View style={styles.seatList}>
-      <Text style={styles.explanation}>{takeaway}</Text>
-      <ScrollView style={styles.seatScroll} contentContainerStyle={styles.seatScrollContent}>
+    <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.seatList}>
+      <Text pointerEvents="none" style={styles.explanation}>
+        {takeaway}
+      </Text>
+      <ScrollView
+        style={styles.seatScroll}
+        contentContainerStyle={styles.seatScrollContent}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+        pointerEvents={explanationPointerEvents(true)}
+        onScrollBeginDrag={onDragStart}>
         {rows.map((row) => (
           <View
             key={row.position}
@@ -802,7 +869,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   explanationScroll: {
-    maxHeight: 72,
+    maxHeight: EXPLANATION_BOX_MAX_HEIGHT,
   },
   explanationContent: {
     paddingBottom: 2,
