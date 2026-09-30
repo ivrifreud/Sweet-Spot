@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 10,
     paddingBottom: 18,
-    maxHeight: '72%',
+    maxHeight: '88%',
   },
   handle: {
     alignSelf: 'center',

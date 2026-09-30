@@ -1,10 +1,11 @@
-> Detail for the six UI templates. Where scope conflicts with `docs/mvp.md`, MVP wins.
+> Detail for the UI templates. Where scope conflicts with `docs/mvp.md`, MVP wins.
 > Template 6 / World 4 / Pillar VI are deferred — see `docs/mvp.md` Section 10.
+> Template 7, The Hot Seats, is an extra Pillar I drill. It does not replace The Peek and Pitch.
 
 # Question Templates
 ## System & Development Overview
 
-This document outlines the six core UI question templates for the Sweet Spot application. These templates replace traditional multiple-choice (A, B, C, D) formats with tactile, mobile-first mechanics designed to build muscle memory and mimic the physical actions of live poker.
+This document outlines the UI question templates for the Sweet Spot application. These templates replace traditional multiple-choice (A, B, C, D) formats with tactile, mobile-first mechanics designed to build muscle memory and mimic the physical actions of live poker.
 
 The AI procedural generation engine categorizes every generated poker spot into one of six strategic pillars. The frontend maps the AI's raw data (hole cards, board, pot size, villain action, opponent profile, stack sizes) into the matching UI template below.
 
@@ -19,7 +20,7 @@ The AI procedural generation engine categorizes every generated poker spot into 
 | V — Opponent Profiling & Exploitation | Archetypes + exploit adjustments | Tag the Target | Yes |
 | VI — High-Stakes Dynamics & ICM | Push/fold & bubble pressure | The Pressure Radar | Deferred (Level 4/5) |
 
-**Level UI template vs per-spot template:** Each Level track names one UI template for its headline leak (Level 1 → Peek and Pitch, Level 2 → Sniper Slider, Level 3 → Detective Board). Per spot, the engine still maps pillar → template 1:1, so Equity Scale (II) and Tag the Target (V) can appear whenever those pillars are the drill inside Levels 1–3. Pressure Radar (VI) does not ship in MVP.
+**Level UI template vs per-spot template:** Each Level track names one UI template for its headline leak (Level 1 → Peek and Pitch, Level 2 → Sniper Slider, Level 3 → Detective Board). Per spot, the engine still maps pillar → template 1:1, so Equity Scale (II) and Tag the Target (V) can appear whenever those pillars are the drill inside Levels 1–3. Pressure Radar (VI) does not ship in MVP. The Hot Seats (template 7) is a second Pillar I surface for one four-seat story. It teaches position and prior action. It is not a raise-sizing tool and does not replace Sniper Slider.
 
 Canonical naming and full scope: `docs/mvp.md` Sections 3–5 and 10. Strategic essence below matches the MVP Expanded Breakdown for Pillars I–V.
 
@@ -120,3 +121,20 @@ Pillar VI is about *who* you shove on under stack and bubble pressure, not only 
 - **UI/UX Interface:** Hole cards are minimized to focus on stack sizes. The user's stack is in the center; opponent stacks orbit as radar blips. Suspenseful audio simulates high pressure.
 - **User Action (Gestures):** Push/Fold by tapping the specific opponent stack (radar blip) to target with the shove — not a generic "All-In" button.
 - **Feedback Mechanic:** Correct optimal-stack target pulses the radar green. Wrong target (e.g. shoving into the chip leader on the bubble) triggers a severe visual and auditory warning.
+
+---
+
+## Template 7: "The Hot Seats"
+**Mapped to Pillar I: Pre-Flop Architecture** · MVP: Yes · not a replacement for The Peek and Pitch
+
+### Why this template / why this pillar
+Pillar I includes position and the action already taken. The same holding changes when the seat changes. The Hot Seats puts the player in four seats of one pre-written one-street story. Each arrival states the position, the stack, the prior action, and that the player is next to act. A correct decision moves clockwise into the next seat. A wrong decision at any seat ends the story.
+
+**Scope:** One story is one stage spot. Win or lose shows every seat's cards, the correct action, and one explanation, plus one stage takeaway. A loss burns one Chip and counts as one of the seven spots. It is not live multiplayer, not the Arena, and not a raise-sizing slider. Raise size is scripted and shown as chips into the pot. Template IDs 1–6 stay as they are. Template 3 remains The Detective Board.
+
+- **Story:** Exactly four seats in action order. Each seat has a position, stack, hole cards, one scripted action, legal actions, frequencies that sum to 100 with a unique maximum on that action, one explanation, and the prior action. No character field. The other three seats are one repeated bowed faceless body.
+- **Phone scene:** Portrait, one persistent elliptical table. The active seat stays at bottom center. The next actor is screen left, the following actor is far, and the previous actor is screen right. The camera swings clockwise on a correct answer (720ms: 80 anticipation, 440 travel, 200 settle). Reduced motion fades in 180ms and does not swing the camera. The first seat settles for 200ms and does not whoosh.
+- **Arrival card:** A cream parchment card before every decision, including the first. Gestures stay locked until it clears. Tap dismisses it early. Copy: `You are the {name}. You have {n}bb. {prior}. You are next to act.`
+- **Gestures:** Peek is a long-press. Fold is a swipe up. Check is a double-tap on the felt, only when legal. Call taps the stack. Raise is a forward flick that sends the scripted chip amount into the pot. Accessible actions exist for every legal action. Targets are at least 44pt.
+- **Feedback:** Four rows (position, cards, stack, correct action, one sentence). The missed seat is marked. One stage takeaway. The arrival card is not the explanation.
+
