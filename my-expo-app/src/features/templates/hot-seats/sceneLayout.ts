@@ -31,14 +31,14 @@ const POT_CENTER_Y = 0.5;
 
 /**
  * Garden hero holes on the 571×1024 painting.
- * Each face fills its black shape and leaves a 2px ink border.
- * Index 0, the left card, is underneath: center (245, 862), 113×193, −12° anti-clockwise.
- * Index 1, the right card, is on top and wider: center (339, 851), 125×188, +11° clockwise.
+ * Measured from the colored reference, cut on the black silhouette.
+ * Index 0, the left card, is underneath: center (258, 858), 136×196, −13° anti-clockwise.
+ * Index 1, the right card, is on top: center (333, 849), 120×187, +10° clockwise.
  * The outlined thumb is painted after both faces.
  */
 const GARDEN_HOLE_SLOTS = [
-  { cx: 245 / 571, cy: 862 / 1024, width: 113 / 571, height: 193 / 1024, rotation: -12 },
-  { cx: 339 / 571, cy: 851 / 1024, width: 125 / 571, height: 188 / 1024, rotation: 11 },
+  { cx: 258 / 571, cy: 858 / 1024, width: 136 / 571, height: 196 / 1024, rotation: -13 },
+  { cx: 333 / 571, cy: 849 / 1024, width: 120 / 571, height: 187 / 1024, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
