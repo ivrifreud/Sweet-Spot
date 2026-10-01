@@ -1,3 +1,5 @@
+import type { HotSeatSkin } from './types';
+
 /** Painted tables are 571×1024. Both worlds share this blocking. */
 export const TABLE_ART_SIZE = { width: 571, height: 1024 };
 
@@ -39,6 +41,15 @@ const POT_CENTER_Y = 0.5;
 const GARDEN_HOLE_SLOTS = [
   { cx: 258 / 571, cy: 858 / 1024, width: 136 / 571, height: 196 / 1024, rotation: -13 },
   { cx: 333 / 571, cy: 849 / 1024, width: 120 / 571, height: 187 / 1024, rotation: 10 },
+] as const;
+
+/**
+ * The casino plate paints an ace and a king into the hand, and the faces sit on top of them.
+ * The ace leans −10° and sits 9px further left than the garden hole, so both slots grow to cover.
+ */
+const CASINO_HOLE_SLOTS = [
+  { cx: 252 / 571, cy: 858 / 1024, width: 140 / 571, height: 200 / 1024, rotation: -11 },
+  { cx: 338 / 571, cy: 851 / 1024, width: 128 / 571, height: 194 / 1024, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
@@ -86,6 +97,7 @@ type LayoutInput = {
   bottomInset: number;
   /** Zero keeps the pot in the middle. A flop parks it beside the family cards. */
   communityCount?: number;
+  skin?: HotSeatSkin;
 };
 
 export function coverTableArt(width: number, height: number): SceneFrame {
@@ -114,11 +126,13 @@ export function layoutHotSeatScene({
   topInset,
   bottomInset,
   communityCount = 0,
+  skin = 'garden',
 }: LayoutInput): HotSeatSceneLayout {
   const art = coverTableArt(width, height);
   const rhythm = height >= 800 ? RHYTHMS[0] : RHYTHMS[1];
   const minGap = height >= 800 ? 8 : 4;
-  const holeSlots = GARDEN_HOLE_SLOTS.map((slot) => placeHole(art, slot));
+  const slots = skin === 'casino' ? CASINO_HOLE_SLOTS : GARDEN_HOLE_SLOTS;
+  const holeSlots = slots.map((slot) => placeHole(art, slot));
   const heroCards = unionFrames(holeSlots);
   const { board, pot } = placeCluster(
     art,

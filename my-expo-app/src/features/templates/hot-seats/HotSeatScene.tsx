@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import { SUIT_NAME, parseCard, type CardCode } from '../../../lib/cards';
 import { artStyle } from '../../../../theme/artStyle';
@@ -13,11 +14,22 @@ import {
   type SceneFrame,
   type StackFrame,
 } from './sceneLayout';
+import { ART_CENTER, LEFT_CARD_ANCHOR, swapPose } from './seatSwapPose';
 import type { HotSeatSkin } from './types';
 
 const TABLE_ART = {
   garden: require('../../../../assets/hot-seats/bennys-garden.png'),
   casino: require('../../../../assets/hot-seats/local-casino.jpg'),
+} as const;
+
+/** The plate with the left player painted out, and that player on his own. Built by scripts/extract-left-seat.py. */
+const LEFT_FILL = {
+  garden: require('../../../../assets/hot-seats/garden-left-fill.png'),
+  casino: require('../../../../assets/hot-seats/casino-left-fill.png'),
+} as const;
+const LEFT_SEAT = {
+  garden: require('../../../../assets/hot-seats/garden-left-seat.png'),
+  casino: require('../../../../assets/hot-seats/casino-left-seat.png'),
 } as const;
 
 const CHIP_STACK = require('../../../../assets/hot-seats/chip-stack.png');
@@ -43,6 +55,12 @@ type HotSeatSceneProps = {
   heroEnabled: boolean;
   heroPressed: boolean;
   opponents: OpponentReadout[];
+  /** Swap progress, 0 to 1. It rests at 1, the shipped painting. */
+  swap: SharedValue<number>;
+  /** Hole-card opacity. Reduced motion fades the faces through it instead of swapping. */
+  holeFade: SharedValue<number>;
+  /** Reduced motion never mounts the cutout or the fill. */
+  swapEnabled: boolean;
 };
 
 export function HotSeatScene({
@@ -57,37 +75,99 @@ export function HotSeatScene({
   heroEnabled,
   heroPressed,
   opponents,
+  swap,
+  holeFade,
+  swapEnabled,
 }: HotSeatSceneProps) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? styles.display : null;
+  const art = layout.art;
+  const k = art.width / (ART_CENTER.x * 2);
+
+  const plateStyle = useAnimatedStyle(() => {
+    const { plate } = swapPose(swap.value);
+    return {
+      transform: [{ translateX: plate.x * k }, { translateY: plate.y * k }, { scale: plate.scale }],
+    };
+  });
+  const originalStyle = useAnimatedStyle(() => ({
+    opacity: swapEnabled ? swapPose(swap.value).originalOpacity : 1,
+  }));
+  const fillStyle = useAnimatedStyle(() => ({ opacity: swapPose(swap.value).fillOpacity }));
+  const holeStyle = useAnimatedStyle(() => ({ opacity: holeFade.value }));
+  const thumbStyle = useAnimatedStyle(() => {
+    const { thumb } = swapPose(swap.value);
+    return { opacity: thumb.opacity, transform: [{ translateY: thumb.y * k }] };
+  });
+  const cutoutStyle = useAnimatedStyle(() => {
+    const { cutout } = swapPose(swap.value);
+    // Pivot on the card anchor: move it to the view center, turn and grow, move it back.
+    const pivotX = (LEFT_CARD_ANCHOR.x - ART_CENTER.x) * k;
+    const pivotY = (LEFT_CARD_ANCHOR.y - ART_CENTER.y) * k;
+    return {
+      opacity: cutout.opacity,
+      transform: [
+        { translateX: (cutout.x - LEFT_CARD_ANCHOR.x) * k + pivotX },
+        { translateY: (cutout.y - LEFT_CARD_ANCHOR.y) * k + pivotY },
+        { rotate: `${cutout.rotation}deg` },
+        { scale: cutout.scale },
+        { translateX: -pivotX },
+        { translateY: -pivotY },
+      ],
+    };
+  });
+
+  const holes = (
+    <Animated.View style={[StyleSheet.absoluteFill, holeStyle]}>
+      {[0, 1].map((index) => (
+        <HoleCard
+          key={holeCards[index] ?? index}
+          code={holeCards[index]}
+          slot={layout.holeSlots[index]}
+          origin={art}
+        />
+      ))}
+    </Animated.View>
+  );
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {skin === 'garden'
-        ? [0, 1].map((index) => (
-            <HoleCard
-              key={holeCards[index] ?? index}
-              code={holeCards[index]}
-              slot={layout.holeSlots[index]}
-            />
-          ))
-        : null}
-      <Image
-        accessibilityRole="image"
-        accessibilityLabel={
-          skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
-        }
-        source={TABLE_ART[skin]}
+      <Animated.View style={[placed(art), plateStyle]}>
+        {skin === 'garden' ? holes : null}
+        {swapEnabled ? (
+          <Animated.Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={LEFT_FILL[skin]}
+            resizeMode="stretch"
+            style={[styles.plate, fillStyle]}
+          />
+        ) : null}
+        <Animated.Image
+          accessibilityRole="image"
+          accessibilityLabel={
+            skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
+          }
+          source={TABLE_ART[skin]}
+          resizeMode="stretch"
+          style={[styles.plate, originalStyle]}
+        />
+        {skin === 'casino' ? holes : null}
+      </Animated.View>
+      <Animated.Image
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        source={GARDEN_THUMB}
         resizeMode="stretch"
-        style={placed(layout.art)}
+        style={[placed(art), thumbStyle]}
       />
-      {skin === 'garden' ? (
-        <Image
+      {swapEnabled ? (
+        <Animated.Image
           accessibilityElementsHidden
           importantForAccessibility="no"
-          source={GARDEN_THUMB}
+          source={LEFT_SEAT[skin]}
           resizeMode="stretch"
-          style={placed(layout.art)}
+          style={[placed(art), cutoutStyle]}
         />
       ) : null}
       {opponents.map((seat) => (
@@ -174,7 +254,15 @@ function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatScene
   );
 }
 
-function HoleCard({ code, slot }: { code: CardCode | undefined; slot: HoleSlotFrame }) {
+function HoleCard({
+  code,
+  slot,
+  origin,
+}: {
+  code: CardCode | undefined;
+  slot: HoleSlotFrame;
+  origin: SceneFrame;
+}) {
   if (!code) return null;
   const card = parseCard(code);
   return (
@@ -184,8 +272,8 @@ function HoleCard({ code, slot }: { code: CardCode | undefined; slot: HoleSlotFr
       resizeMode="stretch"
       style={{
         position: 'absolute',
-        left: slot.x,
-        top: slot.y,
+        left: slot.x - origin.x,
+        top: slot.y - origin.y,
         width: slot.width,
         height: slot.height,
         transform: [{ rotate: `${slot.rotation}deg` }],
@@ -229,6 +317,13 @@ function placed(frame: SceneFrame) {
 }
 
 const styles = StyleSheet.create({
+  plate: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '100%',
+    height: '100%',
+  },
   board: {
     position: 'absolute',
     flexDirection: 'row',

@@ -13,7 +13,8 @@ import {
   decide,
   gesturesUnlocked,
 } from '../../src/features/templates/hot-seats/storyEngine';
-import { motionPlan, railPoint, slotForSeat, WHOOSH_MS } from '../../src/features/templates/hot-seats/seatRail';
+import { motionPlan, slotForSeat, WHOOSH_MS } from '../../src/features/templates/hot-seats/seatRail';
+import { HAND_SWAP_PROGRESS } from '../../src/features/templates/hot-seats/seatSwapPose';
 import {
   buildHotSeatFeedback,
   settleHotSeatResult,
@@ -91,10 +92,9 @@ describe('Hot Seats presentation rules', () => {
     );
   });
 
-  it('moves the next seat clockwise into the bottom anchor', () => {
+  it('swaps into the screen-left seat and changes the hand once it is covered', () => {
     expect(slotForSeat(1, 0)).toBe(1);
-    expect(railPoint(1, 0)).toEqual({ x: -124, y: 28 });
-    expect(railPoint(1, 1)).toEqual({ x: 0, y: 188 });
+    expect(HAND_SWAP_PROGRESS * WHOOSH_MS).toBe(520);
   });
 
   it('uses a 720ms whoosh and a fade when motion is reduced', () => {
