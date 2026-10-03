@@ -8,6 +8,7 @@ import { createExclusiveLock } from '../lib/exclusiveLock';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { isAnswerCorrect } from '../lib/calibration/routing';
 import { pokerActionForDecision } from '../lib/calibration/presentation';
+import { resultClipKind } from '../lib/equity-scale/resultPresentation';
 import { markPerf } from '../lib/performance/marks';
 import {
   canAcceptStageDecision,
@@ -38,7 +39,10 @@ import type {
   EquityScaleSubmission,
 } from '../src/features/templates/equity-scale/types';
 import type { SpotDecision } from '../src/features/templates/peek-and-pitch/types';
-import { buildHotSeatFeedback, settleHotSeatResult } from '../src/features/templates/hot-seats/feedback';
+import {
+  buildHotSeatFeedback,
+  settleHotSeatResult,
+} from '../src/features/templates/hot-seats/feedback';
 import type { HotSeatPlay } from '../src/features/templates/hot-seats/storyEngine';
 import { StageTemplateRenderer } from '../src/features/templates/StageTemplateRenderer';
 import { artStyle } from '../theme/artStyle';
@@ -327,7 +331,16 @@ export function StagePlayScreen({
         setBusy(false);
       }
     },
-    [busy, feedback, onResolved, pendingFeedback, playPhase, regenAt, remainingChips, spotsCompleted]
+    [
+      busy,
+      feedback,
+      onResolved,
+      pendingFeedback,
+      playPhase,
+      regenAt,
+      remainingChips,
+      spotsCompleted,
+    ]
   );
 
   const continueAfterFeedback = useCallback(() => {
@@ -359,6 +372,20 @@ export function StagePlayScreen({
         item={item}
         outcome={equityOutcome}
         grade={equityGrade}
+        resultLesson={
+          pendingFeedback && resultClipKind(equityGrade)
+            ? {
+                kicker: pendingFeedback.copy.kicker,
+                explanation:
+                  settled === false && hudChips <= 0
+                    ? `${pendingFeedback.copy.explanation} Chips are spent. Refills in ${
+                        regenAt ? formatRegenCountdown(regenAt, now) : '12 hours'
+                      }.`
+                    : pendingFeedback.copy.explanation,
+                continueLabel: pendingFeedback.copy.continueLabel,
+              }
+            : null
+        }
         onPeekDecision={(decision) => handleDecision(decision)}
         onEquitySubmit={(submission) => handleDecision(submission.decision, submission)}
         onHotSeatComplete={handleHotSeatComplete}
@@ -393,7 +420,9 @@ export function StagePlayScreen({
         disabled={busy || Boolean(feedback)}
         resetKey={resetKey}
         forceTutorial={
-          forceTutorial && item.templateId === 2 && spotIndex === nextSpotIndex(initialSpotsCompleted)
+          forceTutorial &&
+          item.templateId === 2 &&
+          spotIndex === nextSpotIndex(initialSpotsCompleted)
         }
       />
 

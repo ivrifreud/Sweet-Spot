@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playDecisionSfx } from '../../../lib/audio';
 import {
   EXPLANATION_BOX_MAX_HEIGHT,
+  FEEDBACK_PASS_THROUGH,
   continueAfterExplanationTouch,
   explanationPointerEvents,
 } from '../../../lib/decision-feedback/explanationScroll';
@@ -132,6 +133,18 @@ export function DecisionFeedbackOverlay({
     return null;
   }
 
+  const handleContinue = () => {
+    if (
+      !continueAfterExplanationTouch({
+        overflows: true,
+        dragged: explanationDragged.current,
+      })
+    ) {
+      explanationDragged.current = false;
+      return;
+    }
+    onContinue();
+  };
   const seatReview = Boolean(rows && rows.length > 0);
   const summary = `${title}. ${kicker}. ${explanation}`;
   const frameStyle = {
@@ -170,7 +183,10 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-      <View testID="decision-feedback-overlay" accessibilityViewIsModal style={StyleSheet.absoluteFill}>
+      <View
+        testID="decision-feedback-overlay"
+        accessibilityViewIsModal
+        style={StyleSheet.absoluteFill}>
         <FlashWash
           outcome={outcome}
           reducedMotion={reducedMotion}
@@ -185,7 +201,8 @@ export function DecisionFeedbackOverlay({
               testID="decision-feedback-scroll"
               style={styles.feedbackScroll}
               contentContainerStyle={styles.feedbackScrollContent}
-              showsVerticalScrollIndicator
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
               <View style={styles.column}>
                 {mark}
@@ -199,18 +216,7 @@ export function DecisionFeedbackOverlay({
             accessibilityRole="button"
             accessibilityLabel={`${summary}. Tap anywhere to continue.`}
             accessibilityHint="Tap anywhere on the screen to continue"
-            onPress={() => {
-              if (
-                !continueAfterExplanationTouch({
-                  overflows: true,
-                  dragged: explanationDragged.current,
-                })
-              ) {
-                explanationDragged.current = false;
-                return;
-              }
-              onContinue();
-            }}
+            onPress={handleContinue}
             onTouchStart={() => {
               explanationDragged.current = false;
             }}
@@ -380,7 +386,7 @@ function OutcomeMark({
   const accent = outcome === 'correct' ? brand.goldBright : artStyle.colors.cream;
 
   return (
-    <Animated.View style={[styles.markWrap, popStyle]}>
+    <Animated.View pointerEvents="none" style={[styles.markWrap, popStyle]}>
       <Image
         source={POINT_ART[point]}
         style={prominent ? styles.markArtProminent : styles.markArt}
@@ -422,6 +428,7 @@ function CoachCard({
 
   return (
     <View
+      pointerEvents={FEEDBACK_PASS_THROUGH}
       style={[
         styles.card,
         {
@@ -429,11 +436,15 @@ function CoachCard({
           backgroundColor: CREAM,
         },
       ]}>
-      <View style={styles.cardCopy}>
-        <Text style={styles.kicker}>{kicker}</Text>
+      <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.cardCopy}>
+        <Text pointerEvents="none" style={styles.kicker}>
+          {kicker}
+        </Text>
         <ScrollView
+          testID="decision-feedback-explanation"
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
           pointerEvents={explanationPointerEvents(true)}
           onScrollBeginDrag={onDragStart}>
@@ -441,7 +452,9 @@ function CoachCard({
         </ScrollView>
       </View>
 
-      <View style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
+      <View
+        pointerEvents="none"
+        style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
         {playEmoteVideo ? (
           outcome === 'incorrect' ? (
             <MissCoachVideo restartKey={restartKey} />

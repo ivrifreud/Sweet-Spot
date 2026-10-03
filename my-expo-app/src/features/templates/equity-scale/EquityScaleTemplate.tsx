@@ -7,6 +7,7 @@ import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { prepareEquityScaleAudio } from '../../../../lib/audio';
+import type { ScaleResultLesson } from '../../../../lib/equity-scale/resultLayout';
 import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
 import type { DecisionOutcome } from '../../decision-feedback/types';
@@ -58,6 +59,8 @@ export type EquityScaleTemplateProps = {
   resetKey?: number;
   outcome?: DecisionOutcome | null;
   grade?: EquityGrade | null;
+  /** Right-move lesson shown with the 3/3 and 0/3 clip. */
+  resultLesson?: ScaleResultLesson | null;
   onSubmit?: (submission: EquityScaleSubmission) => void;
   onOutcomeAnimationComplete?: () => void;
   forceTutorial?: boolean;
@@ -69,6 +72,7 @@ export function EquityScaleTemplate({
   resetKey = 0,
   outcome = null,
   grade = null,
+  resultLesson = null,
   onSubmit,
   onOutcomeAnimationComplete,
   forceTutorial = false,
@@ -438,7 +442,9 @@ export function EquityScaleTemplate({
         </View>
       )}
 
-      {revealing ? <StageResultsReveal grade={grade} onComplete={onRevealComplete} /> : null}
+      {revealing ? (
+        <StageResultsReveal grade={grade} lesson={resultLesson} onComplete={onRevealComplete} />
+      ) : null}
 
       {showTutorial && tutorialStep ? (
         <View style={styles.tutorialHost} pointerEvents="box-none">

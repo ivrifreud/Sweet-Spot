@@ -1,6 +1,15 @@
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
   interpolate,
@@ -14,6 +23,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { playSfx } from '../../../../../lib/audio';
+import { continueAfterExplanationTouch } from '../../../../../lib/decision-feedback/explanationScroll';
+import {
+  equityClipResultFrame,
+  SCALE_RESULT_STAMP_GAP,
+  type ScaleResultLesson,
+} from '../../../../../lib/equity-scale/resultLayout';
 import {
   resultClipKind,
   shouldShowResultStamps,
@@ -30,6 +45,7 @@ const ScaleResultClip = lazy(() =>
 
 type Props = {
   grade: EquityGrade | null;
+  lesson?: ScaleResultLesson | null;
   onComplete?: () => void;
 };
 
@@ -63,8 +79,11 @@ class ResultClipBoundary extends Component<
   }
 }
 
-export function StageResultsReveal({ grade, onComplete }: Props) {
+export function StageResultsReveal({ grade, lesson = null, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const lessonDragged = useRef(false);
   const press = useSharedValue(0);
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - press.value * 0.04 }],
@@ -83,7 +102,25 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
 
   if (!grade) return null;
 
+  const frame = equityClipResultFrame({
+    width: windowWidth,
+    height: windowHeight,
+    topInset: insets.top,
+    bottomInset: insets.bottom,
+  });
   const hits = [grade.outsCorrect, grade.equityCorrect, grade.decisionCorrect];
+  const finish = () => {
+    if (
+      !continueAfterExplanationTouch({
+        overflows: true,
+        dragged: lessonDragged.current,
+      })
+    ) {
+      lessonDragged.current = false;
+      return;
+    }
+    onComplete?.();
+  };
 
   const stamps = showResults ? (
     <View style={styles.row}>
@@ -94,6 +131,7 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
           correct={hits[index]!}
           delay={index * REVEAL_STAMP_MS}
           reducedMotion={Boolean(reducedMotion)}
+          size={showClip ? frame.stampSize : 104}
           fontsLoaded={fontsLoaded}
           cue={index === 2 ? stampFinaleSfx(grade) : null}
         />
@@ -104,31 +142,97 @@ export function StageResultsReveal({ grade, onComplete }: Props) {
   const clipLayer =
     showClip && clipKind ? (
       <ResultClipBoundary onError={() => setClipDown(true)}>
-        <View pointerEvents="none" style={styles.videoBackdrop} />
         <Suspense fallback={null}>
-          <ScaleResultClip variant={clipKind} onUnavailable={() => setClipDown(true)} />
+          <ScaleResultClip
+            variant={clipKind}
+            width={frame.videoWidth}
+            onUnavailable={() => setClipDown(true)}
+          />
         </Suspense>
       </ResultClipBoundary>
     ) : null;
 
   if (showClip) {
+    const lessonLabel = lesson
+      ? `${lesson.kicker}. ${lesson.explanation}. ${lesson.continueLabel}`
+      : 'Result. Tap to deal the next hand.';
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Result. Tap to deal the next hand."
-        onPressIn={() => {
-          press.value = withTiming(1, { duration: 100 });
-        }}
-        onPressOut={() => {
-          press.value = withTiming(0, { duration: 100 });
-        }}
-        onPress={onComplete}
-        style={styles.overlay}>
-        {clipLayer}
-        <Animated.View pointerEvents="none" style={[styles.stack, pressStyle]}>
-          {stamps}
-        </Animated.View>
-      </Pressable>
+      <View style={styles.overlay}>
+        <View pointerEvents="none" style={styles.videoBackdrop} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={lessonLabel}
+          onTouchStart={() => {
+            lessonDragged.current = false;
+          }}
+          onPressIn={() => {
+            press.value = withTiming(1, { duration: 100 });
+          }}
+          onPressOut={() => {
+            press.value = withTiming(0, { duration: 100 });
+          }}
+          onPress={finish}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.phoneColumn,
+            {
+              paddingTop: insets.top + 56,
+              paddingBottom: Math.max(insets.bottom, 12) + 8,
+            },
+          ]}>
+          <Animated.View pointerEvents="none" style={[styles.clipGroup, pressStyle]}>
+            {clipLayer}
+            {stamps}
+          </Animated.View>
+          {lesson ? (
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.lessonCard,
+                {
+                  borderColor:
+                    grade.stagesCorrect === 3 ? artStyle.colors.gold : artStyle.colors.oxblood,
+                  maxWidth: frame.contentWidth,
+                },
+              ]}>
+              <Text pointerEvents="none" style={styles.kicker}>
+                {lesson.kicker}
+              </Text>
+              <ScrollView
+                testID="scale-result-explanation"
+                style={[styles.lessonScroll, { maxHeight: frame.explanationMaxHeight }]}
+                contentContainerStyle={styles.lessonContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                onScrollBeginDrag={() => {
+                  lessonDragged.current = true;
+                }}>
+                <Text style={styles.lesson}>{lesson.explanation}</Text>
+              </ScrollView>
+            </View>
+          ) : null}
+          <View pointerEvents="none" style={[styles.continueBar, { maxWidth: frame.contentWidth }]}>
+            <Text
+              style={[
+                styles.tapCue,
+                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+              ]}>
+              TAP ANYWHERE
+            </Text>
+            <Text
+              numberOfLines={2}
+              style={[
+                styles.dealCue,
+                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+              ]}>
+              {lesson?.continueLabel ?? 'Deal me the next hand'}
+            </Text>
+          </View>
+        </View>
+      </View>
     );
   }
 
@@ -144,6 +248,7 @@ function Stamp({
   correct,
   delay,
   reducedMotion,
+  size,
   fontsLoaded,
   cue,
 }: {
@@ -151,6 +256,7 @@ function Stamp({
   correct: boolean;
   delay: number;
   reducedMotion: boolean;
+  size: number;
   fontsLoaded: boolean;
   cue: 'correctCasinoCoins' | null;
 }) {
@@ -186,15 +292,19 @@ function Stamp({
   }));
 
   return (
-    <Animated.View style={[styles.stamp, style]}>
+    <Animated.View style={[styles.stamp, { width: size, height: size }, style]}>
       <Image
         source={correct ? STAMP_HIT : STAMP_MISS}
-        style={styles.stampArt}
+        style={{ width: size, height: size }}
         resizeMode="contain"
         accessibilityElementsHidden
       />
       <Text
-        style={[styles.stampLabel, fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null]}>
+        style={[
+          styles.stampLabel,
+          { fontSize: Math.max(12, Math.round(size * 0.16)) },
+          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+        ]}>
         {label}
       </Text>
     </Animated.View>
@@ -222,19 +332,80 @@ const styles = StyleSheet.create({
     zIndex: 2,
     paddingHorizontal: 12,
   },
+  phoneColumn: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    zIndex: 2,
+    paddingHorizontal: 16,
+  },
+  clipGroup: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    gap: 12,
+  },
+  lessonCard: {
+    width: '100%',
+    borderWidth: 3,
+    borderRadius: 22,
+    backgroundColor: artStyle.colors.cream,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    zIndex: 3,
+  },
+  kicker: {
+    color: artStyle.colors.projectorBlack,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  lessonScroll: {
+    width: '100%',
+  },
+  lessonContent: {
+    paddingBottom: 2,
+  },
+  lesson: {
+    color: artStyle.colors.tobacco,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '600',
+  },
+  continueBar: {
+    width: '100%',
+    minHeight: 64,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: artStyle.colors.cream,
+    backgroundColor: artStyle.colors.goldBright,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  tapCue: {
+    color: artStyle.colors.projectorBlack,
+    fontSize: 16,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  dealCue: {
+    color: artStyle.colors.projectorBlack,
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
   row: {
     flexDirection: 'row',
-    gap: 8,
+    gap: SCALE_RESULT_STAMP_GAP,
     zIndex: 2,
   },
   stamp: {
-    width: 104,
-    height: 104,
     alignItems: 'center',
-  },
-  stampArt: {
-    width: 104,
-    height: 104,
   },
   stampLabel: {
     position: 'absolute',
