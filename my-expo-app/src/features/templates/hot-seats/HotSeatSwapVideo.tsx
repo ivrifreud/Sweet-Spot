@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- expo-video and Reanimated are imperative mutable APIs. */
 import { useEventListener } from 'expo';
 import * as Haptics from 'expo-haptics';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -7,7 +8,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 
 import { playSfx } from '../../../../lib/audio';
 import { safePauseVideoPlayer } from '../../../../lib/video/safePause';
-import { GARDEN_SWAP_CUE, swapCueAt, swapRoute } from './hotSeatSwapVideoPlan';
+import { GARDEN_SWAP_CUE, swapCueAt } from './hotSeatSwapVideoPlan';
 import type { HotSeatSkin } from './types';
 
 const GARDEN_SWAP_VIDEO = require('../../../../assets/hot-seats/garden-seat-swap.mp4');
@@ -47,10 +48,13 @@ export function HotSeatSwapVideo({
   const onCoveredRef = useRef(onCovered);
   const onCompleteRef = useRef(onComplete);
   const onUnavailableRef = useRef(onUnavailable);
-  onCoveredRef.current = onCovered;
-  onCompleteRef.current = onComplete;
-  onUnavailableRef.current = onUnavailable;
-  generationRef.current = generation;
+
+  useEffect(() => {
+    onCoveredRef.current = onCovered;
+    onCompleteRef.current = onComplete;
+    onUnavailableRef.current = onUnavailable;
+    generationRef.current = generation;
+  }, [generation, onComplete, onCovered, onUnavailable]);
 
   const player = useVideoPlayer(GARDEN_SWAP_VIDEO, (next) => {
     next.loop = false;
@@ -119,10 +123,49 @@ export function HotSeatSwapVideo({
     }, GARDEN_SWAP_CUE.timeoutMs);
   };
 
+  const playerReady = () => {
+    try {
+      return readyRef.current && player.status === 'readyToPlay';
+    } catch {
+      return false;
+    }
+  };
+
+  const startPlayback = (session: string) => {
+    if (completedRef.current || sessionRef.current !== session || generationRef.current !== session) {
+      return;
+    }
+    if (skin !== 'garden' || reducedMotion) {
+      fail(session);
+      return;
+    }
+    if (!playerReady()) {
+      armCueTimeout(session);
+      return;
+    }
+    try {
+      player.muted = true;
+      player.playbackRate = GARDEN_SWAP_CUE.playbackRate;
+      player.currentTime = GARDEN_SWAP_CUE.sourceInSeconds;
+      playSfx('windSwoosh');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      player.play();
+      if (frameReadyRef.current) reveal(session);
+      armCueTimeout(session);
+    } catch {
+      fail(session);
+    }
+  };
+
   useEventListener(player, 'statusChange', ({ status }) => {
     if (status === 'readyToPlay') {
       readyRef.current = true;
-      if (!sessionRef.current) park();
+      const session = sessionRef.current;
+      if (session && !startedRef.current && !completedRef.current) {
+        startPlayback(session);
+      } else if (!session) {
+        park();
+      }
       return;
     }
     if (status === 'error') {
@@ -212,36 +255,7 @@ export function HotSeatSwapVideo({
     revealedRef.current = false;
     opacity.value = 0;
     sessionRef.current = generation;
-
-    let ready = readyRef.current;
-    try {
-      ready = ready && player.status === 'readyToPlay';
-    } catch {
-      ready = false;
-    }
-    const route = swapRoute({
-      skin,
-      reducedMotion,
-      videoReady: ready,
-      phase: 'swapping',
-    });
-    if (route !== 'video') {
-      fail(generation);
-      return;
-    }
-
-    try {
-      player.muted = true;
-      player.playbackRate = GARDEN_SWAP_CUE.playbackRate;
-      player.currentTime = GARDEN_SWAP_CUE.sourceInSeconds;
-      playSfx('windSwoosh');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      player.play();
-      if (frameReadyRef.current) reveal(generation);
-      armCueTimeout(generation);
-    } catch {
-      fail(generation);
-    }
+    startPlayback(generation);
     // Playback starts only on the active edge for this generation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, generation, player, reducedMotion, skin]);

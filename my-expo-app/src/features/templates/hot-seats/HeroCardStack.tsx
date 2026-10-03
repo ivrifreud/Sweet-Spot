@@ -2,7 +2,6 @@ import { Image, StyleSheet } from 'react-native';
 import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import { SUIT_NAME, parseCard, type CardCode } from '../../../lib/cards';
-import { artStyle } from '../../../../theme/artStyle';
 import { cardFaceArt } from '../peek-and-pitch/components/cardArt';
 import type { HoleSlotFrame, SceneFrame } from './sceneLayout';
 import type { HotSeatSkin } from './types';
@@ -34,7 +33,6 @@ export function HeroCardStack({ cards, outerSlots, art, opacity }: HeroCardStack
               top: slot.y - art.y,
               width: slot.width,
               height: slot.height,
-              backgroundColor: artStyle.colors.projectorBlack,
               overflow: 'hidden',
               transform: [{ rotate: `${slot.rotation}deg` }],
             }}>
@@ -43,13 +41,7 @@ export function HeroCardStack({ cards, outerSlots, art, opacity }: HeroCardStack
               importantForAccessibility="no"
               source={cardFaceArt(card)}
               resizeMode="stretch"
-              style={{
-                position: 'absolute',
-                left: slot.faceInset,
-                top: slot.faceInset,
-                width: slot.width - slot.faceInset * 2,
-                height: slot.height - slot.faceInset * 2,
-              }}
+              style={StyleSheet.absoluteFill}
             />
           </Animated.View>
         );

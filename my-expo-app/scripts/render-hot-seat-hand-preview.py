@@ -3,9 +3,8 @@
 
 Review images only. This does not change app behavior.
 
-The outer rectangles are the measured card silhouettes on the 571×1024 plates.
-Red annotation pixels from the reference photo are not copied. Both skins share
-one geometry so a casino leak is visible instead of hidden by a larger shell.
+The enlarged face rectangles overfill the 571×1024 painted silhouettes. There
+is no added black shell; each shared card PNG supplies its own soft edge.
 
 Usage:
     python my-expo-app/scripts/render-hot-seat-hand-preview.py
@@ -27,10 +26,11 @@ ART_SIZE = (571, 1024)
 
 # Source-art pixels. Left card is underneath; right card is above it.
 OUTER_SLOTS = (
-    {"cx": 258, "cy": 858, "width": 136, "height": 196, "rotation": -13},
-    {"cx": 333, "cy": 849, "width": 120, "height": 187, "rotation": 10},
+    {"cx": 258, "cy": 858, "width": 160, "height": 220, "rotation": -15},
+    {"cx": 322, "cy": 863, "width": 150, "height": 212, "rotation": 10},
 )
-FACE_INSET = 4
+FACE_INSET = 0
+FACE_EDGE_CROP = 0
 BLACK = (17, 23, 20, 255)  # artStyle projectorBlack
 SAMPLE_HANDS = (("As", "Kh"), ("7c", "8d"), ("Qd", "Jc"))
 PHONES = ((375, 667), (390, 844), (430, 932))
@@ -69,19 +69,27 @@ def load_font(size: int) -> ImageFont.ImageFont:
 
 
 def build_card(code: str, slot: dict) -> Image.Image:
-    """Black outer rectangle, face stretched into a 4px local inset, then rotated.
+    """Stretch the face to the enlarged rectangle, then rotate it.
 
     React Native `rotate` is clockwise-positive. Pillow rotates counter-clockwise,
     so the Pillow angle is the negation of the stored slot rotation.
     """
     width = slot["width"]
     height = slot["height"]
-    card = Image.new("RGBA", (width, height), BLACK)
+    card = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     inner = (
         width - 2 * FACE_INSET,
         height - 2 * FACE_INSET,
     )
-    face = Image.open(face_path(code)).convert("RGBA").resize(inner, Image.Resampling.LANCZOS)
+    face = Image.open(face_path(code)).convert("RGBA")
+    face = face.crop(
+        (
+            FACE_EDGE_CROP,
+            FACE_EDGE_CROP,
+            face.width - FACE_EDGE_CROP,
+            face.height - FACE_EDGE_CROP,
+        )
+    ).resize(inner, Image.Resampling.LANCZOS)
     card.paste(face, (FACE_INSET, FACE_INSET), face)
     return card.rotate(
         -slot["rotation"],
@@ -142,8 +150,16 @@ def rect_mask(slot: dict, inset: int) -> Image.Image:
 def assert_local_rim(code: str, slot: dict) -> None:
     width = slot["width"]
     height = slot["height"]
-    card = Image.new("RGBA", (width, height), BLACK)
-    face = Image.open(face_path(code)).convert("RGBA").resize(
+    card = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    face = Image.open(face_path(code)).convert("RGBA")
+    face = face.crop(
+        (
+            FACE_EDGE_CROP,
+            FACE_EDGE_CROP,
+            face.width - FACE_EDGE_CROP,
+            face.height - FACE_EDGE_CROP,
+        )
+    ).resize(
         (width - 2 * FACE_INSET, height - 2 * FACE_INSET),
         Image.Resampling.LANCZOS,
     )
@@ -277,7 +293,7 @@ def main() -> None:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     skins = (
-        ("garden", garden_plate, True, OUT_DIR / "hot-seats-card-fit-garden.png"),
+        ("garden", garden_plate, False, OUT_DIR / "hot-seats-card-fit-garden.png"),
         ("casino", casino_plate, False, OUT_DIR / "hot-seats-card-fit-casino.png"),
     )
     for skin, plate, cards_under_plate, path in skins:
@@ -296,7 +312,7 @@ def main() -> None:
     if "--phones" in sys.argv:
         # Middle sample hand is enough to judge cover-crop; geometry is shared.
         for skin, plate, cards_under_plate in (
-            ("garden", garden_plate, True),
+            ("garden", garden_plate, False),
             ("casino", casino_plate, False),
         ):
             panel = render_panel(plate, thumb, SAMPLE_HANDS[1], cards_under_plate=cards_under_plate)

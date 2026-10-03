@@ -101,4 +101,9 @@ describe('garden seat-swap video cue', () => {
     expect(swapCueAt(8.15)).toEqual({ showNextHand: true, finishSource: false });
     expect(swapCueAt(8.5)).toEqual({ showNextHand: true, finishSource: true });
   });
+
+  it('keeps a fallback timer without hiding the clip behind a warm-up gate', () => {
+    expect(GARDEN_SWAP_CUE.timeoutMs).toBe(1000);
+    expect(GARDEN_SWAP_CUE.sourceInSeconds).toBe(1.5);
+  });
 });

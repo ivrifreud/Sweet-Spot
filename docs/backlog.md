@@ -22,11 +22,11 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 ## Do next
 
-1. **B-15** — Every result should explain the right move. High. half day.
-2. **B-05** — The player leaves the node and stays on the map. High. half day.
-3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
-4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
-5. **B-09** — Call and raise chips look flat in the air. High. half day.
+1. **B-16** — The Hot Seats orbit freezes before it starts. High. 2h.
+2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
+3. **B-15** — Every result should explain the right move. High. half day.
+4. **B-05** — The player leaves the node and stays on the map. High. half day.
+5. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
 
 ## Open
 
@@ -41,6 +41,14 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 - Fix: `MapAvatar` hops along the trail and overshoots the node on purpose, then is supposed to step back onto it. Sometimes that settle ends between nodes, so the player stands on the road. After every hop, the final position should be the node anchor. If a hop is interrupted, snap to the nearest node on the path. Pair the ground contact with B-04 so the feet meet the plate.
 
 ### Look
+
+### B-17 — The Hot Seats card outlines are uneven
+
+- Area: Look
+- Where: The Hot Seats
+- Pain: High
+- Time: 2h
+- Fix: `HeroCardStack` previously combined an artificial shell with the painting's irregular card window. Render enlarged card faces above the table plate and below the thumb with no added black shell. Keep the left and right rectangles independently adjustable so the right card can grow and the left card can lean farther without exposing the painted silhouette.
 
 ### B-12 — The hero chip stack looks copied, not stacked
 
@@ -107,6 +115,14 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 - Fix: `StreakFlameIcon` is one static flame, and `TrackHud` shows it for every streak length. From 3 days on, switch to a hotter flame (brighter core, a small flicker) so an ongoing streak looks like it is burning. Days 0–2 keep the current icon.
 
 ### Motion
+
+### B-16 — The Hot Seats orbit freezes before it starts
+
+- Area: Motion
+- Where: The Hot Seats
+- Pain: High
+- Time: 2h
+- Fix: `HotSeatSwapVideo` used to reveal a stale frame while a new seek resolved, then the first fresh-frame guard used a 500ms timeout that was too short for the phone and always fell back. Pre-roll the muted hidden player from 1.5s to 1.55s, park it back at the cue, and start a decision only from that warmed state. Reveal only after source time advances again; allow a 1000ms safety gate before using the existing fade.
 
 ### B-11 — The glove hovers instead of grabbing the chips
 

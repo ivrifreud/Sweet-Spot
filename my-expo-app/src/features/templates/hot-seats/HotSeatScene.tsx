@@ -83,7 +83,6 @@ export function HotSeatScene({
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={StyleSheet.absoluteFill}>
         <View style={placed(art)}>
-          {skin === 'garden' ? holes : null}
           <Image
             accessibilityRole="image"
             accessibilityLabel={
@@ -93,7 +92,7 @@ export function HotSeatScene({
             resizeMode="stretch"
             style={styles.plate}
           />
-          {skin === 'casino' ? holes : null}
+          {holes}
         </View>
         <Image
           accessibilityElementsHidden

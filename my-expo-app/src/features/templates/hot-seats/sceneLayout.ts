@@ -32,16 +32,16 @@ const CLUSTER_CENTER_Y = 0.485;
 const POT_CENTER_Y = 0.5;
 
 /**
- * Hero holes on the 571×1024 paintings, in source-art pixels.
- * Index 0, the left card, is underneath: center (258, 858), 136×196, −13°.
- * Index 1, the right card, is on top: center (333, 849), 120×187, +10°.
- * Both skins share this shell. The face sits `FACE_INSET_ART` pixels inside it.
+ * Hero cards on the 571×1024 paintings, in source-art pixels.
+ * The cards overfill the painted silhouettes, with no artificial black shell.
+ * The right card sits lower and slightly toward the palm, so the thumb meets
+ * the card at the palm instead of the card crossing into the hand.
  * The outlined thumb is painted after both faces.
  */
-const FACE_INSET_ART = 4;
+const CARD_BORDER_WIDTH = 0;
 const HOLE_SLOTS_ART = [
-  { cx: 258, cy: 858, width: 136, height: 196, rotation: -13 },
-  { cx: 333, cy: 849, width: 120, height: 187, rotation: 10 },
+  { cx: 258, cy: 858, width: 160, height: 220, rotation: -15 },
+  { cx: 322, cy: 863, width: 150, height: 212, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
@@ -68,7 +68,7 @@ export type PotFrame = SceneFrame & {
 
 export type HoleSlotFrame = SceneFrame & {
   rotation: number;
-  faceInset: number;
+  borderWidth: number;
 };
 
 export type HotSeatSceneLayout = {
@@ -262,7 +262,7 @@ function placeHole(
     width,
     height,
     rotation: slot.rotation,
-    faceInset: FACE_INSET_ART * scaleX,
+    borderWidth: CARD_BORDER_WIDTH,
   };
 }
 

@@ -10,7 +10,7 @@ export const GARDEN_SWAP_CUE = {
   playbackRate: 4,
   revealMs: 100,
   landingMs: 100,
-  timeoutMs: 500,
+  timeoutMs: 1000,
 } as const;
 
 export type SwapVideoEvent = 'show-video' | 'show-next-hand' | 'finish' | 'fallback';
@@ -45,3 +45,4 @@ export function swapCueAt(sourceTime: number): { showNextHand: boolean; finishSo
     finishSource: sourceTime >= GARDEN_SWAP_CUE.sourceOutSeconds,
   };
 }
+
