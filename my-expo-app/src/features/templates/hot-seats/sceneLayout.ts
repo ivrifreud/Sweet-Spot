@@ -1,3 +1,5 @@
+import type { HotSeatSkin } from './types';
+
 /** Painted tables are 571×1024. Both worlds share this blocking. */
 export const TABLE_ART_SIZE = { width: 571, height: 1024 };
 
@@ -30,15 +32,16 @@ const CLUSTER_CENTER_Y = 0.485;
 const POT_CENTER_Y = 0.5;
 
 /**
- * Garden hero holes on the 571×1024 painting.
- * Measured from the colored reference, cut on the black silhouette.
- * Index 0, the left card, is underneath: center (258, 858), 136×196, −13° anti-clockwise.
- * Index 1, the right card, is on top: center (333, 849), 120×187, +10° clockwise.
+ * Hero cards on the 571×1024 paintings, normalized to the painted art frame.
+ * The cards overfill the painted silhouettes, with no artificial black shell.
+ * The right card sits lower and slightly toward the palm, so the thumb meets
+ * the card at the palm instead of the card crossing into the hand.
  * The outlined thumb is painted after both faces.
  */
-const GARDEN_HOLE_SLOTS = [
-  { cx: 258 / 571, cy: 858 / 1024, width: 136 / 571, height: 196 / 1024, rotation: -13 },
-  { cx: 333 / 571, cy: 849 / 1024, width: 120 / 571, height: 187 / 1024, rotation: 10 },
+const CARD_BORDER_WIDTH = 0;
+const HOLE_SLOTS = [
+  { cx: 258 / 571, cy: 858 / 1024, width: 160 / 571, height: 220 / 1024, rotation: -15 },
+  { cx: 322 / 571, cy: 863 / 1024, width: 150 / 571, height: 212 / 1024, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
@@ -65,6 +68,7 @@ export type PotFrame = SceneFrame & {
 
 export type HoleSlotFrame = SceneFrame & {
   rotation: number;
+  borderWidth: number;
 };
 
 export type HotSeatSceneLayout = {
@@ -86,6 +90,7 @@ type LayoutInput = {
   bottomInset: number;
   /** Zero keeps the pot in the middle. A flop parks it beside the family cards. */
   communityCount?: number;
+  skin?: HotSeatSkin;
 };
 
 export function coverTableArt(width: number, height: number): SceneFrame {
@@ -118,7 +123,7 @@ export function layoutHotSeatScene({
   const art = coverTableArt(width, height);
   const rhythm = height >= 800 ? RHYTHMS[0] : RHYTHMS[1];
   const minGap = height >= 800 ? 8 : 4;
-  const holeSlots = GARDEN_HOLE_SLOTS.map((slot) => placeHole(art, slot));
+  const holeSlots = HOLE_SLOTS.map((slot) => placeHole(art, slot));
   const heroCards = unionFrames(holeSlots);
   const { board, pot } = placeCluster(
     art,
@@ -255,6 +260,7 @@ function placeHole(
     width,
     height,
     rotation: slot.rotation,
+    borderWidth: CARD_BORDER_WIDTH,
   };
 }
 

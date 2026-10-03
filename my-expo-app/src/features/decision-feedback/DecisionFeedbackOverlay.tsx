@@ -28,7 +28,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playDecisionSfx } from '../../../lib/audio';
 import {
   EXPLANATION_BOX_MAX_HEIGHT,
-  FEEDBACK_PASS_THROUGH,
   continueAfterExplanationTouch,
   explanationPointerEvents,
 } from '../../../lib/decision-feedback/explanationScroll';
@@ -133,6 +132,12 @@ export function DecisionFeedbackOverlay({
     return null;
   }
 
+  const seatReview = Boolean(rows && rows.length > 0);
+  const summary = `${title}. ${kicker}. ${explanation}`;
+  const frameStyle = {
+    paddingTop: insets.top + 48,
+    paddingBottom: Math.max(insets.bottom, 16) + 8,
+  };
   const handleContinue = () => {
     if (
       !continueAfterExplanationTouch({
@@ -144,12 +149,6 @@ export function DecisionFeedbackOverlay({
       return;
     }
     onContinue();
-  };
-  const seatReview = Boolean(rows && rows.length > 0);
-  const summary = `${title}. ${kicker}. ${explanation}`;
-  const frameStyle = {
-    paddingTop: insets.top + 48,
-    paddingBottom: Math.max(insets.bottom, 16) + 8,
   };
   const continueInbox = (
     <ContinueInbox
@@ -386,7 +385,7 @@ function OutcomeMark({
   const accent = outcome === 'correct' ? brand.goldBright : artStyle.colors.cream;
 
   return (
-    <Animated.View pointerEvents="none" style={[styles.markWrap, popStyle]}>
+    <Animated.View style={[styles.markWrap, popStyle]}>
       <Image
         source={POINT_ART[point]}
         style={prominent ? styles.markArtProminent : styles.markArt}
@@ -428,7 +427,6 @@ function CoachCard({
 
   return (
     <View
-      pointerEvents={FEEDBACK_PASS_THROUGH}
       style={[
         styles.card,
         {
@@ -436,12 +434,9 @@ function CoachCard({
           backgroundColor: CREAM,
         },
       ]}>
-      <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.cardCopy}>
-        <Text pointerEvents="none" style={styles.kicker}>
-          {kicker}
-        </Text>
+      <View style={styles.cardCopy}>
+        <Text style={styles.kicker}>{kicker}</Text>
         <ScrollView
-          testID="decision-feedback-explanation"
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
           nestedScrollEnabled
@@ -452,9 +447,7 @@ function CoachCard({
         </ScrollView>
       </View>
 
-      <View
-        pointerEvents="none"
-        style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
+      <View style={outcome === 'incorrect' ? styles.portraitWrapMiss : styles.portraitWrap}>
         {playEmoteVideo ? (
           outcome === 'incorrect' ? (
             <MissCoachVideo restartKey={restartKey} />

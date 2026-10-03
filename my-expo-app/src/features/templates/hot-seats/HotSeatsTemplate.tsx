@@ -2,12 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
-  Easing,
   cancelAnimation,
   runOnJS,
   useReducedMotion,
   useSharedValue,
-  withDelay,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,8 +20,10 @@ import type { SpotDecision } from '../peek-and-pitch/types';
 import { ArrivalCard } from './ArrivalCard';
 import { buildArrivalCopy, positionName } from './arrivalCopy';
 import { HotSeatScene, type OpponentReadout } from './HotSeatScene';
+import { HotSeatSwapVideo } from './HotSeatSwapVideo';
+import { swapRoute } from './hotSeatSwapVideoPlan';
 import { layoutHotSeatScene, opponentSeatIndexes, type SceneFrame } from './sceneLayout';
-import { motionPlan } from './seatRail';
+import { REDUCED_FADE_MS, motionPlan } from './seatRail';
 import {
   begin,
   cameraLanded,
@@ -51,12 +52,15 @@ export function HotSeatsTemplate({
   const [play, setPlay] = useState(() => begin(story));
   const [flights, setFlights] = useState<ChipFlight[]>([]);
   const reported = useRef(false);
-  const progress = useSharedValue(0);
-  const whoosh = useSharedValue(0);
-  const activeIndex = useSharedValue(0);
+  const holeFade = useSharedValue(1);
+  const fallbackToken = useRef(0);
+  const beginFallbackRef = useRef<() => void>(() => {});
   const [stackPressed, setStackPressed] = useState(false);
+  const [handAhead, setHandAhead] = useState(false);
+  const [presentation, setPresentation] = useState<'idle' | 'video' | 'fallback'>('idle');
 
   const seat = story.seats[play.seatIndex]!;
+  const hand = story.seats[handAhead ? play.seatIndex + 1 : play.seatIndex] ?? seat;
   const unlocked = gesturesUnlocked(play) && !disabled;
   const scene = useMemo(
     () =>
@@ -66,8 +70,9 @@ export function HotSeatsTemplate({
         topInset: insets.top,
         bottomInset: insets.bottom,
         communityCount: story.communityCards.length,
+        skin: story.skin,
       }),
-    [height, insets.bottom, insets.top, story.communityCards.length, width]
+    [height, insets.bottom, insets.top, story.communityCards.length, story.skin, width]
   );
   const around = opponentSeatIndexes(play.seatIndex);
   const opponents: OpponentReadout[] = (['left', 'far', 'right'] as const).map((slot) => {
@@ -82,10 +87,12 @@ export function HotSeatsTemplate({
 
   useEffect(() => {
     reported.current = false;
-    activeIndex.value = 0;
-    progress.value = 0;
+    fallbackToken.current += 1;
+    holeFade.value = 1;
+    setHandAhead(false);
+    setPresentation('idle');
     setPlay(begin(story));
-  }, [activeIndex, progress, story]);
+  }, [holeFade, story]);
 
   useEffect(() => {
     if (play.phase === 'explaining' && !reported.current) {
@@ -93,6 +100,27 @@ export function HotSeatsTemplate({
       onStoryComplete(play);
     }
   }, [onStoryComplete, play]);
+
+  const completeSwap = () => {
+    fallbackToken.current += 1;
+    setHandAhead(false);
+    setPresentation('idle');
+    setPlay((current) => (current.phase === 'swapping' ? cameraLanded(current) : current));
+  };
+  beginFallbackRef.current = () => {
+    const token = ++fallbackToken.current;
+    setPresentation('fallback');
+    const half = REDUCED_FADE_MS / 2;
+    holeFade.value = withSequence(
+      withTiming(0, { duration: half }, (finished) => {
+        if (finished) runOnJS(setHandAhead)(true);
+      }),
+      withTiming(1, { duration: half }, (finished) => {
+        if (!finished || token !== fallbackToken.current) return;
+        runOnJS(completeSwap)();
+      })
+    );
+  };
 
   useEffect(() => {
     if (play.phase === 'arriving' && play.seatIndex > 0) {
@@ -111,49 +139,32 @@ export function HotSeatsTemplate({
         clearTimeout(timer);
       };
     }
-    if (play.phase !== 'swapping') return;
-    let cancelled = false;
-    const plan = motionPlan(Boolean(reduced), false);
-    progress.value = 0;
-    whoosh.value = 0;
-    const finish = () => {
-      if (cancelled) return;
-      progress.value = 0;
-      whoosh.value = 0;
-      setPlay((current) => {
-        if (current.phase !== 'swapping') return current;
-        const next = cameraLanded(current);
-        activeIndex.value = next.seatIndex;
-        return next;
-      });
-    };
-    if (plan.whoosh) {
-      playSfx('windSwoosh');
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      whoosh.value = withTiming(1, { duration: plan.anticipationMs });
-      progress.value = withDelay(
-        plan.anticipationMs,
-        withTiming(
-          1,
-          { duration: plan.travelMs, easing: Easing.inOut(Easing.cubic) },
-          (finished) => {
-            if (!finished) return;
-            whoosh.value = withTiming(0, { duration: plan.settleMs });
-            runOnJS(finish)();
-          }
-        )
-      );
-    } else {
-      progress.value = withTiming(1, { duration: plan.durationMs }, (finished) => {
-        if (finished) runOnJS(finish)();
-      });
+    if (play.phase !== 'swapping') {
+      fallbackToken.current += 1;
+      cancelAnimation(holeFade);
+      holeFade.value = 1;
+      setPresentation('idle');
+      return;
     }
+    const route = swapRoute({
+      skin: story.skin,
+      reducedMotion: Boolean(reduced),
+      videoReady: true,
+      phase: 'swapping',
+    });
+    if (route === 'video') {
+      setPresentation('video');
+      return () => {
+        fallbackToken.current += 1;
+      };
+    }
+    beginFallbackRef.current();
     return () => {
-      cancelled = true;
-      cancelAnimation(progress);
-      cancelAnimation(whoosh);
+      fallbackToken.current += 1;
+      cancelAnimation(holeFade);
+      holeFade.value = 1;
     };
-  }, [activeIndex, play.phase, play.seatIndex, progress, reduced, whoosh]);
+  }, [holeFade, play.phase, play.seatIndex, reduced, story.skin]);
 
   function choose(action: SpotDecision) {
     if (!unlocked || !seat.legalActions.includes(action)) return;
@@ -188,7 +199,7 @@ export function HotSeatsTemplate({
         skin={story.skin}
         layout={scene}
         communityCards={[...story.communityCards]}
-        holeCards={[...seat.holeCards]}
+        holeCards={[...hand.holeCards]}
         pot={story.pot}
         position={positionName(seat.position)}
         priorAction={seat.priorAction}
@@ -196,6 +207,16 @@ export function HotSeatsTemplate({
         heroEnabled={unlocked}
         heroPressed={stackPressed}
         opponents={opponents}
+        holeFade={holeFade}
+      />
+      <HotSeatSwapVideo
+        active={presentation === 'video' && play.phase === 'swapping'}
+        generation={`${story.id}-${play.seatIndex}`}
+        skin={story.skin}
+        reducedMotion={Boolean(reduced)}
+        onCovered={() => setHandAhead(true)}
+        onComplete={completeSwap}
+        onUnavailable={() => beginFallbackRef.current()}
       />
       <GestureLayer
         legalActions={seat.legalActions}
