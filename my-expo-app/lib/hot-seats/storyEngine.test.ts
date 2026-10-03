@@ -13,8 +13,8 @@ import {
   decide,
   gesturesUnlocked,
 } from '../../src/features/templates/hot-seats/storyEngine';
-import { motionPlan, slotForSeat, WHOOSH_MS } from '../../src/features/templates/hot-seats/seatRail';
-import { HAND_SWAP_PROGRESS } from '../../src/features/templates/hot-seats/seatSwapPose';
+import { swapRoute } from '../../src/features/templates/hot-seats/hotSeatSwapVideoPlan';
+import { motionPlan, slotForSeat } from '../../src/features/templates/hot-seats/seatRail';
 import {
   buildHotSeatFeedback,
   settleHotSeatResult,
@@ -92,16 +92,46 @@ describe('Hot Seats presentation rules', () => {
     );
   });
 
-  it('swaps into the screen-left seat and changes the hand once it is covered', () => {
+  it('routes a garden swap through the orbit video and keeps other outcomes still', () => {
     expect(slotForSeat(1, 0)).toBe(1);
-    expect(HAND_SWAP_PROGRESS * WHOOSH_MS).toBe(520);
+    const swapping = decide(openSeat(GARDEN_PREFLOP_STORY), 'fold');
+    expect(swapping.phase).toBe('swapping');
+    expect(
+      swapRoute({
+        skin: 'garden',
+        reducedMotion: false,
+        videoReady: true,
+        phase: swapping.phase,
+      })
+    ).toBe('video');
+
+    const wrong = decide(openSeat(GARDEN_PREFLOP_STORY), 'call');
+    expect(wrong.phase).toBe('explaining');
+    expect(
+      swapRoute({ skin: 'garden', reducedMotion: false, videoReady: true, phase: wrong.phase })
+    ).toBe('fade');
+
+    let finalSeat = begin(GARDEN_PREFLOP_STORY);
+    GARDEN_PREFLOP_STORY.seats.forEach((seat, index) => {
+      finalSeat = decide(openSeat(GARDEN_PREFLOP_STORY, finalSeat), seat.scriptedAction);
+      if (index < 3) finalSeat = cameraLanded(finalSeat);
+    });
+    expect(finalSeat.phase).toBe('explaining');
+    expect(cameraLanded(finalSeat)).toBe(finalSeat);
+    expect(
+      swapRoute({
+        skin: 'garden',
+        reducedMotion: false,
+        videoReady: true,
+        phase: finalSeat.phase,
+      })
+    ).toBe('fade');
   });
 
-  it('uses a 720ms whoosh and a fade when motion is reduced', () => {
-    expect(WHOOSH_MS).toBe(720);
-    expect(motionPlan(false, false)).toMatchObject({ kind: 'whoosh', durationMs: 720, whoosh: true });
-    expect(motionPlan(false, true)).toMatchObject({ kind: 'settle', whoosh: false });
-    expect(motionPlan(true, false)).toMatchObject({ kind: 'fade', durationMs: 180, whoosh: false });
+  it('keeps the first-seat settle and the reduced-motion fade', () => {
+    expect(motionPlan(false, true)).toMatchObject({ kind: 'settle', durationMs: 200 });
+    expect(motionPlan(true, false)).toMatchObject({ kind: 'fade', durationMs: 180 });
+    expect(motionPlan(false, false)).toMatchObject({ kind: 'fade', durationMs: 180 });
   });
 
   it('explains only the seats already played, and every seat after a clear', () => {

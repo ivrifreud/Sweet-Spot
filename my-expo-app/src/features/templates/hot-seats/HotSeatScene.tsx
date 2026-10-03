@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
-import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 
 import { parseCard, type CardCode } from '../../../lib/cards';
 import { artStyle } from '../../../../theme/artStyle';
@@ -13,7 +13,6 @@ import {
   type SceneFrame,
   type StackFrame,
 } from './sceneLayout';
-import { ART_CENTER, swapPose } from './seatSwapPose';
 import type { HotSeatSkin } from './types';
 
 const TABLE_ART = {
@@ -44,12 +43,8 @@ type HotSeatSceneProps = {
   heroEnabled: boolean;
   heroPressed: boolean;
   opponents: OpponentReadout[];
-  /** Swap progress, 0 to 1. It rests at 1, the shipped painting. */
-  swap: SharedValue<number>;
-  /** Hole-card opacity. Reduced motion fades the faces through it instead of swapping. */
+  /** Hole-card opacity. Reduced motion and the casino fallback fade the faces through it. */
   holeFade: SharedValue<number>;
-  /** Reduced motion keeps the camera still. */
-  swapEnabled: boolean;
 };
 
 export function HotSeatScene({
@@ -64,27 +59,11 @@ export function HotSeatScene({
   heroEnabled,
   heroPressed,
   opponents,
-  swap,
   holeFade,
-  swapEnabled,
 }: HotSeatSceneProps) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? styles.display : null;
   const art = layout.art;
-  const k = art.width / (ART_CENTER.x * 2);
-
-  const cameraStyle = useAnimatedStyle(() => {
-    if (!swapEnabled) return { transform: [{ scale: 1 }] };
-    const { plate } = swapPose(swap.value);
-    return {
-      transform: [
-        { translateX: plate.x * k },
-        { translateY: plate.y * k },
-        { rotate: `${plate.rotation}deg` },
-        { scale: plate.scale },
-      ],
-    };
-  });
   const leftSlot = layout.holeSlots[0];
   const rightSlot = layout.holeSlots[1];
   const leftCard = holeCards[0];
@@ -102,7 +81,7 @@ export function HotSeatScene({
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View style={[StyleSheet.absoluteFill, cameraStyle]}>
+      <View style={StyleSheet.absoluteFill}>
         <View style={placed(art)}>
           {skin === 'garden' ? holes : null}
           <Image
@@ -174,46 +153,9 @@ export function HotSeatScene({
           style={{ width: layout.heroStack.width, height: layout.heroStack.imageHeight }}
         />
       </View>
-      </Animated.View>
-      {swapEnabled ? <CameraSwoosh swap={swap} /> : null}
+      </View>
     </View>
   );
-}
-
-const SWOOSH_LANES = [0.22, 0.46, 0.68] as const;
-
-function CameraSwoosh({ swap }: { swap: SharedValue<number> }) {
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-      pointerEvents="none"
-      style={StyleSheet.absoluteFill}>
-      {SWOOSH_LANES.map((lane, index) => (
-        <SwooshStreak key={lane} lane={lane} index={index} swap={swap} />
-      ))}
-    </View>
-  );
-}
-
-function SwooshStreak({
-  lane,
-  index,
-  swap,
-}: {
-  lane: number;
-  index: number;
-  swap: SharedValue<number>;
-}) {
-  const style = useAnimatedStyle(() => {
-    const { swoosh } = swapPose(swap.value);
-    const travel = Math.min(1, Math.max(0, swoosh.travel * 1.25 - index * 0.12));
-    return {
-      opacity: swoosh.opacity * (0.72 - index * 0.16),
-      transform: [{ translateX: 280 - travel * 860 }, { rotate: '-18deg' }],
-    };
-  });
-  return <Animated.View pointerEvents="none" style={[styles.streak, { top: `${lane * 100}%` }, style]} />;
 }
 
 function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatSceneLayout }) {
@@ -286,14 +228,6 @@ const styles = StyleSheet.create({
     top: 0,
     width: '100%',
     height: '100%',
-  },
-  streak: {
-    position: 'absolute',
-    left: -80,
-    width: 560,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: artStyle.colors.cream,
   },
   board: {
     position: 'absolute',

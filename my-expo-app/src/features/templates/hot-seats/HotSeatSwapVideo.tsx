@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEffect, useRef } from 'react';
 import { AppState, Platform, StyleSheet } from 'react-native';
-import Animated, { runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { playSfx } from '../../../../lib/audio';
 import { safePauseVideoPlayer } from '../../../../lib/video/safePause';
@@ -139,9 +139,7 @@ export function HotSeatSwapVideo({
       startedRef.current = true;
       clearCue();
       if (frameReadyRef.current) reveal(session);
-      return;
     }
-    if (startedRef.current && !sourceFinishedRef.current) fail(session);
   });
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {

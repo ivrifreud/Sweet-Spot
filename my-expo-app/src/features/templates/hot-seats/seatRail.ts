@@ -1,8 +1,3 @@
-export const WHOOSH_ANTICIPATION_MS = 80;
-export const WHOOSH_TRAVEL_MS = 440;
-export const WHOOSH_SETTLE_MS = 200;
-export const WHOOSH_MS = WHOOSH_ANTICIPATION_MS + WHOOSH_TRAVEL_MS + WHOOSH_SETTLE_MS;
-export const WHOOSH_CROSSFADE_MS = 360;
 export const REDUCED_FADE_MS = 180;
 export const FIRST_SEAT_SETTLE_MS = 200;
 
@@ -23,9 +18,8 @@ export const SLOT_POINTS = [
 ] as const;
 
 export type MotionPlan = {
-  kind: 'whoosh' | 'fade' | 'settle';
+  kind: 'fade' | 'settle';
   durationMs: number;
-  whoosh: boolean;
   anticipationMs: number;
   travelMs: number;
   settleMs: number;
@@ -33,22 +27,10 @@ export type MotionPlan = {
 };
 
 export function motionPlan(reducedMotion: boolean, firstSeat: boolean): MotionPlan {
-  if (reducedMotion) {
-    return {
-      kind: 'fade',
-      durationMs: REDUCED_FADE_MS,
-      whoosh: false,
-      anticipationMs: 0,
-      travelMs: 0,
-      settleMs: 0,
-      crossfadeAtMs: REDUCED_FADE_MS,
-    };
-  }
-  if (firstSeat) {
+  if (!reducedMotion && firstSeat) {
     return {
       kind: 'settle',
       durationMs: FIRST_SEAT_SETTLE_MS,
-      whoosh: false,
       anticipationMs: 0,
       travelMs: 0,
       settleMs: FIRST_SEAT_SETTLE_MS,
@@ -56,13 +38,12 @@ export function motionPlan(reducedMotion: boolean, firstSeat: boolean): MotionPl
     };
   }
   return {
-    kind: 'whoosh',
-    durationMs: WHOOSH_MS,
-    whoosh: true,
-    anticipationMs: WHOOSH_ANTICIPATION_MS,
-    travelMs: WHOOSH_TRAVEL_MS,
-    settleMs: WHOOSH_SETTLE_MS,
-    crossfadeAtMs: WHOOSH_CROSSFADE_MS,
+    kind: 'fade',
+    durationMs: REDUCED_FADE_MS,
+    anticipationMs: 0,
+    travelMs: 0,
+    settleMs: 0,
+    crossfadeAtMs: REDUCED_FADE_MS,
   };
 }
 
