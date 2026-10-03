@@ -2,34 +2,23 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
-import { SUIT_NAME, parseCard, type CardCode } from '../../../lib/cards';
+import { parseCard, type CardCode } from '../../../lib/cards';
 import { artStyle } from '../../../../theme/artStyle';
-import { cardFaceArt } from '../peek-and-pitch/components/cardArt';
 import { CardFace } from '../peek-and-pitch/components/PlayingCard';
+import { HeroCardStack } from './HeroCardStack';
 import type { SpotDecision } from '../peek-and-pitch/types';
 import { actedTag } from './feedback';
 import {
-  type HoleSlotFrame,
   type HotSeatSceneLayout,
   type SceneFrame,
   type StackFrame,
 } from './sceneLayout';
-import { ART_CENTER, LEFT_CARD_ANCHOR, swapPose } from './seatSwapPose';
+import { ART_CENTER, swapPose } from './seatSwapPose';
 import type { HotSeatSkin } from './types';
 
 const TABLE_ART = {
   garden: require('../../../../assets/hot-seats/bennys-garden.png'),
   casino: require('../../../../assets/hot-seats/local-casino.jpg'),
-} as const;
-
-/** The plate with the left player painted out, and that player on his own. Built by scripts/extract-left-seat.py. */
-const LEFT_FILL = {
-  garden: require('../../../../assets/hot-seats/garden-left-fill.png'),
-  casino: require('../../../../assets/hot-seats/casino-left-fill.png'),
-} as const;
-const LEFT_SEAT = {
-  garden: require('../../../../assets/hot-seats/garden-left-seat.png'),
-  casino: require('../../../../assets/hot-seats/casino-left-seat.png'),
 } as const;
 
 const CHIP_STACK = require('../../../../assets/hot-seats/chip-stack.png');
@@ -59,7 +48,7 @@ type HotSeatSceneProps = {
   swap: SharedValue<number>;
   /** Hole-card opacity. Reduced motion fades the faces through it instead of swapping. */
   holeFade: SharedValue<number>;
-  /** Reduced motion never mounts the cutout or the fill. */
+  /** Reduced motion keeps the camera still. */
   swapEnabled: boolean;
 };
 
@@ -84,92 +73,56 @@ export function HotSeatScene({
   const art = layout.art;
   const k = art.width / (ART_CENTER.x * 2);
 
-  const plateStyle = useAnimatedStyle(() => {
+  const cameraStyle = useAnimatedStyle(() => {
+    if (!swapEnabled) return { transform: [{ scale: 1 }] };
     const { plate } = swapPose(swap.value);
     return {
-      transform: [{ translateX: plate.x * k }, { translateY: plate.y * k }, { scale: plate.scale }],
-    };
-  });
-  const originalStyle = useAnimatedStyle(() => ({
-    opacity: swapEnabled ? swapPose(swap.value).originalOpacity : 1,
-  }));
-  const fillStyle = useAnimatedStyle(() => ({ opacity: swapPose(swap.value).fillOpacity }));
-  const holeStyle = useAnimatedStyle(() => ({ opacity: holeFade.value }));
-  const thumbStyle = useAnimatedStyle(() => {
-    const { thumb } = swapPose(swap.value);
-    return { opacity: thumb.opacity, transform: [{ translateY: thumb.y * k }] };
-  });
-  const cutoutStyle = useAnimatedStyle(() => {
-    const { cutout } = swapPose(swap.value);
-    // Pivot on the card anchor: move it to the view center, turn and grow, move it back.
-    const pivotX = (LEFT_CARD_ANCHOR.x - ART_CENTER.x) * k;
-    const pivotY = (LEFT_CARD_ANCHOR.y - ART_CENTER.y) * k;
-    return {
-      opacity: cutout.opacity,
       transform: [
-        { translateX: (cutout.x - LEFT_CARD_ANCHOR.x) * k + pivotX },
-        { translateY: (cutout.y - LEFT_CARD_ANCHOR.y) * k + pivotY },
-        { rotate: `${cutout.rotation}deg` },
-        { scale: cutout.scale },
-        { translateX: -pivotX },
-        { translateY: -pivotY },
+        { translateX: plate.x * k },
+        { translateY: plate.y * k },
+        { rotate: `${plate.rotation}deg` },
+        { scale: plate.scale },
       ],
     };
   });
-
-  const holes = (
-    <Animated.View style={[StyleSheet.absoluteFill, holeStyle]}>
-      {[0, 1].map((index) => (
-        <HoleCard
-          key={holeCards[index] ?? index}
-          code={holeCards[index]}
-          slot={layout.holeSlots[index]}
-          origin={art}
-        />
-      ))}
-    </Animated.View>
-  );
+  const leftSlot = layout.holeSlots[0];
+  const rightSlot = layout.holeSlots[1];
+  const leftCard = holeCards[0];
+  const rightCard = holeCards[1];
+  const holes =
+    leftSlot && rightSlot && leftCard && rightCard ? (
+      <HeroCardStack
+        cards={[leftCard, rightCard]}
+        outerSlots={[leftSlot, rightSlot]}
+        art={art}
+        opacity={holeFade}
+        skin={skin}
+      />
+    ) : null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View style={[placed(art), plateStyle]}>
-        {skin === 'garden' ? holes : null}
-        {swapEnabled ? (
-          <Animated.Image
-            accessibilityElementsHidden
-            importantForAccessibility="no"
-            source={LEFT_FILL[skin]}
+      <Animated.View style={[StyleSheet.absoluteFill, cameraStyle]}>
+        <View style={placed(art)}>
+          {skin === 'garden' ? holes : null}
+          <Image
+            accessibilityRole="image"
+            accessibilityLabel={
+              skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
+            }
+            source={TABLE_ART[skin]}
             resizeMode="stretch"
-            style={[styles.plate, fillStyle]}
+            style={styles.plate}
           />
-        ) : null}
-        <Animated.Image
-          accessibilityRole="image"
-          accessibilityLabel={
-            skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
-          }
-          source={TABLE_ART[skin]}
-          resizeMode="stretch"
-          style={[styles.plate, originalStyle]}
-        />
-        {skin === 'casino' ? holes : null}
-      </Animated.View>
-      <Animated.Image
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        source={GARDEN_THUMB}
-        resizeMode="stretch"
-        style={[placed(art), thumbStyle]}
-      />
-      {swapEnabled ? (
-        <Animated.Image
+          {skin === 'casino' ? holes : null}
+        </View>
+        <Image
           accessibilityElementsHidden
           importantForAccessibility="no"
-          source={LEFT_SEAT[skin]}
+          source={GARDEN_THUMB}
           resizeMode="stretch"
-          style={[placed(art), cutoutStyle]}
+          style={placed(art)}
         />
-      ) : null}
       {opponents.map((seat) => (
         <OpponentStack key={seat.slot} seat={seat} frame={layout.opponents[seat.slot]} />
       ))}
@@ -221,8 +174,46 @@ export function HotSeatScene({
           style={{ width: layout.heroStack.width, height: layout.heroStack.imageHeight }}
         />
       </View>
+      </Animated.View>
+      {swapEnabled ? <CameraSwoosh swap={swap} /> : null}
     </View>
   );
+}
+
+const SWOOSH_LANES = [0.22, 0.46, 0.68] as const;
+
+function CameraSwoosh({ swap }: { swap: SharedValue<number> }) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}>
+      {SWOOSH_LANES.map((lane, index) => (
+        <SwooshStreak key={lane} lane={lane} index={index} swap={swap} />
+      ))}
+    </View>
+  );
+}
+
+function SwooshStreak({
+  lane,
+  index,
+  swap,
+}: {
+  lane: number;
+  index: number;
+  swap: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => {
+    const { swoosh } = swapPose(swap.value);
+    const travel = Math.min(1, Math.max(0, swoosh.travel * 1.25 - index * 0.12));
+    return {
+      opacity: swoosh.opacity * (0.72 - index * 0.16),
+      transform: [{ translateX: 280 - travel * 860 }, { rotate: '-18deg' }],
+    };
+  });
+  return <Animated.View pointerEvents="none" style={[styles.streak, { top: `${lane * 100}%` }, style]} />;
 }
 
 function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatSceneLayout }) {
@@ -251,34 +242,6 @@ function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatScene
         <CardFace key={code} card={parseCard(code)} width={cardWidth} />
       ))}
     </View>
-  );
-}
-
-function HoleCard({
-  code,
-  slot,
-  origin,
-}: {
-  code: CardCode | undefined;
-  slot: HoleSlotFrame;
-  origin: SceneFrame;
-}) {
-  if (!code) return null;
-  const card = parseCard(code);
-  return (
-    <Image
-      accessibilityLabel={`${card.rank === 'T' ? '10' : card.rank} of ${SUIT_NAME[card.suit]}`}
-      source={cardFaceArt(card)}
-      resizeMode="stretch"
-      style={{
-        position: 'absolute',
-        left: slot.x - origin.x,
-        top: slot.y - origin.y,
-        width: slot.width,
-        height: slot.height,
-        transform: [{ rotate: `${slot.rotation}deg` }],
-      }}
-    />
   );
 }
 
@@ -323,6 +286,14 @@ const styles = StyleSheet.create({
     top: 0,
     width: '100%',
     height: '100%',
+  },
+  streak: {
+    position: 'absolute',
+    left: -80,
+    width: 560,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: artStyle.colors.cream,
   },
   board: {
     position: 'absolute',

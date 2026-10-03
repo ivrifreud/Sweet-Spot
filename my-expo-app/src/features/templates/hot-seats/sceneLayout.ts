@@ -32,24 +32,16 @@ const CLUSTER_CENTER_Y = 0.485;
 const POT_CENTER_Y = 0.5;
 
 /**
- * Garden hero holes on the 571×1024 painting.
- * Measured from the colored reference, cut on the black silhouette.
- * Index 0, the left card, is underneath: center (258, 858), 136×196, −13° anti-clockwise.
- * Index 1, the right card, is on top: center (333, 849), 120×187, +10° clockwise.
+ * Hero holes on the 571×1024 paintings, in source-art pixels.
+ * Index 0, the left card, is underneath: center (258, 858), 136×196, −13°.
+ * Index 1, the right card, is on top: center (333, 849), 120×187, +10°.
+ * Both skins share this shell. The face sits `FACE_INSET_ART` pixels inside it.
  * The outlined thumb is painted after both faces.
  */
-const GARDEN_HOLE_SLOTS = [
-  { cx: 258 / 571, cy: 858 / 1024, width: 136 / 571, height: 196 / 1024, rotation: -13 },
-  { cx: 333 / 571, cy: 849 / 1024, width: 120 / 571, height: 187 / 1024, rotation: 10 },
-] as const;
-
-/**
- * The casino plate paints an ace and a king into the hand, and the faces sit on top of them.
- * The ace leans −10° and sits 9px further left than the garden hole, so both slots grow to cover.
- */
-const CASINO_HOLE_SLOTS = [
-  { cx: 252 / 571, cy: 858 / 1024, width: 140 / 571, height: 200 / 1024, rotation: -11 },
-  { cx: 338 / 571, cy: 851 / 1024, width: 128 / 571, height: 194 / 1024, rotation: 10 },
+const FACE_INSET_ART = 4;
+const HOLE_SLOTS_ART = [
+  { cx: 258, cy: 858, width: 136, height: 196, rotation: -13 },
+  { cx: 333, cy: 849, width: 120, height: 187, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
@@ -76,6 +68,7 @@ export type PotFrame = SceneFrame & {
 
 export type HoleSlotFrame = SceneFrame & {
   rotation: number;
+  faceInset: number;
 };
 
 export type HotSeatSceneLayout = {
@@ -126,13 +119,11 @@ export function layoutHotSeatScene({
   topInset,
   bottomInset,
   communityCount = 0,
-  skin = 'garden',
 }: LayoutInput): HotSeatSceneLayout {
   const art = coverTableArt(width, height);
   const rhythm = height >= 800 ? RHYTHMS[0] : RHYTHMS[1];
   const minGap = height >= 800 ? 8 : 4;
-  const slots = skin === 'casino' ? CASINO_HOLE_SLOTS : GARDEN_HOLE_SLOTS;
-  const holeSlots = slots.map((slot) => placeHole(art, slot));
+  const holeSlots = HOLE_SLOTS_ART.map((slot) => placeHole(art, slot));
   const heroCards = unionFrames(holeSlots);
   const { board, pot } = placeCluster(
     art,
@@ -261,14 +252,17 @@ function placeHole(
   art: SceneFrame,
   slot: { cx: number; cy: number; width: number; height: number; rotation: number }
 ): HoleSlotFrame {
-  const width = slot.width * art.width;
-  const height = slot.height * art.height;
+  const scaleX = art.width / TABLE_ART_SIZE.width;
+  const scaleY = art.height / TABLE_ART_SIZE.height;
+  const width = slot.width * scaleX;
+  const height = slot.height * scaleY;
   return {
-    x: art.x + slot.cx * art.width - width / 2,
-    y: art.y + slot.cy * art.height - height / 2,
+    x: art.x + slot.cx * scaleX - width / 2,
+    y: art.y + slot.cy * scaleY - height / 2,
     width,
     height,
     rotation: slot.rotation,
+    faceInset: FACE_INSET_ART * scaleX,
   };
 }
 
