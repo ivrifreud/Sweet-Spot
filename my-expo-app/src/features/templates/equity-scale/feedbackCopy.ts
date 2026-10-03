@@ -9,14 +9,19 @@ function boardLabel(spot: EquityScaleSpot): string {
   return spot.board.join(' ');
 }
 
-function evRule(potOddsPercent: number, trueEquityPercent: number): string {
+function decisionReason(
+  decision: 'fold' | 'call',
+  potOddsPercent: number,
+  trueEquityPercent: number
+): string {
+  const move = decision === 'fold' ? 'Fold' : 'Call';
   if (trueEquityPercent > potOddsPercent) {
-    return `Equity > Pot Odds → +EV (profitable long-term, worth calling).`;
+    return `${move} was right: ${trueEquityPercent}% equity beats ${potOddsPercent}% pot odds, so calling is +EV.`;
   }
   if (trueEquityPercent < potOddsPercent) {
-    return `Equity < Pot Odds → -EV (losing long-term, better to fold).`;
+    return `${move} was right: ${trueEquityPercent}% equity is under ${potOddsPercent}% pot odds, so calling is -EV.`;
   }
-  return `Equity equals Pot Odds → a break-even call.`;
+  return `${move} was right: equity matches the ${potOddsPercent}% pot odds, a break-even call.`;
 }
 
 export function buildEquityFeedbackCopy(input: {
@@ -33,11 +38,13 @@ export function buildEquityFeedbackCopy(input: {
   const equityLine = grade.equityCorrect
     ? `You priced ${grade.trueEquityPercent}% equity.`
     : `The draw has ${grade.trueEquityPercent}% equity.`;
+  const move = spot.correctDecision === 'fold' ? 'Fold' : 'Call';
+  const why = decisionReason(spot.correctDecision, grade.potOddsPercent, grade.trueEquityPercent);
   const explanation = [
+    why,
     `Your hand: ${holeLabel(spot)}. Board: ${boardLabel(spot)}.${texture}`,
     outsLine,
     equityLine,
-    `Pot odds ${grade.potOddsPercent}%. ${evRule(grade.potOddsPercent, grade.trueEquityPercent)}`,
     spot.takeaway,
   ].join(' ');
 
@@ -45,7 +52,7 @@ export function buildEquityFeedbackCopy(input: {
     return {
       outcome: 'correct',
       title: 'SWEET SPOT!',
-      kicker: '3/3 on the scale.',
+      kicker: `3/3 on the scale. ${move} was right.`,
       explanation,
       continueLabel,
     };
@@ -64,7 +71,7 @@ export function buildEquityFeedbackCopy(input: {
   return {
     outcome: 'incorrect',
     title: 'STILL IN IT',
-    kicker: `${grade.stagesCorrect}/3. ${spot.correctDecision === 'fold' ? 'Fold' : 'Call'} was the leak to plug.`,
+    kicker: `${grade.stagesCorrect}/3. ${move} was the leak to plug.`,
     explanation,
     continueLabel,
   };

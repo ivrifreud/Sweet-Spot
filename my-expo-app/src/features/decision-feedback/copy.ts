@@ -33,8 +33,8 @@ export function buildDecisionFeedbackCopy(input: {
 
   if (input.correct) {
     const explanation = lesson
-      ? `${lesson} That's why ${chosen.toLowerCase()} was the Sweet Spot.`
-      : `${chosen} was the Sweet Spot here. Trust that read.`;
+      ? `${chosen} was right. ${lesson}`
+      : `${chosen} was right. Trust that read.`;
     return {
       outcome: 'correct',
       title: 'SWEET SPOT!',
@@ -45,8 +45,8 @@ export function buildDecisionFeedbackCopy(input: {
   }
 
   const explanation = lesson
-    ? `${lesson} You went ${chosen}. The leak was ${correctAnswer} — we'll lock it in on the next one.`
-    : `You went ${chosen}. The play was ${correctAnswer}. Shake it off — the next hand is how we get sharper.`;
+    ? `${correctAnswer} was right. ${lesson} You went ${chosen}.`
+    : `${correctAnswer} was right. You went ${chosen}. Shake it off — the next hand is how we get sharper.`;
 
   return {
     outcome: 'incorrect',

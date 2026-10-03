@@ -23,6 +23,8 @@ export function resolvePostEquityReveal(input: {
   if (!input.hasPendingFeedback) {
     return { showDecisionOverlay: false, leaveStage: false, advanceSpot: false };
   }
+  // The 3/3 and 0/3 lesson sits on the clip with the stamps. Finishing that
+  // screen moves on, instead of opening a second card over the video.
   if (resultClipKind(input.grade)) {
     return {
       showDecisionOverlay: false,

@@ -18,6 +18,8 @@ describe('equity scale feedback copy', () => {
     });
     expect(copy.title).toBe('SWEET SPOT!');
     expect(copy.kicker).toContain('3/3');
+    expect(copy.kicker).toMatch(/call was right/i);
+    expect(copy.explanation).toMatch(/^Call was right:/);
     expect(copy.explanation).toContain('Ah5h');
     expect(copy.explanation).toMatch(/Kh|king/i);
     expect(copy.explanation).toContain('9 outs');
@@ -43,9 +45,11 @@ describe('equity scale feedback copy', () => {
       grade,
       continueLabel: 'Deal me the next hand',
     });
+    expect(grade.stagesCorrect).toBe(0);
     expect(copy.outcome).toBe('incorrect');
     expect(copy.kicker.toLowerCase()).not.toContain('fail');
+    expect(copy.kicker).toMatch(/fold/i);
+    expect(copy.explanation).toMatch(/^Fold was right:/);
     expect(copy.explanation).toMatch(/-EV/);
-    expect(copy.explanation).toMatch(/fold/i);
   });
 });

@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 
+import type { ScaleResultLesson } from '../../../lib/equity-scale/resultLayout';
 import type { StageTemplateSpot } from '../../../lib/track/stageSpot';
 import type { DecisionOutcome } from '../decision-feedback/types';
 import { EquityScaleTemplate } from './equity-scale';
@@ -15,6 +16,7 @@ type Props = {
   resetKey: number;
   outcome: DecisionOutcome | null;
   grade?: EquityGrade | null;
+  resultLesson?: ScaleResultLesson | null;
   forceTutorial?: boolean;
   onPeekDecision: (decision: SpotDecision) => void;
   onEquitySubmit: (submission: EquityScaleSubmission) => void;
@@ -44,6 +46,7 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
     resetKey,
     outcome,
     grade,
+    resultLesson,
     forceTutorial,
     onEquitySubmit,
     onOutcomeAnimationComplete,
@@ -54,6 +57,7 @@ const TEMPLATE_RENDERERS: Record<StageTemplateSpot['templateId'], Renderer> = {
         spot={item.table}
         outcome={outcome}
         grade={grade}
+        resultLesson={resultLesson}
         onSubmit={onEquitySubmit}
         onOutcomeAnimationComplete={onOutcomeAnimationComplete}
         disabled={disabled}

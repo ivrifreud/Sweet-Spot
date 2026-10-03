@@ -390,7 +390,7 @@ function CoachCard({
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
           nestedScrollEnabled
-          showsVerticalScrollIndicator
+          showsVerticalScrollIndicator={false}
           pointerEvents={explanationPointerEvents(true)}
           onScrollBeginDrag={onDragStart}>
           <Text style={styles.explanation}>{explanation}</Text>
@@ -768,7 +768,7 @@ function SeatRows({
         style={styles.seatScroll}
         contentContainerStyle={styles.seatScrollContent}
         nestedScrollEnabled
-        showsVerticalScrollIndicator
+        showsVerticalScrollIndicator={false}
         pointerEvents={explanationPointerEvents(true)}
         onScrollBeginDrag={onDragStart}>
         {rows.map((row) => (
