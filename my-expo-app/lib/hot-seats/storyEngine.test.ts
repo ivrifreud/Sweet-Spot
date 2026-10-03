@@ -104,14 +104,33 @@ describe('Hot Seats presentation rules', () => {
     expect(motionPlan(true, false)).toMatchObject({ kind: 'fade', durationMs: 180, whoosh: false });
   });
 
-  it('shows every seat after a loss and marks only the miss', () => {
-    const loss = decide(openSeat(GARDEN_PREFLOP_STORY), 'raise');
-    const feedback = buildHotSeatFeedback(loss);
-    expect(feedback.rows).toHaveLength(4);
-    expect(feedback.rows.filter((row) => row.missed)).toHaveLength(1);
-    expect(feedback.rows[0]).toMatchObject({ missed: true, chosenAction: 'Raise' });
-    expect(feedback.copy.outcome).toBe('incorrect');
-    expect(feedback.copy.explanation).toContain('PLACEHOLDER');
+  it('explains only the seats already played, and every seat after a clear', () => {
+    const firstMiss = buildHotSeatFeedback(decide(openSeat(GARDEN_PREFLOP_STORY), 'raise'));
+    expect(firstMiss.rows).toHaveLength(1);
+    expect(firstMiss.rows[0]).toMatchObject({ missed: true, chosenAction: 'Raise' });
+    expect(firstMiss.copy.outcome).toBe('incorrect');
+    expect(firstMiss.copy.explanation).toContain('PLACEHOLDER');
+
+    let state = openSeat(CASINO_FLOP_STORY);
+    state = cameraLanded(decide(state, 'check'));
+    state = openSeat(CASINO_FLOP_STORY, state);
+    state = cameraLanded(decide(state, 'check'));
+    state = openSeat(CASINO_FLOP_STORY, state);
+    const thirdMiss = buildHotSeatFeedback(decide(state, 'check'));
+    expect(thirdMiss.rows).toHaveLength(3);
+    expect(thirdMiss.rows.filter((row) => row.missed)).toEqual([
+      expect.objectContaining({ seatIndex: 2 }),
+    ]);
+
+    let cleared = begin(CASINO_FLOP_STORY);
+    CASINO_FLOP_STORY.seats.forEach((seat, index) => {
+      cleared = decide(openSeat(CASINO_FLOP_STORY, cleared), seat.scriptedAction);
+      if (index < 3) cleared = cameraLanded(cleared);
+    });
+    const win = buildHotSeatFeedback(cleared);
+    expect(win.rows).toHaveLength(4);
+    expect(win.rows.every((row) => !row.missed)).toBe(true);
+    expect(win.copy.outcome).toBe('correct');
   });
 
   it('burns one Chip and records one spot for the whole story', () => {

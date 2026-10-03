@@ -41,6 +41,7 @@ import {
   CHIP_FELT_SQUASH,
   chipArt,
 } from '../../../theme/chipArt';
+import { outcomePointArt, seatResultStamp } from './resultArt';
 import { ScreenShakeHost } from './ScreenShakeHost';
 import { tempoScale, type FeedbackTempo } from './tempo';
 import type { DecisionOutcome } from './types';
@@ -56,6 +57,16 @@ const CORRECT_EMOTE = require('../../../assets/brand/artstyle/coach-wave-correct
 const CORRECT_POSTER = require('../../../assets/brand/artstyle/coach-wave-correct.png');
 const POINT_CORRECT = require('../../../assets/brand/artstyle/point-correct.png');
 const POINT_MISS = require('../../../assets/brand/artstyle/point-miss.png');
+const STAMP_HIT = require('../../../assets/brand/artstyle/stamp-hit.png');
+const STAMP_MISS = require('../../../assets/brand/artstyle/stamp-miss.png');
+const POINT_ART = {
+  'point-correct': POINT_CORRECT,
+  'point-miss': POINT_MISS,
+} as const;
+const STAMP_ART = {
+  hit: STAMP_HIT,
+  miss: STAMP_MISS,
+} as const;
 
 export type FeedbackSeatRow = {
   position: string;
@@ -134,6 +145,36 @@ export function DecisionFeedbackOverlay({
     }
     onContinue();
   };
+  const seatReview = Boolean(rows && rows.length > 0);
+  const summary = `${title}. ${kicker}. ${explanation}`;
+  const frameStyle = {
+    paddingTop: insets.top + 48,
+    paddingBottom: Math.max(insets.bottom, 16) + 8,
+  };
+  const continueInbox = (
+    <ContinueInbox
+      reducedMotion={reducedMotion}
+      pace={pace}
+      display={display}
+      continueLabel={continueLabel}
+      outcome={outcome}
+      cue={seatReview ? 'TAP TO CONTINUE' : 'TAP ANYWHERE'}
+      onPress={seatReview ? onContinue : undefined}
+      accessibilityLabel={
+        seatReview ? `${summary}. Scroll the seats, then tap to continue.` : undefined
+      }
+    />
+  );
+  const mark = (
+    <OutcomeMark
+      outcome={outcome}
+      reducedMotion={reducedMotion}
+      fontsLoaded={fontsLoaded}
+      title={title}
+      pace={pace}
+      prominent={seatReview}
+    />
+  );
 
   return (
     <ScreenShakeHost
@@ -142,52 +183,46 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-      <View style={StyleSheet.absoluteFill} pointerEvents={FEEDBACK_PASS_THROUGH}>
-        <Pressable
-          testID="decision-feedback-overlay"
-          accessibilityViewIsModal
-          accessibilityRole="button"
-          accessibilityLabel={`${title}. ${kicker}. ${explanation}. Tap anywhere to continue.`}
-          accessibilityHint="Tap anywhere on the screen to continue"
-          onPress={handleContinue}
-          onTouchStart={() => {
-            explanationDragged.current = false;
-          }}
-          style={StyleSheet.absoluteFill}>
-          <FlashWash
-            outcome={outcome}
-            reducedMotion={reducedMotion}
-            restartKey={feedbackKey}
-            pace={pace}
-            celebrateJackpot={celebrateJackpot}
-          />
-        </Pressable>
+      <View
+        testID="decision-feedback-overlay"
+        accessibilityViewIsModal
+        style={StyleSheet.absoluteFill}>
+        <FlashWash
+          outcome={outcome}
+          reducedMotion={reducedMotion}
+          restartKey={feedbackKey}
+          pace={pace}
+          celebrateJackpot={celebrateJackpot}
+        />
 
-        <View
-          pointerEvents={FEEDBACK_PASS_THROUGH}
-          style={[
-            styles.stage,
-            StyleSheet.absoluteFill,
-            { paddingTop: insets.top + 48, paddingBottom: Math.max(insets.bottom, 16) + 8 },
-          ]}>
-          <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.column}>
-            <OutcomeMark
-              outcome={outcome}
-              reducedMotion={reducedMotion}
-              fontsLoaded={fontsLoaded}
-              title={title}
-              pace={pace}
-            />
-
-            {rows && rows.length > 0 ? (
-              <SeatRows
-                rows={rows}
-                takeaway={explanation}
-                onDragStart={() => {
-                  explanationDragged.current = true;
-                }}
-              />
-            ) : (
+        {seatReview && rows ? (
+          <View style={[styles.reviewFrame, frameStyle]}>
+            <ScrollView
+              testID="decision-feedback-scroll"
+              style={styles.feedbackScroll}
+              contentContainerStyle={styles.feedbackScrollContent}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
+              <View style={styles.column}>
+                {mark}
+                <SeatRows rows={rows} takeaway={explanation} />
+              </View>
+            </ScrollView>
+            <View style={styles.reviewContinue}>{continueInbox}</View>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${summary}. Tap anywhere to continue.`}
+            accessibilityHint="Tap anywhere on the screen to continue"
+            onPress={handleContinue}
+            onTouchStart={() => {
+              explanationDragged.current = false;
+            }}
+            style={[styles.stage, frameStyle]}>
+            <View style={styles.column}>
+              {mark}
               <CoachCard
                 outcome={outcome}
                 kicker={kicker}
@@ -198,17 +233,10 @@ export function DecisionFeedbackOverlay({
                   explanationDragged.current = true;
                 }}
               />
-            )}
-
-            <ContinueInbox
-              reducedMotion={reducedMotion}
-              pace={pace}
-              display={display}
-              continueLabel={continueLabel}
-              outcome={outcome}
-            />
-          </View>
-        </View>
+              {continueInbox}
+            </View>
+          </Pressable>
+        )}
 
         {outcome === 'correct' && !reducedMotion ? (
           <View pointerEvents="none" style={styles.confettiLayer}>
@@ -226,12 +254,18 @@ function ContinueInbox({
   display,
   continueLabel,
   outcome,
+  cue,
+  onPress,
+  accessibilityLabel,
 }: {
   reducedMotion: boolean | undefined;
   pace: number;
   display: { fontFamily: string } | null;
   continueLabel: string;
   outcome: DecisionOutcome;
+  cue: string;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
   const pulse = useSharedValue(1);
 
@@ -254,15 +288,12 @@ function ContinueInbox({
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
   }));
-
-  return (
-    <View
-      pointerEvents="none"
-      testID="decision-feedback-continue"
-      style={[
-        styles.continueBox,
-        outcome === 'correct' ? styles.continueBoxCorrect : styles.continueBoxMiss,
-      ]}>
+  const boxStyle = [
+    styles.continueBox,
+    outcome === 'correct' ? styles.continueBoxCorrect : styles.continueBoxMiss,
+  ];
+  const body = (
+    <>
       <Image
         source={chipArt.threeQuarter}
         style={styles.chipToss}
@@ -284,7 +315,7 @@ function ContinueInbox({
       <Animated.Text
         style={[styles.tapCue, styles.cueInk, display, pulseStyle]}
         maxFontSizeMultiplier={1.2}>
-        TAP ANYWHERE
+        {cue}
       </Animated.Text>
       <Text
         style={[styles.dealCue, styles.cueInk, display]}
@@ -292,6 +323,25 @@ function ContinueInbox({
         numberOfLines={2}>
         {continueLabel.toUpperCase()}
       </Text>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        testID="decision-feedback-continue"
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        onPress={onPress}
+        style={boxStyle}>
+        {body}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View testID="decision-feedback-continue" style={boxStyle}>
+      {body}
     </View>
   );
 }
@@ -302,12 +352,14 @@ function OutcomeMark({
   fontsLoaded,
   title,
   pace,
+  prominent = false,
 }: {
   outcome: DecisionOutcome;
   reducedMotion: boolean | undefined;
   fontsLoaded: boolean;
   title: string;
   pace: number;
+  prominent?: boolean;
 }) {
   const pop = useSharedValue(reducedMotion ? 1 : 0.72);
 
@@ -330,15 +382,18 @@ function OutcomeMark({
     ],
   }));
 
+  const point = outcomePointArt(outcome);
   const accent = outcome === 'correct' ? brand.goldBright : artStyle.colors.cream;
 
   return (
     <Animated.View pointerEvents="none" style={[styles.markWrap, popStyle]}>
       <Image
-        source={outcome === 'correct' ? POINT_CORRECT : POINT_MISS}
-        style={styles.markArt}
+        source={POINT_ART[point]}
+        style={prominent ? styles.markArtProminent : styles.markArt}
         resizeMode="contain"
-        accessibilityElementsHidden
+        accessibilityLabel={
+          point === 'point-correct' ? 'Everything right' : 'One answer wrong'
+        }
       />
       <Text
         style={[
@@ -750,43 +805,38 @@ function ConfettiShape({ particle }: { particle: Particle }) {
   );
 }
 
-function SeatRows({
-  rows,
-  takeaway,
-  onDragStart,
-}: {
-  rows: FeedbackSeatRow[];
-  takeaway: string;
-  onDragStart: () => void;
-}) {
+function SeatRows({ rows, takeaway }: { rows: FeedbackSeatRow[]; takeaway: string }) {
   return (
-    <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.seatList}>
-      <Text pointerEvents="none" style={styles.explanation}>
-        {takeaway}
-      </Text>
-      <ScrollView
-        style={styles.seatScroll}
-        contentContainerStyle={styles.seatScrollContent}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-        pointerEvents={explanationPointerEvents(true)}
-        onScrollBeginDrag={onDragStart}>
-        {rows.map((row) => (
+    <View style={styles.seatList}>
+      <Text style={styles.explanation}>{takeaway}</Text>
+      {rows.map((row) => {
+        const stamp = seatResultStamp(row);
+        return (
           <View
             key={row.position}
             style={[styles.seatRow, row.missed ? styles.seatRowMissed : styles.seatRowClear]}>
-            <Text style={styles.kicker}>
-              {row.position} · {row.cards} · {row.stackLabel}
-            </Text>
-            <Text style={styles.explanation}>
-              {row.correctAction}. {row.explanation}
-            </Text>
-            {row.missed ? (
-              <Text style={styles.missedLabel}>Missed · You went {row.chosenAction}</Text>
+            <View style={styles.seatCopy}>
+              <Text style={styles.kicker}>
+                {row.position} · {row.cards} · {row.stackLabel}
+              </Text>
+              <Text style={styles.explanation}>
+                {row.correctAction}. {row.explanation}
+              </Text>
+              {row.missed ? (
+                <Text style={styles.missedLabel}>Missed · You went {row.chosenAction}</Text>
+              ) : null}
+            </View>
+            {stamp ? (
+              <Image
+                source={STAMP_ART[stamp]}
+                accessibilityLabel={stamp === 'hit' ? 'Right answer' : 'Wrong answer'}
+                resizeMode="contain"
+                style={styles.stamp}
+              />
             ) : null}
           </View>
-        ))}
-      </ScrollView>
+        );
+      })}
     </View>
   );
 }
@@ -828,6 +878,27 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     gap: 12,
   },
+  feedbackScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  feedbackScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  reviewFrame: {
+    flex: 1,
+    zIndex: 3,
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+  },
+  reviewContinue: {
+    width: '100%',
+    maxWidth: 430,
+    marginTop: 12,
+  },
   markWrap: {
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -836,6 +907,10 @@ const styles = StyleSheet.create({
   markArt: {
     width: 58,
     height: 58,
+  },
+  markArtProminent: {
+    width: 108,
+    height: 112,
   },
   title: {
     marginTop: 2,
@@ -882,19 +957,24 @@ const styles = StyleSheet.create({
   },
   seatList: {
     gap: 8,
-  },
-  seatScroll: {
-    maxHeight: 320,
-  },
-  seatScrollContent: {
-    gap: 8,
+    width: '100%',
   },
   seatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderWidth: 3,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: CREAM,
+  },
+  seatCopy: {
+    flex: 1,
+  },
+  stamp: {
+    width: 64,
+    height: 66,
   },
   seatRowClear: {
     borderColor: artStyle.colors.feltGreen,

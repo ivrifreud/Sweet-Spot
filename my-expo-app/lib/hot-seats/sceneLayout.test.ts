@@ -17,13 +17,13 @@ function overlaps(a: SceneFrame, b: SceneFrame) {
 }
 
 describe('layoutHotSeatScene', () => {
-  it.each(PHONES)('keeps the pot small and the hero stack on the felt on $name', (phone) => {
+  it.each(PHONES)('parks a wide family pot beside large flop cards on $name', (phone) => {
     const scene = layoutHotSeatScene({ ...phone, communityCount: 3 });
     const minGap = phone.height >= 800 ? 8 : 4;
 
-    expect(scene.pot.width).toBe(84);
-    expect(scene.pot.height).toBeGreaterThanOrEqual(80);
-    expect(scene.pot.height).toBeLessThanOrEqual(92);
+    expect(scene.pot.width).toBeGreaterThan(scene.pot.height);
+    expect(scene.board.cardWidth).toBeGreaterThanOrEqual(phone.height >= 800 ? 72 : 60);
+    expect(scene.board.cardWidth).toBeLessThanOrEqual(80);
     expect(scene.pot.x).toBeGreaterThanOrEqual(scene.board.x + scene.board.width + 8);
     expect(Math.abs(scene.pot.y + scene.pot.height / 2 - (scene.board.y + scene.board.height / 2))).toBeLessThan(
       8
@@ -55,8 +55,19 @@ describe('layoutHotSeatScene', () => {
     expect(overlaps(scene.heroStack, scene.board)).toBe(false);
     expect(overlaps(scene.heroStack, scene.pot)).toBe(false);
     expect(overlaps(scene.pot, scene.board)).toBe(false);
-    expect(scene.board.cardWidth).toBeGreaterThanOrEqual(phone.height >= 800 ? 48 : 40);
     expect(scene.holeSlots).toHaveLength(2);
+  });
+
+  it('shrinks a full board so the family pot still sits beside the cards', () => {
+    const phone = { width: 390, height: 844, topInset: 47, bottomInset: 34 };
+    const flop = layoutHotSeatScene({ ...phone, communityCount: 3 });
+    const river = layoutHotSeatScene({ ...phone, communityCount: 5 });
+
+    expect(river.board.cardWidth).toBeLessThan(flop.board.cardWidth);
+    expect(river.board.cardWidth).toBeGreaterThanOrEqual(48);
+    expect(river.pot.x).toBeGreaterThanOrEqual(river.board.x + river.board.width + 8);
+    expect(overlaps(river.pot, river.board)).toBe(false);
+    expect(river.story.y + river.story.height + 8).toBeLessThanOrEqual(river.heroCards.y);
   });
 
   it('centers the pot when the family cards are still to come', () => {

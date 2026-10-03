@@ -12,6 +12,7 @@ body,
 
 /* Finger scroll. The Windows scrollbar arrows are not a phone control. */
 [data-testid='decision-feedback-explanation'],
+[data-testid='decision-feedback-scroll'],
 [data-testid='scale-result-explanation'] {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -19,6 +20,8 @@ body,
 
 [data-testid='decision-feedback-explanation']::-webkit-scrollbar,
 [data-testid='decision-feedback-explanation']::-webkit-scrollbar-button,
+[data-testid='decision-feedback-scroll']::-webkit-scrollbar,
+[data-testid='decision-feedback-scroll']::-webkit-scrollbar-button,
 [data-testid='scale-result-explanation']::-webkit-scrollbar,
 [data-testid='scale-result-explanation']::-webkit-scrollbar-button {
   display: none;

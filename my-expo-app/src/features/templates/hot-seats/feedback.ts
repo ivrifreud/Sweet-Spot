@@ -19,18 +19,21 @@ export type ExplanationRow = {
 };
 
 export function explanationRows(state: HotSeatPlay): ExplanationRow[] {
-  return state.story.seats.map((seat, seatIndex) => {
-    const chosen = state.decisions[seatIndex] ?? null;
-    return {
-      seatIndex,
-      position: positionName(seat.position),
-      cards: seat.holeCards.join(' '),
-      stackLabel: `${seat.stack}bb`,
-      correctAction: labelForAction(seat.scriptedAction),
-      chosenAction: chosen ? labelForAction(chosen) : null,
-      explanation: seat.explanation,
-      missed: state.failedSeatIndex === seatIndex,
-    };
+  return state.story.seats.flatMap((seat, seatIndex) => {
+    const chosen = state.decisions[seatIndex];
+    if (!chosen) return [];
+    return [
+      {
+        seatIndex,
+        position: positionName(seat.position),
+        cards: seat.holeCards.join(' '),
+        stackLabel: `${seat.stack}bb`,
+        correctAction: labelForAction(seat.scriptedAction),
+        chosenAction: labelForAction(chosen),
+        explanation: seat.explanation,
+        missed: state.failedSeatIndex === seatIndex,
+      },
+    ];
   });
 }
 

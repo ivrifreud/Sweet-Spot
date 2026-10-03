@@ -21,6 +21,7 @@ const TABLE_ART = {
 } as const;
 
 const CHIP_STACK = require('../../../../assets/hot-seats/chip-stack.png');
+const FAMILY_POT = require('../../../../assets/hot-seats/family-pot.png');
 const GARDEN_THUMB = require('../../../../assets/hot-seats/garden-thumb.png');
 
 export type OpponentReadout = {
@@ -63,7 +64,7 @@ export function HotSeatScene({
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {skin === 'garden'
-        ? [1, 0].map((index) => (
+        ? [0, 1].map((index) => (
             <HoleCard
               key={holeCards[index] ?? index}
               code={holeCards[index]}
@@ -96,7 +97,7 @@ export function HotSeatScene({
         <Image
           accessibilityElementsHidden
           importantForAccessibility="no"
-          source={CHIP_STACK}
+          source={FAMILY_POT}
           resizeMode="contain"
           style={{ width: layout.pot.width, height: layout.pot.chipHeight }}
         />
