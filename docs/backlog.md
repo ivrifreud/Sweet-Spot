@@ -24,9 +24,9 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 1. **B-16** — The Hot Seats orbit freezes before it starts. High. 2h.
 2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
-3. **B-15** — Every result should explain the right move. High. half day.
-4. **B-05** — The player leaves the node and stays on the map. High. half day.
-5. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+3. **B-05** — The player leaves the node and stays on the map. High. half day.
+4. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+5. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
 
 ## Open
 
@@ -164,14 +164,9 @@ No open items.
 
 ### Copy
 
-### B-15 — Every result should explain the right move
-
-- Area: Copy
-- Where: feedback
-- Pain: High
-- Time: half day
-- Fix: Every feedback screen, including the Equity Scale, should say what the right move was and why. That includes a 3/3 result and a 0/3 result, not only a miss in the middle. `buildEquityFeedbackCopy` already assembles a long explanation for the scale; confirm it is visible on a perfect score and on a total miss, and that a 0/3 names the right decision and the EV reason. A 3/3 should still say why the call or fold was right, not only the score. Check The Peek and Pitch path in `buildDecisionFeedbackCopy` the same way. The explanation box scrolls, so a long lesson can be read.
+No open items.
 
 ## Done
 
+- 2026-10-02 — B-15 — Every result should explain the right move
 - 2026-09-30 — B-06 — Feedback text is cut off

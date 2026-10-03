@@ -94,13 +94,15 @@ export function HotSeatScene({
           />
           {holes}
         </View>
-        <Image
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          source={GARDEN_THUMB}
-          resizeMode="stretch"
-          style={placed(art)}
-        />
+        {skin === 'garden' ? (
+          <Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={GARDEN_THUMB}
+            resizeMode="stretch"
+            style={placed(art)}
+          />
+        ) : null}
       {opponents.map((seat) => (
         <OpponentStack key={seat.slot} seat={seat} frame={layout.opponents[seat.slot]} />
       ))}

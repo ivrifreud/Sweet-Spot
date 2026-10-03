@@ -32,16 +32,16 @@ const CLUSTER_CENTER_Y = 0.485;
 const POT_CENTER_Y = 0.5;
 
 /**
- * Hero cards on the 571×1024 paintings, in source-art pixels.
+ * Hero cards on the 571×1024 paintings, normalized to the painted art frame.
  * The cards overfill the painted silhouettes, with no artificial black shell.
  * The right card sits lower and slightly toward the palm, so the thumb meets
  * the card at the palm instead of the card crossing into the hand.
  * The outlined thumb is painted after both faces.
  */
 const CARD_BORDER_WIDTH = 0;
-const HOLE_SLOTS_ART = [
-  { cx: 258, cy: 858, width: 160, height: 220, rotation: -15 },
-  { cx: 322, cy: 863, width: 150, height: 212, rotation: 10 },
+const HOLE_SLOTS = [
+  { cx: 258 / 571, cy: 858 / 1024, width: 160 / 571, height: 220 / 1024, rotation: -15 },
+  { cx: 322 / 571, cy: 863 / 1024, width: 150 / 571, height: 212 / 1024, rotation: 10 },
 ] as const;
 
 /** Stacks sit on the felt in front of each painted body. */
@@ -123,7 +123,7 @@ export function layoutHotSeatScene({
   const art = coverTableArt(width, height);
   const rhythm = height >= 800 ? RHYTHMS[0] : RHYTHMS[1];
   const minGap = height >= 800 ? 8 : 4;
-  const holeSlots = HOLE_SLOTS_ART.map((slot) => placeHole(art, slot));
+  const holeSlots = HOLE_SLOTS.map((slot) => placeHole(art, slot));
   const heroCards = unionFrames(holeSlots);
   const { board, pot } = placeCluster(
     art,
@@ -252,13 +252,11 @@ function placeHole(
   art: SceneFrame,
   slot: { cx: number; cy: number; width: number; height: number; rotation: number }
 ): HoleSlotFrame {
-  const scaleX = art.width / TABLE_ART_SIZE.width;
-  const scaleY = art.height / TABLE_ART_SIZE.height;
-  const width = slot.width * scaleX;
-  const height = slot.height * scaleY;
+  const width = slot.width * art.width;
+  const height = slot.height * art.height;
   return {
-    x: art.x + slot.cx * scaleX - width / 2,
-    y: art.y + slot.cy * scaleY - height / 2,
+    x: art.x + slot.cx * art.width - width / 2,
+    y: art.y + slot.cy * art.height - height / 2,
     width,
     height,
     rotation: slot.rotation,

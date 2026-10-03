@@ -29,11 +29,12 @@ const CLIP = {
 
 type Props = {
   variant: ResultClipKind;
+  width?: number;
   onFinished?: () => void;
   onUnavailable?: () => void;
 };
 
-export function ScaleResultClip({ variant, onUnavailable }: Props) {
+export function ScaleResultClip({ variant, width, onUnavailable }: Props) {
   const clip = CLIP[variant];
   const { player, fallback, onFirstFrame } = useReadyVideo({
     source: clip.source,
@@ -52,7 +53,7 @@ export function ScaleResultClip({ variant, onUnavailable }: Props) {
     <View
       pointerEvents="none"
       accessibilityLabel={clip.label}
-      style={[styles.box, { borderColor: clip.border }]}>
+      style={[styles.box, width ? { width, maxWidth: width } : null, { borderColor: clip.border }]}>
       <VideoView
         player={player}
         nativeControls={false}
@@ -74,7 +75,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 4,
     borderRadius: 18,
-    marginBottom: 16,
     zIndex: 2,
     backgroundColor: artStyle.colors.projectorBlack,
   },

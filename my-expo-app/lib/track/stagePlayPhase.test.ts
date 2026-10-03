@@ -17,7 +17,7 @@ describe('stage play phase', () => {
     expect(canAcceptStageDecision('interactive', true)).toBe(false);
   });
 
-  it('routes equity 0/3 and 3/3 clips past the coach overlay', () => {
+  it('keeps a 3/3 or 0/3 lesson on the clip screen, then moves on', () => {
     expect(
       resolvePostEquityReveal({
         grade: { stagesCorrect: 3 },

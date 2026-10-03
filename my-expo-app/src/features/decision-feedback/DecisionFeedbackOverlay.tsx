@@ -138,6 +138,18 @@ export function DecisionFeedbackOverlay({
     paddingTop: insets.top + 48,
     paddingBottom: Math.max(insets.bottom, 16) + 8,
   };
+  const handleContinue = () => {
+    if (
+      !continueAfterExplanationTouch({
+        overflows: true,
+        dragged: explanationDragged.current,
+      })
+    ) {
+      explanationDragged.current = false;
+      return;
+    }
+    onContinue();
+  };
   const continueInbox = (
     <ContinueInbox
       reducedMotion={reducedMotion}
@@ -170,7 +182,10 @@ export function DecisionFeedbackOverlay({
       tempo={tempo}
       style={styles.overlay}
       pointerEvents="auto">
-      <View testID="decision-feedback-overlay" accessibilityViewIsModal style={StyleSheet.absoluteFill}>
+      <View
+        testID="decision-feedback-overlay"
+        accessibilityViewIsModal
+        style={StyleSheet.absoluteFill}>
         <FlashWash
           outcome={outcome}
           reducedMotion={reducedMotion}
@@ -185,7 +200,8 @@ export function DecisionFeedbackOverlay({
               testID="decision-feedback-scroll"
               style={styles.feedbackScroll}
               contentContainerStyle={styles.feedbackScrollContent}
-              showsVerticalScrollIndicator
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
               <View style={styles.column}>
                 {mark}
@@ -199,18 +215,7 @@ export function DecisionFeedbackOverlay({
             accessibilityRole="button"
             accessibilityLabel={`${summary}. Tap anywhere to continue.`}
             accessibilityHint="Tap anywhere on the screen to continue"
-            onPress={() => {
-              if (
-                !continueAfterExplanationTouch({
-                  overflows: true,
-                  dragged: explanationDragged.current,
-                })
-              ) {
-                explanationDragged.current = false;
-                return;
-              }
-              onContinue();
-            }}
+            onPress={handleContinue}
             onTouchStart={() => {
               explanationDragged.current = false;
             }}
@@ -434,6 +439,7 @@ function CoachCard({
         <ScrollView
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
           pointerEvents={explanationPointerEvents(true)}
           onScrollBeginDrag={onDragStart}>
