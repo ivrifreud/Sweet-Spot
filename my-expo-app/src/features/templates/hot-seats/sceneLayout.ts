@@ -51,7 +51,7 @@ const HOLE_SLOTS = [
  * The far stack stays in front of the player across the table.
  */
 const OPPONENT_ANCHORS = {
-  left: 0.4,
+  left: 0.38,
   far: 0.5,
   right: 0.67,
 } as const;

@@ -40,6 +40,8 @@ export type SfxName =
   | 'arrive'
   | 'clouds'
   | 'windSwoosh'
+  | 'hotSeatEnterBody'
+  | 'hotSeatSwish'
   | 'uiClick'
   | 'nodePress'
   | 'scaleButton'
@@ -62,6 +64,8 @@ const DRY_SFX: ReadonlySet<SfxName> = new Set([
   ...IDLE_POOL,
 ]);
 const OVERLAP_SFX: ReadonlySet<SfxName> = new Set([...CORRECT_LAYER_CUES, 'correctCasinoCoins']);
+/** Leave-body and table-swish play together during the Hot Seats orbit. */
+const SWAP_LAYER_SFX: ReadonlySet<SfxName> = new Set(['hotSeatEnterBody', 'hotSeatSwish']);
 
 let settings: Settings = { ...DEFAULTS };
 let loaded = false;
@@ -96,6 +100,8 @@ const sfxSources: Record<SfxName, number> = {
   arrive: require('../../assets/audio/arrive.wav'),
   clouds: require('../../assets/audio/clouds.wav'),
   windSwoosh: require('../../assets/audio/wind-swoosh.wav'),
+  hotSeatEnterBody: require('../../assets/audio/hot-seat-enter-body.wav'),
+  hotSeatSwish: require('../../assets/audio/hot-seat-swish.wav'),
   uiClick: require('../../assets/audio/ui-click.wav'),
   nodePress: require('../../assets/audio/node-press.wav'),
   scaleButton: require('../../assets/audio/scale-button.wav'),
@@ -330,6 +336,7 @@ function pauseOneShotSfx(except?: SfxName): void {
     // Correct / incorrect stings own the moment — never clip them for a later cue.
     if (DRY_SFX.has(name)) return;
     if (except && OVERLAP_SFX.has(except) && OVERLAP_SFX.has(name)) return;
+    if (except && SWAP_LAYER_SFX.has(except) && SWAP_LAYER_SFX.has(name)) return;
     try {
       player.loop = false;
       player.pause();

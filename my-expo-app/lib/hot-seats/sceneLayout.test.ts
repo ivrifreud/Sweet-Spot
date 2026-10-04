@@ -53,7 +53,8 @@ describe('layoutHotSeatScene', () => {
     const scale = scene.art.width / 571;
     const artX = (frame: SceneFrame) => (frame.x - scene.art.x) / scale;
     // Inner edges of the painted side hands, in 571-wide art pixels.
-    const leftHandEnd = 194;
+    // The left stack may sit against the glove and still stays off the card backs.
+    const leftHandEnd = 190;
     const rightHandStart = 416;
     expect(artX(scene.opponents.left)).toBeGreaterThan(leftHandEnd);
     expect(artX(scene.opponents.right) + scene.opponents.right.width / scale).toBeLessThan(rightHandStart);

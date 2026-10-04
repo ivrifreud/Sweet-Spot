@@ -46,3 +46,20 @@ export function swapCueAt(sourceTime: number): { showNextHand: boolean; finishSo
   };
 }
 
+/** Source times on the 4× orbit. Playback stays muted so these cues keep their pitch. */
+export const GARDEN_SWAP_SOUNDS = [
+  { sourceSeconds: 1.5, sound: 'enter-body' },
+  { sourceSeconds: 3.6, sound: 'swish' },
+  { sourceSeconds: 7.6, sound: 'enter-body' },
+] as const;
+
+export type SwapSound = (typeof GARDEN_SWAP_SOUNDS)[number]['sound'];
+
+/** Sounds whose source time falls after `heardThrough` and at or before `sourceTime`. */
+export function swapSoundsDue(heardThrough: number, sourceTime: number): SwapSound[] {
+  if (sourceTime <= heardThrough) return [];
+  return GARDEN_SWAP_SOUNDS.filter(
+    (cue) => cue.sourceSeconds > heardThrough && cue.sourceSeconds <= sourceTime
+  ).map((cue) => cue.sound);
+}
+

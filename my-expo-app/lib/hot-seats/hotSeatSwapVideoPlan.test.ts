@@ -5,6 +5,7 @@ import {
   swapCueAt,
   swapRoute,
   swapRuntimeSeconds,
+  swapSoundsDue,
 } from '../../src/features/templates/hot-seats/hotSeatSwapVideoPlan';
 import { REDUCED_FADE_MS } from '../../src/features/templates/hot-seats/seatRail';
 import {
@@ -100,6 +101,15 @@ describe('garden seat-swap video cue', () => {
     expect(swapCueAt(8.14)).toEqual({ showNextHand: false, finishSource: false });
     expect(swapCueAt(8.15)).toEqual({ showNextHand: true, finishSource: false });
     expect(swapCueAt(8.5)).toEqual({ showNextHand: true, finishSource: true });
+  });
+
+  it('plays the body sound on the way out and the way in, and the swish during the spin', () => {
+    expect(swapSoundsDue(0, 1.5)).toEqual(['enter-body']);
+    expect(swapSoundsDue(1.5, 3.59)).toEqual([]);
+    expect(swapSoundsDue(1.5, 3.6)).toEqual(['swish']);
+    expect(swapSoundsDue(3.6, 7.6)).toEqual(['enter-body']);
+    expect(swapSoundsDue(7.6, 8.5)).toEqual([]);
+    expect(swapSoundsDue(0, 8.5)).toEqual(['enter-body', 'swish', 'enter-body']);
   });
 
   it('keeps a fallback timer without hiding the clip behind a warm-up gate', () => {
