@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { mapHeroPinSize } from '../../lib/hud/mapHeroPin';
+import { mapHeroPinSize, percentClearanceAboveHero } from '../../lib/hud/mapHeroPin';
 import { svgRouteSegment } from '../../lib/track/worldMapGeometry';
 import type { FogPhase } from '../../lib/track/fogCycle';
 import {
@@ -62,11 +62,7 @@ export function LevelProgressionMap({
   const standingPoint = nodePixels(standingNode, map, chunkCount);
   const metrics = mapNodeMetrics(width);
   const heroSize = mapHeroPinSize(width);
-  const standingMarker = markers.find((marker) => marker.number === standing);
-  const heroLift =
-    standingMarker && standingMarker.spotsCompleted > 0
-      ? 6 + metrics.ring / 2 + metrics.labelHeight
-      : 0;
+  const labelClearance = percentClearanceAboveHero(heroSize, metrics.ring);
 
   return (
     <WorldMap
@@ -145,6 +141,9 @@ export function LevelProgressionMap({
                 ringSize={metrics.ring}
                 labelHeight={metrics.labelHeight}
                 frameWidth={metrics.frameWidth}
+                labelClearance={
+                  marker.number === standing && marker.spotsCompleted > 0 ? labelClearance : 0
+                }
                 onPress={() => onPressNode(marker.number)}
                 onPressIn={() => onPressInNode?.(marker.number)}
               />
@@ -152,13 +151,7 @@ export function LevelProgressionMap({
           );
         })}
 
-        <MapHeroPin
-          x={standingPoint.x}
-          y={standingPoint.y}
-          hopKey={hopKey}
-          size={heroSize}
-          lift={heroLift}
-        />
+        <MapHeroPin x={standingPoint.x} y={standingPoint.y} hopKey={hopKey} size={heroSize} />
       </View>
     </WorldMap>
   );

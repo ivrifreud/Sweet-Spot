@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- Walk callbacks read the latest trail and arrival handler. */
 import { useEffect, useRef } from 'react';
 import { Image, StyleSheet, type ImageSourcePropType } from 'react-native';
 import Animated, {
@@ -14,7 +15,13 @@ import Animated, {
 
 import { startWalkSfx, stopWalkSfx } from '../../lib/audio';
 import { WALK_FRAME_COUNT, walkFrameIndex } from '../../lib/track/avatarAnimation';
-import type { Point } from '../../lib/track/mapPath';
+import {
+  WALK_OVERSHOOT,
+  avatarSpriteOrigin,
+  pointAlongXY,
+  resolveHopRest,
+  type Point,
+} from '../../lib/track/avatarSettle';
 
 const IDLE_SPRITE = require('../../assets/brand/artstyle/hero-walk/idle-front.png');
 const WALK_SPRITES: readonly ImageSourcePropType[] = [
@@ -25,46 +32,20 @@ const WALK_SPRITES: readonly ImageSourcePropType[] = [
 ];
 
 export const MAP_AVATAR_SIZE = 84;
-/** Rubber-hose settle: Benny overshoots the chip, then steps back onto it. */
-const WALK_OVERSHOOT = 1.08;
 
 type Props = {
+  /** Node anchor Benny should stand on. A trail walks to this point. */
   x: number;
   y: number;
   trail?: Point[];
+  /** Nodes on `trail`. An interrupted hop snaps to the nearest one. */
+  anchors?: Point[];
   trailKey?: string | number;
   duration?: number;
   source?: ImageSourcePropType;
   walkSoundEnabled?: boolean;
   onArrived?: () => void;
 };
-
-function pointAlongXY(xs: number[], ys: number[], t: number) {
-  'worklet';
-  const n = xs.length;
-  if (n === 0) return { x: 0, y: 0 };
-  if (n === 1 || t <= 0) return { x: xs[0] ?? 0, y: ys[0] ?? 0 };
-  const lastX = xs[n - 1] ?? 0;
-  const lastY = ys[n - 1] ?? 0;
-  if (t >= 1) {
-    if (n < 2 || t === 1) return { x: lastX, y: lastY };
-    const prevX = xs[n - 2] ?? lastX;
-    const prevY = ys[n - 2] ?? lastY;
-    const dx = lastX - prevX;
-    const dy = lastY - prevY;
-    const len = Math.hypot(dx, dy) || 1;
-    const extra = Math.min(14, len * 2) * Math.min(1, (t - 1) / 0.08);
-    return { x: lastX + (dx / len) * extra, y: lastY + (dy / len) * extra };
-  }
-  const scaled = t * (n - 1);
-  const i = Math.min(Math.floor(scaled), n - 2);
-  const f = scaled - i;
-  const x0 = xs[i] ?? 0;
-  const y0 = ys[i] ?? 0;
-  const x1 = xs[i + 1] ?? x0;
-  const y1 = ys[i + 1] ?? y0;
-  return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f };
-}
 
 function directionAlongXY(xs: number[], ys: number[], t: number) {
   'worklet';
@@ -106,15 +87,22 @@ function WalkFrame({ index, moving, progress, source, totalFrames }: WalkFramePr
   );
 }
 
+type HopFrame = {
+  trail: Point[];
+  anchors: Point[];
+  destination: Point;
+};
+
 /**
- * Benny's on-screen shoes live in Reanimated shared values, not in the active
- * stage number. A trailKey change queues a walk from the current physical
- * position; level entry waits for `onArrived`.
+ * Benny's shoes follow the path, then stand on the node anchor.
+ * A trailKey change walks from the current feet. `x` and `y` are that anchor:
+ * a finished hop lands there, and an interrupted hop snaps to the nearest node.
  */
 export function MapAvatar({
   x,
   y,
   trail,
+  anchors,
   trailKey,
   duration = 560,
   source = IDLE_SPRITE,
@@ -131,11 +119,21 @@ export function MapAvatar({
   const ys = useSharedValue<number[]>([]);
   const placed = useRef(false);
   const trailRef = useRef(trail);
+  const anchorsRef = useRef(anchors);
   const arrivedRef = useRef(onArrived);
+  const hopRef = useRef<HopFrame>({
+    trail: [],
+    anchors: [],
+    destination: { x, y },
+  });
+  const hopId = useRef(0);
   trailRef.current = trail;
+  anchorsRef.current = anchors;
   arrivedRef.current = onArrived;
 
   useEffect(() => {
+    const id = hopId.current + 1;
+    hopId.current = id;
     cancelAnimation(left);
     cancelAnimation(top);
     cancelAnimation(progress);
@@ -144,18 +142,48 @@ export function MapAvatar({
       left.value = x;
       top.value = y;
       placed.current = true;
+    } else if (usePath.value === 1 && hopRef.current.trail.length > 0) {
+      const rest = resolveHopRest({
+        progress: progress.value,
+        finished: false,
+        trail: hopRef.current.trail,
+        anchors: hopRef.current.anchors,
+        destination: hopRef.current.destination,
+      });
+      left.value = rest.x;
+      top.value = rest.y;
+      usePath.value = 0;
+      progress.value = 1;
+      if (walkSoundEnabled) stopWalkSfx();
     }
 
     const currentTrail = trailRef.current;
     const usingTrail = Boolean(currentTrail && currentTrail.length >= 2);
+    const destination = { x, y };
 
-    const notify = () => {
+    const commit = (finished: boolean, progressNow: number, hop: number) => {
+      if (hopId.current !== hop) return;
+      const frame = hopRef.current;
+      const rest = resolveHopRest({
+        progress: progressNow,
+        finished,
+        trail: frame.trail,
+        anchors: frame.anchors,
+        destination: frame.destination,
+      });
+      left.value = rest.x;
+      top.value = rest.y;
+      usePath.value = 0;
+      progress.value = 1;
       if (walkSoundEnabled) stopWalkSfx();
-      arrivedRef.current?.();
+      if (finished) arrivedRef.current?.();
     };
 
     if (!usingTrail || !currentTrail) {
+      left.value = destination.x;
+      top.value = destination.y;
       usePath.value = 0;
+      progress.value = 1;
       return;
     }
 
@@ -164,18 +192,23 @@ export function MapAvatar({
       Math.hypot(from.x - currentTrail[0]!.x, from.y - currentTrail[0]!.y) > 1.5
         ? [from, ...currentTrail]
         : [...currentTrail];
-    const end = points[points.length - 1]!;
-    const endX = end.x;
-    const endY = end.y;
+    points[points.length - 1] = destination;
+    const provided = anchorsRef.current;
+    const hopAnchors = provided && provided.length > 0 ? [...provided] : [points[0]!, destination];
+    if (!hopAnchors.some((anchor) => anchor.x === destination.x && anchor.y === destination.y)) {
+      hopAnchors.push(destination);
+    }
+    hopRef.current = { trail: points, anchors: hopAnchors, destination };
     xs.value = points.map((point) => point.x);
     ys.value = points.map((point) => point.y);
 
     if (reducedMotion) {
-      left.value = endX;
-      top.value = endY;
+      left.value = destination.x;
+      top.value = destination.y;
       usePath.value = 0;
       progress.value = 1;
-      notify();
+      if (walkSoundEnabled) stopWalkSfx();
+      arrivedRef.current?.();
       return;
     }
 
@@ -188,12 +221,8 @@ export function MapAvatar({
     progress.value = withSequence(
       withTiming(WALK_OVERSHOOT, { duration: rush, easing: Easing.out(Easing.cubic) }),
       withTiming(1, { duration: settle, easing: Easing.inOut(Easing.quad) }, (finished) => {
-        if (!finished) return;
-        left.value = endX;
-        top.value = endY;
-        usePath.value = 0;
-        progress.value = 1;
-        runOnJS(notify)();
+        const progressNow = finished ? 1 : progress.value;
+        runOnJS(commit)(Boolean(finished), progressNow, id);
       })
     );
     return () => {
@@ -209,19 +238,20 @@ export function MapAvatar({
     travelFrames,
     usePath,
     walkSoundEnabled,
+    x,
     xs,
+    y,
     ys,
   ]);
 
   const positionStyle = useAnimatedStyle(() => {
-    if (usePath.value === 1 && xs.value.length > 0) {
-      const point = pointAlongXY(xs.value, ys.value, progress.value);
-      return {
-        transform: [{ translateX: point.x }, { translateY: point.y }],
-      };
-    }
+    const point =
+      usePath.value === 1 && xs.value.length > 0
+        ? pointAlongXY(xs.value, ys.value, progress.value)
+        : { x: left.value, y: top.value };
+    const origin = avatarSpriteOrigin(point, MAP_AVATAR_SIZE);
     return {
-      transform: [{ translateX: left.value }, { translateY: top.value }],
+      transform: [{ translateX: origin.x }, { translateY: origin.y }],
     };
   });
 
