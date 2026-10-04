@@ -1,14 +1,14 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import type { SharedValue } from 'react-native-reanimated';
 
-import { SUIT_NAME, parseCard, type CardCode } from '../../../lib/cards';
+import { parseCard, type CardCode } from '../../../lib/cards';
 import { artStyle } from '../../../../theme/artStyle';
-import { cardFaceArt } from '../peek-and-pitch/components/cardArt';
 import { CardFace } from '../peek-and-pitch/components/PlayingCard';
+import { HeroCardStack } from './HeroCardStack';
 import type { SpotDecision } from '../peek-and-pitch/types';
 import { actedTag } from './feedback';
 import {
-  type HoleSlotFrame,
   type HotSeatSceneLayout,
   type SceneFrame,
   type StackFrame,
@@ -43,6 +43,8 @@ type HotSeatSceneProps = {
   heroEnabled: boolean;
   heroPressed: boolean;
   opponents: OpponentReadout[];
+  /** Hole-card opacity. Reduced motion and the casino fallback fade the faces through it. */
+  holeFade: SharedValue<number>;
 };
 
 export function HotSeatScene({
@@ -57,39 +59,50 @@ export function HotSeatScene({
   heroEnabled,
   heroPressed,
   opponents,
+  holeFade,
 }: HotSeatSceneProps) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? styles.display : null;
+  const art = layout.art;
+  const leftSlot = layout.holeSlots[0];
+  const rightSlot = layout.holeSlots[1];
+  const leftCard = holeCards[0];
+  const rightCard = holeCards[1];
+  const holes =
+    leftSlot && rightSlot && leftCard && rightCard ? (
+      <HeroCardStack
+        cards={[leftCard, rightCard]}
+        outerSlots={[leftSlot, rightSlot]}
+        art={art}
+        opacity={holeFade}
+        skin={skin}
+      />
+    ) : null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {skin === 'garden'
-        ? [0, 1].map((index) => (
-            <HoleCard
-              key={holeCards[index] ?? index}
-              code={holeCards[index]}
-              slot={layout.holeSlots[index]}
-            />
-          ))
-        : null}
-      <Image
-        accessibilityRole="image"
-        accessibilityLabel={
-          skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
-        }
-        source={TABLE_ART[skin]}
-        resizeMode="stretch"
-        style={placed(layout.art)}
-      />
-      {skin === 'garden' ? (
-        <Image
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          source={GARDEN_THUMB}
-          resizeMode="stretch"
-          style={placed(layout.art)}
-        />
-      ) : null}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={placed(art)}>
+          <Image
+            accessibilityRole="image"
+            accessibilityLabel={
+              skin === 'garden' ? "Benny's Garden poker table" : 'A Local Casino poker table'
+            }
+            source={TABLE_ART[skin]}
+            resizeMode="stretch"
+            style={styles.plate}
+          />
+          {holes}
+        </View>
+        {skin === 'garden' ? (
+          <Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={GARDEN_THUMB}
+            resizeMode="stretch"
+            style={placed(art)}
+          />
+        ) : null}
       {opponents.map((seat) => (
         <OpponentStack key={seat.slot} seat={seat} frame={layout.opponents[seat.slot]} />
       ))}
@@ -141,6 +154,7 @@ export function HotSeatScene({
           style={{ width: layout.heroStack.width, height: layout.heroStack.imageHeight }}
         />
       </View>
+      </View>
     </View>
   );
 }
@@ -171,26 +185,6 @@ function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatScene
         <CardFace key={code} card={parseCard(code)} width={cardWidth} />
       ))}
     </View>
-  );
-}
-
-function HoleCard({ code, slot }: { code: CardCode | undefined; slot: HoleSlotFrame }) {
-  if (!code) return null;
-  const card = parseCard(code);
-  return (
-    <Image
-      accessibilityLabel={`${card.rank === 'T' ? '10' : card.rank} of ${SUIT_NAME[card.suit]}`}
-      source={cardFaceArt(card)}
-      resizeMode="stretch"
-      style={{
-        position: 'absolute',
-        left: slot.x,
-        top: slot.y,
-        width: slot.width,
-        height: slot.height,
-        transform: [{ rotate: `${slot.rotation}deg` }],
-      }}
-    />
   );
 }
 
@@ -229,6 +223,13 @@ function placed(frame: SceneFrame) {
 }
 
 const styles = StyleSheet.create({
+  plate: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '100%',
+    height: '100%',
+  },
   board: {
     position: 'absolute',
     flexDirection: 'row',
