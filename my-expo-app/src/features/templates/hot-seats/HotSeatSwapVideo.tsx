@@ -6,12 +6,17 @@ import { useEffect, useRef } from 'react';
 import { AppState, Platform, StyleSheet } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { playSfx } from '../../../../lib/audio';
+import { playSfx, type SfxName } from '../../../../lib/audio';
 import { safePauseVideoPlayer } from '../../../../lib/video/safePause';
-import { GARDEN_SWAP_CUE, swapCueAt } from './hotSeatSwapVideoPlan';
+import { GARDEN_SWAP_CUE, swapCueAt, swapSoundsDue, type SwapSound } from './hotSeatSwapVideoPlan';
 import type { HotSeatSkin } from './types';
 
 const GARDEN_SWAP_VIDEO = require('../../../../assets/hot-seats/garden-seat-swap.mp4');
+
+const SWAP_SFX: Record<SwapSound, SfxName> = {
+  'enter-body': 'hotSeatEnterBody',
+  swish: 'hotSeatSwish',
+};
 
 export type HotSeatSwapVideoProps = {
   active: boolean;
@@ -43,6 +48,7 @@ export function HotSeatSwapVideo({
   const sourceFinishedRef = useRef(false);
   const startedRef = useRef(false);
   const revealedRef = useRef(false);
+  const soundHeardRef = useRef(0);
   const mountedRef = useRef(true);
   const cueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCoveredRef = useRef(onCovered);
@@ -123,6 +129,12 @@ export function HotSeatSwapVideo({
     }, GARDEN_SWAP_CUE.timeoutMs);
   };
 
+  const playSwapSounds = (sourceTime: number) => {
+    const due = swapSoundsDue(soundHeardRef.current, sourceTime);
+    if (sourceTime > soundHeardRef.current) soundHeardRef.current = sourceTime;
+    due.forEach((sound) => playSfx(SWAP_SFX[sound]));
+  };
+
   const playerReady = () => {
     try {
       return readyRef.current && player.status === 'readyToPlay';
@@ -147,7 +159,7 @@ export function HotSeatSwapVideo({
       player.muted = true;
       player.playbackRate = GARDEN_SWAP_CUE.playbackRate;
       player.currentTime = GARDEN_SWAP_CUE.sourceInSeconds;
-      playSfx('windSwoosh');
+      playSwapSounds(GARDEN_SWAP_CUE.sourceInSeconds);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       player.play();
       if (frameReadyRef.current) reveal(session);
@@ -188,6 +200,7 @@ export function HotSeatSwapVideo({
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     const session = sessionRef.current;
     if (!session || completedRef.current || generationRef.current !== session) return;
+    playSwapSounds(currentTime);
     const cue = swapCueAt(currentTime);
     if (cue.showNextHand && !coveredRef.current) {
       coveredRef.current = true;
@@ -253,6 +266,7 @@ export function HotSeatSwapVideo({
     sourceFinishedRef.current = false;
     startedRef.current = false;
     revealedRef.current = false;
+    soundHeardRef.current = 0;
     opacity.value = 0;
     sessionRef.current = generation;
     startPlayback(generation);

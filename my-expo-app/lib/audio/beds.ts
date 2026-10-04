@@ -66,9 +66,11 @@ export function selectJackpotSfx(
   return 'jackpot';
 }
 
-/** Poker-table ingest is hotter than garden birds — keep it under the table talk. */
+/** Poker-table ingest is hotter than garden birds. Garden birds sit a step under full. */
 export function ambienceBedGain(name: AmbienceName): number {
-  return name === 'poker-table' ? 0.4 : 1;
+  if (name === 'poker-table') return 0.4;
+  if (name === 'garden-ambience') return 0.8;
+  return 1;
 }
 
 export function ambiencePlaybackVolume(name: AmbienceName, ambienceVolume: number): number {

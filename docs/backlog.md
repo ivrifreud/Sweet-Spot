@@ -24,21 +24,15 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 1. **B-16** — The Hot Seats orbit starts choppy on the phone. High. 2h.
 2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
-3. **B-19** — Result videos sometimes do not play. High. half day.
-4. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
-5. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+5. **B-09** — Call and raise chips look flat in the air. High. half day.
 
 ## Open
 
 ### Bug
 
-### B-19 — Result videos sometimes do not play
-
-- Area: Bug
-- Where: decision feedback
-- Pain: High
-- Time: half day
-- Fix: A correct answer plays `CoachEmoteVideo` and an incorrect answer plays `MissCoachVideo` in `DecisionFeedbackOverlay`, both through `useReadyVideo`. Sometimes the clip starts, and sometimes it does not. Both clips should play every time the result card is shown. Reduced motion keeps the still portrait.
+No open items.
 
 ### Look
 

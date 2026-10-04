@@ -50,6 +50,17 @@ describe('layoutHotSeatScene', () => {
       expect(overlaps(stack, scene.story)).toBe(false);
     }
 
+    const scale = scene.art.width / 571;
+    const artX = (frame: SceneFrame) => (frame.x - scene.art.x) / scale;
+    // Inner edges of the painted side hands, in 571-wide art pixels.
+    // The left stack may sit against the glove and still stays off the card backs.
+    const leftHandEnd = 190;
+    const rightHandStart = 416;
+    expect(artX(scene.opponents.left)).toBeGreaterThan(leftHandEnd);
+    expect(artX(scene.opponents.right) + scene.opponents.right.width / scale).toBeLessThan(rightHandStart);
+    expect(overlaps(scene.opponents.left, scene.opponents.far)).toBe(false);
+    expect(overlaps(scene.opponents.right, scene.opponents.far)).toBe(false);
+
     expect(overlaps(scene.heroStack, scene.heroCards)).toBe(false);
     expect(overlaps(scene.heroStack, scene.story)).toBe(false);
     expect(overlaps(scene.heroStack, scene.board)).toBe(false);

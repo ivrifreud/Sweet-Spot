@@ -33,7 +33,6 @@ export function HeroCardStack({ cards, outerSlots, art, opacity }: HeroCardStack
               top: slot.y - art.y,
               width: slot.width,
               height: slot.height,
-              overflow: 'hidden',
               transform: [{ rotate: `${slot.rotation}deg` }],
             }}>
             <Image
@@ -41,7 +40,12 @@ export function HeroCardStack({ cards, outerSlots, art, opacity }: HeroCardStack
               importantForAccessibility="no"
               source={cardFaceArt(card)}
               resizeMode="stretch"
-              style={StyleSheet.absoluteFill}
+              style={{
+                width: slot.width,
+                height: slot.height,
+                borderRadius: slot.cornerRadius,
+                backgroundColor: 'transparent',
+              }}
             />
           </Animated.View>
         );

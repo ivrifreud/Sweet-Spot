@@ -32,23 +32,28 @@ const CLUSTER_CENTER_Y = 0.485;
 const POT_CENTER_Y = 0.5;
 
 /**
- * Hero cards on the 571×1024 paintings, normalized to the painted art frame.
- * The cards overfill the painted silhouettes, with no artificial black shell.
- * The right card sits lower and slightly toward the palm, so the thumb meets
- * the card at the palm instead of the card crossing into the hand.
- * The outlined thumb is painted after both faces.
+ * Hero cards on the 571×1024 paintings, in source-art pixels.
+ * Each slot is the live face. The face covers the painted black card shape.
+ * The left card is underneath. The right card overlaps it and stays under the thumb.
+ * The right card's side lies on the black finger line.
+ * One slot fits every rank and suit; only the face art changes.
  */
-const CARD_BORDER_WIDTH = 0;
+const FACE_INSET_ART = 6;
+const CORNER_RADIUS_ART = 14;
 const HOLE_SLOTS = [
-  { cx: 258 / 571, cy: 858 / 1024, width: 160 / 571, height: 220 / 1024, rotation: -15 },
-  { cx: 322 / 571, cy: 863 / 1024, width: 150 / 571, height: 212 / 1024, rotation: 10 },
+  { cx: 254, cy: 858, width: 168, height: 228, rotation: -13, radius: CORNER_RADIUS_ART },
+  { cx: 328, cy: 858, width: 148, height: 230, rotation: 7, radius: 6 },
 ] as const;
 
-/** Stacks sit on the felt in front of each painted body. */
+/**
+ * Side stacks sit on the open felt just inward of each painted hand,
+ * toward the middle of the table, so they do not cover those cards.
+ * The far stack stays in front of the player across the table.
+ */
 const OPPONENT_ANCHORS = {
-  left: 0.28,
+  left: 0.38,
   far: 0.5,
-  right: 0.72,
+  right: 0.67,
 } as const;
 
 export type SceneFrame = {
@@ -68,7 +73,10 @@ export type PotFrame = SceneFrame & {
 
 export type HoleSlotFrame = SceneFrame & {
   rotation: number;
-  borderWidth: number;
+  /** Uniform black frame, in screen pixels, on every edge of this card. */
+  faceInset: number;
+  /** Outer corner radius in screen pixels. The face radius is one inset smaller. */
+  cornerRadius: number;
 };
 
 export type HotSeatSceneLayout = {
@@ -250,17 +258,19 @@ function fitFamilyRow(screenWidth: number, count: number) {
 
 function placeHole(
   art: SceneFrame,
-  slot: { cx: number; cy: number; width: number; height: number; rotation: number }
+  slot: { cx: number; cy: number; width: number; height: number; rotation: number; radius: number }
 ): HoleSlotFrame {
-  const width = slot.width * art.width;
-  const height = slot.height * art.height;
+  const scale = art.width / TABLE_ART_SIZE.width;
+  const width = slot.width * scale;
+  const height = slot.height * scale;
   return {
-    x: art.x + slot.cx * art.width - width / 2,
-    y: art.y + slot.cy * art.height - height / 2,
+    x: art.x + slot.cx * scale - width / 2,
+    y: art.y + slot.cy * scale - height / 2,
     width,
     height,
     rotation: slot.rotation,
-    borderWidth: CARD_BORDER_WIDTH,
+    faceInset: FACE_INSET_ART * scale,
+    cornerRadius: slot.radius * scale,
   };
 }
 

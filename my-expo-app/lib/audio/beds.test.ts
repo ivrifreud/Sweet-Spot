@@ -50,9 +50,9 @@ describe('selectMistakeSfx', () => {
 describe('ambienceBedGain', () => {
   it('plays the poker-table bed quieter than other ambience', () => {
     expect(ambienceBedGain('poker-table')).toBe(0.4);
-    expect(ambienceBedGain('garden-ambience')).toBe(1);
+    expect(ambienceBedGain('garden-ambience')).toBe(0.8);
     expect(ambiencePlaybackVolume('poker-table', 0.28)).toBeCloseTo(0.112);
-    expect(ambiencePlaybackVolume('garden-ambience', 0.28)).toBeCloseTo(0.28);
+    expect(ambiencePlaybackVolume('garden-ambience', 0.28)).toBeCloseTo(0.224);
   });
 });
 
