@@ -32,6 +32,8 @@ type Props = {
   chipSize: number;
   ringSize: number;
   labelHeight: number;
+  /** Moves the percent above the hero without shifting the ring. */
+  labelClearance?: number;
 };
 
 /**
@@ -45,6 +47,7 @@ export function MapNodeMedallion({
   chipSize,
   ringSize,
   labelHeight,
+  labelClearance = 0,
 }: Props) {
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
   const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
@@ -87,6 +90,8 @@ export function MapNodeMedallion({
               height: labelHeight,
               lineHeight: labelHeight,
               fontSize: Math.max(14, Math.round(chipSize * 0.3)),
+              marginTop: labelClearance > 0 ? -labelClearance : 0,
+              marginBottom: labelClearance > 0 ? labelClearance : 0,
             },
           ]}
           numberOfLines={1}
@@ -112,17 +117,9 @@ export function MapNodeMedallion({
             },
             phase === 'locked' && styles.lockedChip,
           ]}>
-          <ChipSprite
-            size={chipSize}
-            view="face"
-            style={{ width: chipSize, height: chipSize }}
-          />
+          <ChipSprite size={chipSize} view="face" style={{ width: chipSize, height: chipSize }} />
         </View>
-        <Svg
-          width={ringSize}
-          height={ringSize}
-          style={styles.ringSvg}
-          pointerEvents="none">
+        <Svg width={ringSize} height={ringSize} style={styles.ringSvg} pointerEvents="none">
           <Circle
             cx={cx}
             cy={cy}

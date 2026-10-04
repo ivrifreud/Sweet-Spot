@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Image, StyleSheet } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -9,7 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { MAP_HERO_HOP_MS, MAP_HERO_PIN_SIZE } from '../../lib/hud/mapHeroPin';
+import { MAP_HERO_PIN_SIZE, heroPinOrigin } from '../../lib/hud/mapHeroPin';
 
 /** Canonical map avatar — idle front, no walk cycle. */
 const HERO = require('../../assets/brand/artstyle/hero-walk/idle-front.png');
@@ -22,44 +24,59 @@ type Props = {
   /** Bumps to replay the hop when the player advances. */
   hopKey: number;
   size?: number;
-  /** Raises the pin so a progress label above the ring stays clear. */
-  lift?: number;
 };
 
 /**
  * Full hero sprite pinned on the current node (idle pose only).
  * Transparent — no badge plate behind the character.
  */
-export function MapHeroPin({ x, y, hopKey, size = MAP_HERO_PIN_SIZE, lift = 0 }: Props) {
+export function MapHeroPin({ x, y, hopKey, size = MAP_HERO_PIN_SIZE }: Props) {
   const reducedMotion = useReducedMotion();
   const hop = useSharedValue(0);
   const squash = useSharedValue(1);
+  const hopId = useRef(0);
+  const origin = heroPinOrigin({ x, y }, size);
 
   useEffect(() => {
-    if (hopKey <= 0) return;
-    if (reducedMotion) {
+    const id = hopId.current + 1;
+    hopId.current = id;
+    cancelAnimation(hop);
+    cancelAnimation(squash);
+
+    const land = (hopToken: number) => {
+      if (hopId.current !== hopToken) return;
+      hop.value = 0;
+      squash.value = 1;
+    };
+
+    if (hopKey <= 0 || reducedMotion) {
       hop.value = 0;
       squash.value = 1;
       return;
     }
+
     hop.value = withSequence(
       withTiming(-4, { duration: 70, easing: Easing.out(Easing.quad) }),
       withTiming(-22, { duration: 160, easing: Easing.out(Easing.cubic) }),
-      withTiming(0, { duration: 220, easing: Easing.in(Easing.quad) })
+      withTiming(0, { duration: 220, easing: Easing.in(Easing.quad) }, () => {
+        runOnJS(land)(id);
+      })
     );
     squash.value = withSequence(
       withTiming(0.92, { duration: 70 }),
       withTiming(1.08, { duration: 160 }),
       withTiming(1, { duration: 220 })
     );
+    return () => {
+      cancelAnimation(hop);
+      cancelAnimation(squash);
+      hop.value = 0;
+      squash.value = 1;
+    };
   }, [hop, hopKey, reducedMotion, squash]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: hop.value },
-      { scaleX: squash.value },
-      { scaleY: 2 - squash.value },
-    ],
+    transform: [{ translateY: hop.value }, { scaleX: squash.value }, { scaleY: 2 - squash.value }],
   }));
 
   return (
@@ -70,8 +87,8 @@ export function MapHeroPin({ x, y, hopKey, size = MAP_HERO_PIN_SIZE, lift = 0 }:
         {
           width: size,
           height: size,
-          left: x - size / 2,
-          top: y - size + 6 - lift,
+          left: origin.x,
+          top: origin.y,
         },
         style,
       ]}

@@ -24,21 +24,15 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 1. **B-16** — The Hot Seats orbit freezes before it starts. High. 2h.
 2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
-3. **B-05** — The player leaves the node and stays on the map. High. half day.
-4. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
-5. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+5. **B-09** — Call and raise chips look flat in the air. High. half day.
 
 ## Open
 
 ### Bug
 
-### B-05 — The player leaves the node and stays on the map
-
-- Area: Bug
-- Where: World Map
-- Pain: High
-- Time: half day
-- Fix: `MapAvatar` hops along the trail and overshoots the node on purpose, then is supposed to step back onto it. Sometimes that settle ends between nodes, so the player stands on the road. After every hop, the final position should be the node anchor. If a hop is interrupted, snap to the nearest node on the path. Pair the ground contact with B-04 so the feet meet the plate.
+No open items.
 
 ### Look
 
@@ -168,5 +162,6 @@ No open items.
 
 ## Done
 
+- 2026-10-04 — B-05 — The player leaves the node and stays on the map
 - 2026-10-02 — B-15 — Every result should explain the right move
 - 2026-09-30 — B-06 — Feedback text is cut off
