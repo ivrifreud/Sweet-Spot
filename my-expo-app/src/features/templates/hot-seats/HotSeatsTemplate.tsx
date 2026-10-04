@@ -169,6 +169,7 @@ export function HotSeatsTemplate({
   function choose(action: SpotDecision) {
     if (!unlocked || !seat.legalActions.includes(action)) return;
     playSfx(action);
+    playSfx(action === seat.scriptedAction ? 'correct' : 'incorrect');
     if (action === 'raise') {
       setFlights([
         {

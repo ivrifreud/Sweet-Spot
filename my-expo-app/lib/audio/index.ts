@@ -66,6 +66,8 @@ const DRY_SFX: ReadonlySet<SfxName> = new Set([
 const OVERLAP_SFX: ReadonlySet<SfxName> = new Set([...CORRECT_LAYER_CUES, 'correctCasinoCoins']);
 /** Leave-body and table-swish play together during the Hot Seats orbit. */
 const SWAP_LAYER_SFX: ReadonlySet<SfxName> = new Set(['hotSeatEnterBody', 'hotSeatSwish']);
+/** A decision sting plays with the move that caused it. */
+const TABLE_ACTION_SFX: ReadonlySet<SfxName> = new Set(['fold', 'call', 'check', 'raise']);
 
 let settings: Settings = { ...DEFAULTS };
 let loaded = false;
@@ -337,6 +339,13 @@ function pauseOneShotSfx(except?: SfxName): void {
     if (DRY_SFX.has(name)) return;
     if (except && OVERLAP_SFX.has(except) && OVERLAP_SFX.has(name)) return;
     if (except && SWAP_LAYER_SFX.has(except) && SWAP_LAYER_SFX.has(name)) return;
+    if (
+      except &&
+      (except === 'correct' || except === 'incorrect') &&
+      TABLE_ACTION_SFX.has(name)
+    ) {
+      return;
+    }
     try {
       player.loop = false;
       player.pause();
