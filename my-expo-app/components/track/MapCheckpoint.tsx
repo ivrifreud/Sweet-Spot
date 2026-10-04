@@ -28,6 +28,8 @@ type Props = {
   ringSize: number;
   labelHeight: number;
   frameWidth: number;
+  /** Slides the percent above the hero. The ring stays on the node. */
+  labelClearance?: number;
   onPress: () => void;
   onPressIn?: () => void;
 };
@@ -40,6 +42,7 @@ export function MapCheckpoint({
   ringSize,
   labelHeight,
   frameWidth,
+  labelClearance = 0,
   onPress,
   onPressIn,
 }: Props) {
@@ -133,6 +136,7 @@ export function MapCheckpoint({
           chipSize={chipSize}
           ringSize={ringSize}
           labelHeight={labelHeight}
+          labelClearance={labelClearance}
         />
       </AnimatedPressable>
       {hint && locked ? (
