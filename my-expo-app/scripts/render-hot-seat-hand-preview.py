@@ -3,8 +3,8 @@
 
 Review images only. This does not change app behavior.
 
-The enlarged face rectangles overfill the 571×1024 painted silhouettes. There
-is no added black shell; each shared card PNG supplies its own soft edge.
+Geometry matches `HOLE_SLOTS` in sceneLayout.ts. The face fills the slot.
+Corners are round. There is no extra black frame.
 
 Usage:
     python my-expo-app/scripts/render-hot-seat-hand-preview.py
@@ -24,13 +24,13 @@ OUT_DIR = ROOT / "docs" / "superpowers" / "artifacts"
 
 ART_SIZE = (571, 1024)
 
-# Source-art pixels. Left card is underneath; right card is above it.
+# Source-art pixels. Keep these equal to HOLE_SLOTS / FACE_INSET_ART / CORNER_RADIUS_ART.
 OUTER_SLOTS = (
-    {"cx": 258, "cy": 858, "width": 160, "height": 220, "rotation": -15},
-    {"cx": 322, "cy": 863, "width": 150, "height": 212, "rotation": 10},
+    {"cx": 254, "cy": 858, "width": 168, "height": 228, "rotation": -13, "radius": 14},
+    {"cx": 328, "cy": 858, "width": 148, "height": 230, "rotation": 7, "radius": 6},
 )
-FACE_INSET = 0
-FACE_EDGE_CROP = 0
+FACE_INSET = 6
+CORNER_RADIUS = 14
 BLACK = (17, 23, 20, 255)  # artStyle projectorBlack
 SAMPLE_HANDS = (("As", "Kh"), ("7c", "8d"), ("Qd", "Jc"))
 PHONES = ((375, 667), (390, 844), (430, 932))
@@ -68,30 +68,29 @@ def load_font(size: int) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def build_card(code: str, slot: dict) -> Image.Image:
-    """Stretch the face to the enlarged rectangle, then rotate it.
+def rounded_mask(width: int, height: int, radius: int) -> Image.Image:
+    mask = Image.new("L", (width, height), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, width - 1, height - 1), radius=radius, fill=255)
+    return mask
+
+
+def compose_card(code: str, slot: dict) -> Image.Image:
+    """Face fills the slot. Corners are round. No extra black frame.
 
     React Native `rotate` is clockwise-positive. Pillow rotates counter-clockwise,
     so the Pillow angle is the negation of the stored slot rotation.
     """
     width = slot["width"]
     height = slot["height"]
+    face = Image.open(face_path(code)).convert("RGBA").resize((width, height), Image.Resampling.LANCZOS)
+    mask = rounded_mask(width, height, slot.get("radius", CORNER_RADIUS))
     card = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    inner = (
-        width - 2 * FACE_INSET,
-        height - 2 * FACE_INSET,
-    )
-    face = Image.open(face_path(code)).convert("RGBA")
-    face = face.crop(
-        (
-            FACE_EDGE_CROP,
-            FACE_EDGE_CROP,
-            face.width - FACE_EDGE_CROP,
-            face.height - FACE_EDGE_CROP,
-        )
-    ).resize(inner, Image.Resampling.LANCZOS)
-    card.paste(face, (FACE_INSET, FACE_INSET), face)
-    return card.rotate(
+    card.paste(face, (0, 0), mask)
+    return card
+
+
+def build_card(code: str, slot: dict) -> Image.Image:
+    return compose_card(code, slot).rotate(
         -slot["rotation"],
         resample=Image.Resampling.BICUBIC,
         expand=True,
@@ -147,38 +146,11 @@ def rect_mask(slot: dict, inset: int) -> Image.Image:
     return mask
 
 
-def assert_local_rim(code: str, slot: dict) -> None:
-    width = slot["width"]
-    height = slot["height"]
-    card = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    face = Image.open(face_path(code)).convert("RGBA")
-    face = face.crop(
-        (
-            FACE_EDGE_CROP,
-            FACE_EDGE_CROP,
-            face.width - FACE_EDGE_CROP,
-            face.height - FACE_EDGE_CROP,
-        )
-    ).resize(
-        (width - 2 * FACE_INSET, height - 2 * FACE_INSET),
-        Image.Resampling.LANCZOS,
-    )
-    card.paste(face, (FACE_INSET, FACE_INSET), face)
-    px = card.load()
-    probes = (
-        (width // 2, 0, 0, 1),
-        (width // 2, height - 1, 0, -1),
-        (0, height // 2, 1, 0),
-        (width - 1, height // 2, -1, 0),
-    )
-    for x, y, dx, dy in probes:
-        for step in range(FACE_INSET):
-            pixel = px[x + dx * step, y + dy * step]
-            if pixel != BLACK:
-                raise SystemExit(f"{code} rim step {step} at {(x, y)} is {pixel}, expected {BLACK}")
-        inside = px[x + dx * FACE_INSET, y + dy * FACE_INSET]
-        if inside[:3] == BLACK[:3]:
-            raise SystemExit(f"{code} face at inset {FACE_INSET} is still the rim color")
+def assert_face_visible(code: str, slot: dict) -> None:
+    card = compose_card(code, slot)
+    pixel = card.getpixel((card.width // 2, card.height // 2))
+    if pixel[3] < 200:
+        raise SystemExit(f"{code} face center is empty {pixel}")
 
 
 def coverage_report(plate: Image.Image, thumb: Image.Image) -> None:
@@ -285,7 +257,7 @@ def main() -> None:
 
     for slot in OUTER_SLOTS:
         for code in {card for hand in SAMPLE_HANDS for card in hand}:
-            assert_local_rim(code, slot)
+            assert_face_visible(code, slot)
 
     print("garden")
     coverage_report(garden_plate, thumb)
