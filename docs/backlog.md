@@ -22,7 +22,7 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 ## Do next
 
-1. **B-16** — The Hot Seats orbit freezes before it starts. High. 2h.
+1. **B-16** — The Hot Seats orbit starts choppy on the phone. High. 2h.
 2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
 3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
 4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
@@ -82,7 +82,7 @@ No open items.
 - Where: World Map
 - Pain: High
 - Time: 1–2 days
-- Fix: Checkpoints in `MapCheckpoint` / `MapNodeMedallion` read as flat badges on top of the map. Sit each node on a plate with a contact shadow so it feels 2.5D and on the road, using the map-node look target in `docs/moodboard/chip-3d-style`. Feet from B-05 should land on that plate, not beside it.
+- Fix: Folded into B-18. The 2.5D plate is part of that card, not a second pass. No contact shadow.
 
 ### B-08 — The gold plus sits off center
 
@@ -91,6 +91,14 @@ No open items.
 - Pain: Medium
 - Time: 30m
 - Fix: The plus in `MarqueeRail` is a text glyph sized with `lineHeight` and a negative margin, so it sits off the gold icon. Center it in the round button with flex alignment, and keep the tap target on the button. It should look seated on the gold cluster at the compact and regular sizes.
+
+### B-18 — Map chips are faint, large, and dotted
+
+- Area: Look
+- Where: World Map
+- Pain: High
+- Time: 1–2 days
+- Fix: Checkpoint chips on the walk in `MapNodeMedallion` read too transparent (locked faces sit at opacity 0.78). Raise chip opacity so the faces look solid. Shrink each chip by a few millimeters in `MAP_NODE_CHIP_SIZE` / `mapNodeChipSize`, and keep the ring and a hit target of at least 44pt. Delete the dots between chips completely: `LevelProgressionMap` strokes the trail with `strokeDasharray="1 17"`, and those gaps should be empty, with no dots and no replacement dashes. Make the percent above each node clearer and heavier, in proportion to the node. Do not grow the label past the chip. Bold means a stronger weight and contrast at that size. Sit each poker-chip node on a plate so it reads 2.5D and on the road, using the map-node look in `docs/moodboard/chip-3d-style`. No contact shadow. The hero's feet should land on that plate, not beside it. This is the 2.5D pass from B-04. B-02 still owns placing the trail on the painted road; this card only removes the dots.
 
 ### B-10 — Some splash chips look flat
 
@@ -110,13 +118,13 @@ No open items.
 
 ### Motion
 
-### B-16 — The Hot Seats orbit freezes before it starts
+### B-16 — The Hot Seats orbit starts choppy on the phone
 
 - Area: Motion
 - Where: The Hot Seats
 - Pain: High
 - Time: 2h
-- Fix: `HotSeatSwapVideo` used to reveal a stale frame while a new seek resolved, then the first fresh-frame guard used a 500ms timeout that was too short for the phone and always fell back. Pre-roll the muted hidden player from 1.5s to 1.55s, park it back at the cue, and start a decision only from that warmed state. Reveal only after source time advances again; allow a 1000ms safety gate before using the existing fade.
+- Fix: When the orbit starts in the Hot Seats template, `HotSeatSwapVideo` plays `garden-seat-swap.mp4` at a low frame rate on the phone and then smooths out. The same clip in the web preview is clean from the first moment it is shown. Phone playback should be smooth from the first revealed frame, the way the web preview already is. The earlier note about a freeze before the orbit starts does not describe this bug.
 
 ### B-11 — The glove hovers instead of grabbing the chips
 
