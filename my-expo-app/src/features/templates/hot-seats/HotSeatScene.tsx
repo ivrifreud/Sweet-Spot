@@ -82,7 +82,7 @@ export function HotSeatScene({
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={StyleSheet.absoluteFill}>
-        <View style={placed(art)}>
+        <View style={[placed(art), styles.tablePlate]}>
           <Image
             accessibilityRole="image"
             accessibilityLabel={
@@ -94,19 +94,17 @@ export function HotSeatScene({
           />
           {holes}
         </View>
-        {skin === 'garden' ? (
-          <Image
-            accessibilityElementsHidden
-            importantForAccessibility="no"
-            source={GARDEN_THUMB}
-            resizeMode="stretch"
-            style={placed(art)}
-          />
-        ) : null}
+        <Image
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          source={GARDEN_THUMB}
+          resizeMode="stretch"
+          style={[placed(art), styles.heroThumb]}
+        />
       {opponents.map((seat) => (
         <OpponentStack key={seat.slot} seat={seat} frame={layout.opponents[seat.slot]} />
       ))}
-      <View accessibilityLabel={`Pot, ${pot} big blinds`} style={[styles.pot, placed(layout.pot)]}>
+      <View accessibilityLabel={`Pot, ${pot} big blinds`} style={[styles.pot, styles.aboveHand, placed(layout.pot)]}>
         <Image
           accessibilityElementsHidden
           importantForAccessibility="no"
@@ -119,7 +117,7 @@ export function HotSeatScene({
       <View
         accessibilityRole="text"
         accessibilityLabel={`Your position, ${position}`}
-        style={[styles.plaque, placed(layout.position)]}>
+        style={[styles.plaque, styles.aboveHand, placed(layout.position)]}>
         <Text
           style={[styles.position, display]}
           numberOfLines={1}
@@ -132,7 +130,7 @@ export function HotSeatScene({
         accessibilityRole="text"
         accessibilityLabel={`What happened so far. ${priorAction}`}
         accessibilityLiveRegion="polite"
-        style={[styles.plaque, styles.story, placed(layout.story)]}>
+        style={[styles.plaque, styles.story, styles.aboveHand, placed(layout.story)]}>
         <Text style={[styles.kicker, display]}>So far</Text>
         <Text style={styles.storyBody} numberOfLines={2}>
           {priorAction}
@@ -142,6 +140,7 @@ export function HotSeatScene({
         accessibilityLabel={`Your stack, ${heroStack} big blinds`}
         style={[
           styles.heroStack,
+          styles.aboveHand,
           placed(layout.heroStack),
           !heroEnabled && styles.heroStackLocked,
           heroPressed && styles.heroStackPressed,
@@ -173,6 +172,7 @@ function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatScene
       accessibilityLabel={`Community cards, ${cards.join(', ')}`}
       style={[
         styles.board,
+        styles.aboveHand,
         {
           left: layout.board.x + (layout.board.width - rowWidth) / 2,
           top: layout.board.y + (layout.board.height - cardHeight) / 2,
@@ -195,7 +195,7 @@ function OpponentStack({ seat, frame }: { seat: OpponentReadout; frame: StackFra
     : `${seat.position}, ${seat.stack} big blinds`;
 
   return (
-    <View accessibilityLabel={label} style={[styles.opponent, placed(frame)]}>
+    <View accessibilityLabel={label} style={[styles.opponent, styles.aboveHand, placed(frame)]}>
       <Image
         accessibilityElementsHidden
         importantForAccessibility="no"
@@ -229,6 +229,16 @@ const styles = StyleSheet.create({
     top: 0,
     width: '100%',
     height: '100%',
+  },
+  tablePlate: {
+    zIndex: 0,
+  },
+  /** Above the hole cards. UI layers use a higher zIndex so the glove does not cover them. */
+  heroThumb: {
+    zIndex: 1,
+  },
+  aboveHand: {
+    zIndex: 2,
   },
   board: {
     position: 'absolute',
