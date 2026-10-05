@@ -368,7 +368,7 @@ export function EquityScaleTemplate({
         </View>
       </View>
 
-      <View style={[styles.dialWrap, { bottom: actionBottom }]}>
+      <View style={styles.dialWrap} pointerEvents="box-none" collapsable={false}>
         {showingOuts ? (
           <EstimateDial
             key={`outs-${resetKey}-${spot.id}`}
@@ -380,6 +380,9 @@ export function EquityScaleTemplate({
             accessibilityLabel="Outs dial"
             enabled={dialEnabled}
             size={dialSize}
+            dockBottom={actionBottom}
+            frameWidth={windowWidth}
+            frameHeight={windowHeight}
             showHand={showDialHand}
             onChange={setSelectedOuts}
             onAdjustStart={() => {}}
@@ -398,6 +401,9 @@ export function EquityScaleTemplate({
             accessibilityLabel="Equity dial"
             enabled={dialEnabled}
             size={dialSize}
+            dockBottom={actionBottom}
+            frameWidth={windowWidth}
+            frameHeight={windowHeight}
             showHand={showDialHand}
             onChange={setSelectedEquity}
             onAdjustStart={() => {}}
@@ -557,10 +563,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   dialWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
     zIndex: 45,
     overflow: 'visible',
   },
