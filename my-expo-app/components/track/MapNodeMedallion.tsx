@@ -1,9 +1,9 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { MAP_NODE_CHIP_SIZE, type StageStatus } from '../../lib/track/tree';
 import { ChipSprite } from '../../src/features/templates/peek-and-pitch/components/ChipSprite';
 import { artStyle } from '../../theme/artStyle';
+import { useDisplayFont } from '../../theme/displayFont';
 import { CHIP_3Q_ASPECT } from '../../theme/chipArt';
 
 type Props = {
@@ -17,8 +17,7 @@ type Props = {
  * dirt without a drop shadow so it reads as part of the map.
  */
 export function MapNodeMedallion({ number, status, size = MAP_NODE_CHIP_SIZE }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const chipSize = size;
   const chipHeight = chipSize * CHIP_3Q_ASPECT;
   const locked = status === 'locked';

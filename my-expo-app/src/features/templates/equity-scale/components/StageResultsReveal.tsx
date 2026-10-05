@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { lazy, Suspense, useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -20,6 +19,7 @@ import {
   stampFinaleSfx,
 } from '../../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../../theme/artStyle';
+import { displayFontFamily, useDisplayFont } from '../../../../../theme/displayFont';
 import { REVEAL_HOLD_MS, REVEAL_STAMP_MS } from '../config';
 import { EQUITY_STRINGS } from '../strings';
 import type { EquityGrade } from '../types';
@@ -44,7 +44,7 @@ const STAMP_MISS = require('../../../../../assets/brand/artstyle/stamp-miss.png'
 
 export function StageResultsReveal({ grade, onComplete }: Props) {
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const fontsLoaded = useDisplayFont() != null;
   const clipKind = resultClipKind(grade);
   const showClip = clipKind !== null;
   const showResults = Boolean(grade) && shouldShowResultStamps(grade!, true);
@@ -161,7 +161,7 @@ function Stamp({
         accessibilityElementsHidden
       />
       <Text
-        style={[styles.stampLabel, fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null]}>
+        style={[styles.stampLabel, fontsLoaded ? { fontFamily: displayFontFamily } : null]}>
         {label}
       </Text>
     </Animated.View>
@@ -205,12 +205,13 @@ const styles = StyleSheet.create({
   },
   stampLabel: {
     position: 'absolute',
-    top: 10,
+    top: 6,
     left: 8,
     right: 8,
     color: artStyle.colors.cream,
-    fontSize: 16,
-    letterSpacing: 1.4,
+    fontSize: 15,
+    lineHeight: 18,
+    letterSpacing: 0.2,
     textAlign: 'center',
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },

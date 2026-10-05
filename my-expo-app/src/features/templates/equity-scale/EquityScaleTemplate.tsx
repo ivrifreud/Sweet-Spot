@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -10,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playSfx } from '../../../../lib/audio';
 import { resultClipKind } from '../../../../lib/equity-scale/resultPresentation';
 import { artStyle } from '../../../../theme/artStyle';
+import { useDisplayFont } from '../../../../theme/displayFont';
 import type { DecisionOutcome } from '../../decision-feedback/types';
 import { GestureTutorialOverlay } from '../../gesture-tutorial';
 import {
@@ -75,8 +75,7 @@ export function EquityScaleTemplate({
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
   const hosePosition = useSharedValue(
@@ -488,9 +487,9 @@ const styles = StyleSheet.create({
   },
   streetTitle: {
     color: artStyle.colors.goldBright,
-    fontSize: 34,
-    lineHeight: 36,
-    letterSpacing: 2.2,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: 0.4,
     textAlign: 'center',
     textShadowColor: 'rgba(17,23,20,0.65)',
     textShadowOffset: { width: 0, height: 2 },

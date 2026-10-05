@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -13,6 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { isMuted, setMuted } from '../../lib/audio';
 import { artStyle } from '../../theme/artStyle';
+import { useDisplayFont } from '../../theme/displayFont';
 import { LifeChips } from './LifeChips';
 
 const AVATAR = require('../../assets/brand/artstyle/characters-1930s-canonical-hero.png');
@@ -40,8 +40,7 @@ export function TrackHud({
   const { width } = useWindowDimensions();
   /** True phone widths — keep the whole strip on one row. */
   const compact = width < 430;
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const avatar = compact ? 34 : 44;
   const chipSize = compact ? 18 : 26;
   const hit = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;
@@ -284,16 +283,19 @@ const styles = StyleSheet.create({
   backLabel: {
     color: artStyle.colors.projectorBlack,
     fontSize: 16,
-    letterSpacing: 1.2,
+    lineHeight: 20,
+    letterSpacing: 0.3,
   },
   backLabelCompact: {
     fontSize: 13,
-    letterSpacing: 1,
+    lineHeight: 16,
+    letterSpacing: 0.2,
   },
   capsuleValue: {
     color: artStyle.colors.projectorBlack,
     fontSize: 18,
-    letterSpacing: 0.6,
+    lineHeight: 22,
+    letterSpacing: 0.2,
   },
   capsuleValueCompact: {
     fontSize: 14,

@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -12,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GravityFallingChips } from '../components/effects';
 import { artStyle } from '../theme/artStyle';
+import { useDisplayFont } from '../theme/displayFont';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -28,8 +28,7 @@ type Props = {
  */
 export function CalibrationWelcomeScreen({ onBegin }: Props) {
   const insets = useSafeAreaInsets();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   const ctaScale = useSharedValue(1);
 
@@ -116,14 +115,15 @@ const styles = StyleSheet.create({
   kicker: {
     color: artStyle.colors.goldBright,
     fontSize: 16,
-    letterSpacing: 3.5,
+    lineHeight: 22,
+    letterSpacing: 0.6,
     textAlign: 'center',
   },
   title: {
     color: artStyle.colors.cream,
-    fontSize: 56,
-    lineHeight: 56,
-    letterSpacing: 2,
+    fontSize: 44,
+    lineHeight: 52,
+    letterSpacing: 0.4,
     textAlign: 'center',
     marginTop: 10,
     textShadowColor: 'rgba(0,0,0,0.75)',
@@ -161,7 +161,8 @@ const styles = StyleSheet.create({
   ctaText: {
     color: artStyle.colors.projectorBlack,
     fontSize: 24,
-    letterSpacing: 2.5,
+    lineHeight: 30,
+    letterSpacing: 0.5,
   },
   footnote: {
     color: 'rgba(232,215,167,0.6)',

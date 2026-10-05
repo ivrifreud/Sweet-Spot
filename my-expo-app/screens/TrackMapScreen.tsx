@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
@@ -46,6 +45,7 @@ import {
   shouldAutoWalkOnFocus,
 } from '../lib/track/tree';
 import { artStyle } from '../theme/artStyle';
+import { useDisplayFont } from '../theme/displayFont';
 
 type Props = {
   reveal: LevelReveal;
@@ -105,8 +105,7 @@ export function TrackMapScreen({
   const insets = useSafeAreaInsets();
   const [previewLockout, setPreviewLockout] = useState(false);
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const [sessionWorld] = useState(
     () => resolveWorld(worldId, currentWorld) ?? createBennysGardenWorld()
   );
@@ -583,8 +582,9 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: artStyle.colors.goldBright,
-    fontSize: 11,
-    letterSpacing: 1.4,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0.3,
     textAlign: 'center',
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },

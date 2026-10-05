@@ -23,6 +23,7 @@ import {
   type TutorialRect,
 } from '../../../lib/gesture-tutorial';
 import { artStyle } from '../../../theme/artStyle';
+import { useBoogalooFont } from '../../../theme/displayFont';
 import { PointingGesture } from './PointingGesture';
 
 export type HitRect = TutorialRect;
@@ -61,6 +62,7 @@ export function GestureTutorialOverlay({
   onSkip,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const boogaloo = useBoogalooFont();
   const windowSize = useWindowDimensions();
   const [layout, setLayout] = useState<{ width: number; height: number } | null>(null);
   const shake = useSharedValue(0);
@@ -147,10 +149,10 @@ export function GestureTutorialOverlay({
         accessible
         accessibilityRole="text"
         accessibilityLabel={step.copy}>
-        <Text style={styles.index}>
+        <Text style={[styles.index, boogaloo]}>
           {stepIndex + 1} / {config.steps.length}
         </Text>
-        <Text style={styles.instruction}>{step.copy}</Text>
+        <Text style={[styles.instruction, boogaloo]}>{step.copy}</Text>
       </Animated.View>
 
       {__DEV__ && onSkip ? (
@@ -221,16 +223,16 @@ const styles = StyleSheet.create({
   index: {
     color: artStyle.colors.goldBright,
     fontSize: 18,
-    letterSpacing: 3,
+    lineHeight: 24,
+    letterSpacing: 0.4,
     marginBottom: 8,
-    fontWeight: '800',
   },
   instruction: {
     color: artStyle.colors.cream,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 26,
+    lineHeight: 34,
+    letterSpacing: 0.2,
     textAlign: 'center',
-    fontWeight: '800',
     textShadowColor: 'rgba(17, 23, 20, 0.92)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,

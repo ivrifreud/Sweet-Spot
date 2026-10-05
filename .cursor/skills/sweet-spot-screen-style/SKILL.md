@@ -1,6 +1,6 @@
 ---
 name: sweet-spot-screen-style
-description: Applies the Sweet Spot 1930s rubber-hose visual direction to Expo/React Native UI — artStyle color tokens, Bebas Neue display type, cartoon motion timing, and repo screen conventions. Use when building, restyling, or reviewing any screen or component under my-expo-app.
+description: Applies the Sweet Spot 1930s rubber-hose visual direction to Expo/React Native UI — artStyle color tokens, Chewy display type, cartoon motion timing, and repo screen conventions. Use when building, restyling, or reviewing any screen or component under my-expo-app.
 ---
 
 # Sweet Spot screen style
@@ -43,20 +43,20 @@ Functional rules:
 
 ## Typography
 
-Bebas Neue for display and CTAs, loaded per screen:
+Chewy for display and CTAs. Load it once through the shared hook:
 
 ```tsx
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../theme/displayFont';
 
-const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+const display = useDisplayFont();
 // <Text style={[styles.title, display]}>
 ```
 
-- Display type: wide `letterSpacing` (1–3.5), gold or cream face, at most one
+- Display type: tight `letterSpacing` (about 0.3–0.6), gold or cream face, at most one
   offset shadow. Never stack outline, glow, gradient, and bevel on one label.
-- Body copy, instructions, and settings use the default humanist sans. Do not
-  force the condensed display face into paragraphs.
+- Explanation cards and tutorial instructions use Boogaloo through `useBoogalooFont`.
+- Settings and other paragraphs use the default humanist sans. Do not force Chewy
+  or Boogaloo into those paragraphs.
 - Sentence case for instructions. Uppercase only for title-card CTAs such as
   `PRESS TO PLAY`.
 

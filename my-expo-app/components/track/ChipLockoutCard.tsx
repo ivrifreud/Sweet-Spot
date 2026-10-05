@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { VideoView } from 'expo-video';
 import { useEffect } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +12,7 @@ import Animated, {
 
 import { useReadyVideo } from '../../lib/video/useReadyVideo';
 import { artStyle } from '../../theme/artStyle';
+import { useDisplayFont } from '../../theme/displayFont';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const LOCKOUT_EMOTE = require('../../assets/brand/artstyle/coach-broke-lockout.mp4');
@@ -79,8 +79,7 @@ type Props = {
 };
 
 export function ChipLockoutCard({ countdown }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   const cardOpacity = useSharedValue(0);
   const buyScale = useSharedValue(1);
@@ -202,14 +201,16 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: artStyle.colors.oxblood,
-    fontSize: 13,
-    letterSpacing: 3.2,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
   title: {
     color: artStyle.colors.oxblood,
-    fontSize: 36,
-    letterSpacing: 2,
+    fontSize: 34,
+    lineHeight: 42,
+    letterSpacing: 0.4,
     textAlign: 'center',
     marginTop: 8,
     textShadowColor: 'rgba(17,23,20,0.75)',
@@ -251,7 +252,8 @@ const styles = StyleSheet.create({
   buyLabel: {
     color: artStyle.colors.projectorBlack,
     fontSize: 20,
-    letterSpacing: 2.2,
+    lineHeight: 26,
+    letterSpacing: 0.4,
   },
   adButton: {
     width: '100%',
@@ -267,6 +269,7 @@ const styles = StyleSheet.create({
   adLabel: {
     color: artStyle.colors.cream,
     fontSize: 18,
-    letterSpacing: 2,
+    lineHeight: 24,
+    letterSpacing: 0.4,
   },
 });

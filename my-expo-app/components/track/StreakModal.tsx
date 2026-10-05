@@ -1,7 +1,7 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { artStyle } from '../../theme/artStyle';
+import { useDisplayFont } from '../../theme/displayFont';
 
 type Props = {
   visible: boolean;
@@ -11,8 +11,7 @@ type Props = {
 };
 
 export function StreakModal({ visible, currentStreak, bestStreak, onClose }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -67,8 +66,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: artStyle.colors.goldBright,
-    fontSize: 34,
-    letterSpacing: 1.8,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: 0.4,
     textAlign: 'center',
   },
   subtitle: {
@@ -114,7 +114,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: artStyle.colors.projectorBlack,
     fontSize: 16,
-    letterSpacing: 1,
+    lineHeight: 22,
+    letterSpacing: 0.3,
   },
   pressed: {
     opacity: 0.84,

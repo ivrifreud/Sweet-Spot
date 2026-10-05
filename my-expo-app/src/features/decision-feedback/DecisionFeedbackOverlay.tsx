@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import * as Haptics from 'expo-haptics';
 import { VideoView } from 'expo-video';
 import { useEffect, useMemo, useState } from 'react';
@@ -28,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playDecisionSfx } from '../../../lib/audio';
 import { useReadyVideo } from '../../../lib/video/useReadyVideo';
 import { artStyle } from '../../../theme/artStyle';
+import { displayFontFamily, useBoogalooFont, useDisplayFont } from '../../../theme/displayFont';
 import { brand } from '../../../theme/brand';
 import {
   CHIP_3Q_ASPECT,
@@ -91,9 +91,10 @@ export function DecisionFeedbackOverlay({
 }: DecisionFeedbackOverlayProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
+  const boogaloo = useBoogalooFont();
+  const fontsLoaded = display != null;
   const pace = tempoScale(tempo);
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
 
   if (!visible) {
     return null;
@@ -141,6 +142,7 @@ export function DecisionFeedbackOverlay({
               outcome={outcome}
               kicker={kicker}
               explanation={explanation}
+              reading={boogaloo}
               reducedMotion={reducedMotion}
               restartKey={feedbackKey}
             />
@@ -286,7 +288,7 @@ function OutcomeMark({
         style={[
           styles.title,
           { color: accent },
-          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+          fontsLoaded ? { fontFamily: displayFontFamily } : null,
         ]}>
         {title}
       </Text>
@@ -298,12 +300,14 @@ function CoachCard({
   outcome,
   kicker,
   explanation,
+  reading,
   reducedMotion,
   restartKey,
 }: {
   outcome: DecisionOutcome;
   kicker: string;
   explanation: string;
+  reading: { fontFamily: string } | null;
   reducedMotion: boolean | undefined;
   restartKey?: string;
 }) {
@@ -321,12 +325,12 @@ function CoachCard({
         },
       ]}>
       <View style={styles.cardCopy}>
-        <Text style={styles.kicker}>{kicker}</Text>
+        <Text style={[styles.kicker, reading]}>{kicker}</Text>
         <ScrollView
           style={styles.explanationScroll}
           contentContainerStyle={styles.explanationContent}
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.explanation}>{explanation}</Text>
+          <Text style={[styles.explanation, reading]}>{explanation}</Text>
         </ScrollView>
       </View>
 
@@ -729,8 +733,9 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 2,
-    fontSize: 34,
-    letterSpacing: 2.4,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textShadowColor: 'rgba(17,23,20,0.72)',
     textShadowOffset: { width: 0, height: 2 },
@@ -754,21 +759,20 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: INK,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 24,
     marginBottom: 6,
   },
   explanationScroll: {
-    maxHeight: 72,
+    maxHeight: 96,
   },
   explanationContent: {
     paddingBottom: 2,
   },
   explanation: {
     color: artStyle.colors.tobacco,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
+    fontSize: 16,
+    lineHeight: 22,
   },
   portraitWrap: {
     width: 122,
@@ -815,7 +819,8 @@ const styles = StyleSheet.create({
   tapCue: {
     color: CREAM,
     fontSize: 16,
-    letterSpacing: 2.6,
+    lineHeight: 22,
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
   dealCueWrap: {
@@ -828,9 +833,9 @@ const styles = StyleSheet.create({
   dealCue: {
     width: '100%',
     color: artStyle.colors.goldBright,
-    fontSize: 24,
+    fontSize: 22,
     lineHeight: 28,
-    letterSpacing: 1,
+    letterSpacing: 0.4,
     textAlign: 'center',
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 0 },

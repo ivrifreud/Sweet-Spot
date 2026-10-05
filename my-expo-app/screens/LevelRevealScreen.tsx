@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -15,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GravityFallingChips } from '../components/effects';
 import type { LevelReveal } from '../lib/calibration/levelReveal';
 import { artStyle } from '../theme/artStyle';
+import { useDisplayFont } from '../theme/displayFont';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -33,8 +33,7 @@ type Props = {
  */
 export function LevelRevealScreen({ reveal, onContinue, onSignOut, error }: Props) {
   const insets = useSafeAreaInsets();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   const cardScale = useSharedValue(0.86);
   const cardOpacity = useSharedValue(0);
@@ -109,7 +108,9 @@ export function LevelRevealScreen({ reveal, onContinue, onSignOut, error }: Prop
           {reveal.returning ? <Text style={styles.kickerNote}>{reveal.reasonLine}</Text> : null}
 
           <Text style={[styles.levelNumber, display]}>LEVEL {reveal.placement}</Text>
-          <Text style={[styles.levelName, display]}>{reveal.levelName}</Text>
+          <Text style={[styles.levelName, display]} numberOfLines={1} adjustsFontSizeToFit>
+            {reveal.levelName}
+          </Text>
 
           <Animated.View style={[styles.rule, ruleStyle]} />
 
@@ -184,7 +185,8 @@ const styles = StyleSheet.create({
   kicker: {
     color: artStyle.colors.goldBright,
     fontSize: 16,
-    letterSpacing: 3.5,
+    lineHeight: 22,
+    letterSpacing: 0.6,
     textAlign: 'center',
   },
   kickerNote: {
@@ -197,13 +199,15 @@ const styles = StyleSheet.create({
   levelNumber: {
     color: artStyle.colors.cream,
     fontSize: 22,
-    letterSpacing: 4,
+    lineHeight: 28,
+    letterSpacing: 0.6,
     marginTop: 14,
   },
   levelName: {
     color: artStyle.colors.goldBright,
-    fontSize: 58,
-    letterSpacing: 2,
+    fontSize: 44,
+    lineHeight: 54,
+    letterSpacing: 0.4,
     textAlign: 'center',
     marginTop: 2,
     textShadowColor: 'rgba(0,0,0,0.75)',
@@ -304,7 +308,8 @@ const styles = StyleSheet.create({
   ctaText: {
     color: artStyle.colors.projectorBlack,
     fontSize: 22,
-    letterSpacing: 2.5,
+    lineHeight: 28,
+    letterSpacing: 0.5,
   },
   signOut: {
     minHeight: 44,

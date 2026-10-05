@@ -308,16 +308,17 @@ The retired teal/gold photoreal 3D chip is no longer in use.
 
 ### Display
 
-- Use bold hand-lettered title cards, slab serifs, or period casino signage.
+- Use Chewy for short labels and CTAs. It is the hand-drawn cartoon face.
+- Keep letter spacing tight, about 0.3–0.6. Chewy is already wide, so condensed-poster tracking stretches it apart.
 - Letters may have a cream/gold face, dark teal inline, and one simple offset shadow.
 - Slightly imperfect baselines and widths are welcome.
 
 ### UI
 
 - UI text must remain highly readable.
-- Use a condensed display face only for short labels and CTAs.
-- Use a neutral humanist sans for paragraphs, settings, and instructions.
-- Do not force decorative lettering into small body copy.
+- Use Chewy only for short labels and CTAs.
+- Use Boogaloo for the writing on explanation cards and for tutorial instructions.
+- Use a neutral humanist sans for settings and other paragraphs.
 
 ### Copy treatment
 

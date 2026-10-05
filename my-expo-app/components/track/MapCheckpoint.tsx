@@ -1,4 +1,3 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -21,6 +20,7 @@ import {
   type StageStatus,
 } from '../../lib/track/tree';
 import { artStyle } from '../../theme/artStyle';
+import { useDisplayFont } from '../../theme/displayFont';
 import { MapNodeMedallion } from './MapNodeMedallion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -35,8 +35,7 @@ type Props = {
 };
 
 export function MapCheckpoint({ number, title, status, spotsCompleted, onPress }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const reducedMotion = useReducedMotion();
   const pulse = useSharedValue(0);
   const press = useSharedValue(1);
@@ -132,9 +131,9 @@ const styles = StyleSheet.create({
   },
   percent: {
     marginTop: 1,
-    fontSize: 10,
-    lineHeight: 12,
-    letterSpacing: 0.6,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.2,
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
