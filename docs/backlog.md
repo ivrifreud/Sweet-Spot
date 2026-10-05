@@ -134,14 +134,6 @@ No open items.
 - Time: half day
 - Fix: On call and raise, `BarrierHand` reaches toward `stackAnchor` with a fixed offset and the rest glove, so the fingers sit above the stack and never close on a chip. Plant the contact point on the top chip, close the hand on it, and release along the `ChipToss` arc toward the middle. The hand should leave only after the chip is in the air.
 
-### B-01 — The hand that turns the Equity Scale dial
-
-- Area: Motion
-- Where: Equity Scale
-- Pain: Medium
-- Time: half day
-- Fix: The outs dial is turned by the phone glove in `EstimateDial` and `dialGloveLayout`. Before rebuilding it, name what feels wrong: the hand art, the pivot, or how the dial follows the finger. The change to aim for is a thumb that stays planted on the dial through the turn, with the dial rotating under that contact.
-
 ### Sound
 
 No open items.
@@ -170,6 +162,7 @@ No open items.
 
 ## Done
 
+- 2026-10-05 — B-01 — The hand that turns the Equity Scale dial
 - 2026-10-05 — B-20 — Change the font used in the app
 - 2026-10-04 — B-05 — The player leaves the node and stays on the map
 - 2026-10-02 — B-15 — Every result should explain the right move
