@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -7,27 +7,17 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { artStyle } from '../../../../theme/artStyle';
-import {
-  ARRIVAL_CARD_HEIGHT,
-  ARRIVAL_CARD_TOP_GAP,
-  ARRIVAL_CARD_WIDTH,
-  ARRIVAL_DISMISS_MS,
-  ARRIVAL_HOLD_MS,
-  ARRIVAL_POP_MS,
-  ARRIVAL_REDUCED_IN_MS,
-  ARRIVAL_SETTLE_MS,
-} from './seatRail';
+import { ARRIVAL_DISMISS_MS, ARRIVAL_POP_MS, ARRIVAL_REDUCED_IN_MS, ARRIVAL_SETTLE_MS } from './seatRail';
 
 type ArrivalCardProps = {
   copy: string;
   onCleared: () => void;
+  frame: { x: number; y: number; width: number; height: number };
 };
 
-export function ArrivalCard({ copy, onCleared }: ArrivalCardProps) {
-  const insets = useSafeAreaInsets();
+export function ArrivalCard({ copy, onCleared, frame }: ArrivalCardProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(reduced ? 0 : 1);
   const scale = useSharedValue(reduced ? 1 : 0.86);
@@ -41,11 +31,7 @@ export function ArrivalCard({ copy, onCleared }: ArrivalCardProps) {
         scale.value = withTiming(1, { duration: ARRIVAL_SETTLE_MS });
       });
     }
-    const hold = setTimeout(() => dismiss(), ARRIVAL_HOLD_MS + (reduced ? ARRIVAL_REDUCED_IN_MS : ARRIVAL_POP_MS));
-    return () => clearTimeout(hold);
-    // dismiss is stable enough for this card's lifetime
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduced]);
+  }, [opacity, reduced, scale]);
 
   function dismiss() {
     if (cleared.value) return;
@@ -63,42 +49,65 @@ export function ArrivalCard({ copy, onCleared }: ArrivalCardProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={copy}
-      accessibilityHint="Dismiss the seat card"
+      accessibilityHint="Tap the screen when you have read your seat"
       accessibilityLiveRegion="polite"
       onPress={dismiss}
-      style={[styles.hit, { top: insets.top + ARRIVAL_CARD_TOP_GAP }]}>
-      <Animated.View style={[styles.card, style]}>
-        <Text style={styles.copy}>{copy}</Text>
+      style={styles.scrim}>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            left: frame.x,
+            top: frame.y,
+            width: Math.max(frame.width, 44),
+            minHeight: Math.max(frame.height, 88),
+          },
+          style,
+        ]}>
+        <View style={styles.stock}>
+          <Text style={styles.copy}>{copy}</Text>
+          <Text style={styles.hint}>Tap the screen to continue</Text>
+        </View>
       </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  hit: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
     zIndex: 30,
-    minHeight: 44,
   },
   card: {
-    minHeight: ARRIVAL_CARD_HEIGHT,
-    maxWidth: ARRIVAL_CARD_WIDTH,
-    alignSelf: 'center',
-    width: '100%',
-    borderRadius: 18,
-    borderWidth: 3,
+    position: 'absolute',
+    borderRadius: 16,
+    borderWidth: 4,
+    borderColor: artStyle.colors.projectorBlack,
+    backgroundColor: artStyle.colors.projectorBlack,
+    padding: 5,
+  },
+  stock: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 2,
     borderColor: artStyle.colors.gold,
-    backgroundColor: artStyle.colors.cream,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    backgroundColor: '#F7F3EA',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     justifyContent: 'center',
   },
   copy: {
-    color: '#171713',
+    color: artStyle.colors.projectorBlack,
     fontSize: 16,
     lineHeight: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  hint: {
+    marginTop: 8,
+    color: artStyle.colors.tobacco,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: '700',
     textAlign: 'center',
   },

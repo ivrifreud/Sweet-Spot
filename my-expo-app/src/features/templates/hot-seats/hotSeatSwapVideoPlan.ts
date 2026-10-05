@@ -21,6 +21,15 @@ export function swapRuntimeSeconds(cue: typeof GARDEN_SWAP_CUE = GARDEN_SWAP_CUE
   return (cue.sourceOutSeconds - cue.sourceInSeconds) / cue.playbackRate;
 }
 
+export function swapTagProgress(
+  sourceTime: number,
+  cue: typeof GARDEN_SWAP_CUE = GARDEN_SWAP_CUE
+): number {
+  const span = cue.sourceOutSeconds - cue.sourceInSeconds;
+  if (span <= 0) return 1;
+  return Math.min(1, Math.max(0, (sourceTime - cue.sourceInSeconds) / span));
+}
+
 /** Video only while a garden swap is ready and motion is allowed. Every other case fades. */
 export function swapRoute(input: {
   skin: HotSeatSkin;

@@ -1,18 +1,15 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { Image, StyleSheet, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { parseCard, type CardCode } from '../../../lib/cards';
-import { artStyle } from '../../../../theme/artStyle';
 import { CardFace } from '../peek-and-pitch/components/PlayingCard';
 import { HeroCardStack } from './HeroCardStack';
-import type { SpotDecision } from '../peek-and-pitch/types';
-import { actedTag } from './feedback';
-import {
-  type HotSeatSceneLayout,
-  type SceneFrame,
-  type StackFrame,
+import type {
+  HotSeatSceneLayout,
+  SceneFrame,
+  StackFrame,
 } from './sceneLayout';
+import { stackTier, type StackTier } from './seatTag';
 import type { HotSeatSkin } from './types';
 
 const TABLE_ART = {
@@ -20,15 +17,18 @@ const TABLE_ART = {
   casino: require('../../../../assets/hot-seats/local-casino.jpg'),
 } as const;
 
-const CHIP_STACK = require('../../../../assets/hot-seats/chip-stack.png');
+const STACK_ART = {
+  small: require('../../../../assets/hot-seats/stack-small.png'),
+  medium: require('../../../../assets/hot-seats/stack-medium.png'),
+  large: require('../../../../assets/hot-seats/stack-large.png'),
+} as const;
+
 const FAMILY_POT = require('../../../../assets/hot-seats/family-pot.png');
 const GARDEN_THUMB = require('../../../../assets/hot-seats/garden-thumb.png');
 
 export type OpponentReadout = {
   slot: 'left' | 'far' | 'right';
-  position: string;
   stack: number;
-  action: SpotDecision | null;
 };
 
 type HotSeatSceneProps = {
@@ -37,14 +37,10 @@ type HotSeatSceneProps = {
   communityCards: CardCode[];
   holeCards: CardCode[];
   pot: number;
-  position: string;
-  priorAction: string;
   heroStack: number;
-  heroEnabled: boolean;
-  heroPressed: boolean;
   opponents: OpponentReadout[];
-  /** Hole-card opacity. Reduced motion and the casino fallback fade the faces through it. */
   holeFade: SharedValue<number>;
+  showHoleCards?: boolean;
 };
 
 export function HotSeatScene({
@@ -53,16 +49,11 @@ export function HotSeatScene({
   communityCards,
   holeCards,
   pot,
-  position,
-  priorAction,
   heroStack,
-  heroEnabled,
-  heroPressed,
   opponents,
   holeFade,
+  showHoleCards = true,
 }: HotSeatSceneProps) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? styles.display : null;
   const art = layout.art;
   const leftSlot = layout.holeSlots[0];
   const rightSlot = layout.holeSlots[1];
@@ -92,68 +83,63 @@ export function HotSeatScene({
             resizeMode="stretch"
             style={styles.plate}
           />
-          {holes}
+          {showHoleCards ? holes : null}
         </View>
-        <Image
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          source={GARDEN_THUMB}
-          resizeMode="stretch"
-          style={[placed(art), styles.heroThumb]}
-        />
-      {opponents.map((seat) => (
-        <OpponentStack key={seat.slot} seat={seat} frame={layout.opponents[seat.slot]} />
-      ))}
-      <View accessibilityLabel={`Pot, ${pot} big blinds`} style={[styles.pot, styles.aboveHand, placed(layout.pot)]}>
-        <Image
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          source={FAMILY_POT}
-          resizeMode="contain"
-          style={{ width: layout.pot.width, height: layout.pot.chipHeight }}
-        />
-      </View>
-      <BoardCards cards={communityCards} layout={layout} />
-      <View
-        accessibilityRole="text"
-        accessibilityLabel={`Your position, ${position}`}
-        style={[styles.plaque, styles.aboveHand, placed(layout.position)]}>
-        <Text
-          style={[styles.position, display]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}>
-          {position}
-        </Text>
-      </View>
-      <View
-        accessibilityRole="text"
-        accessibilityLabel={`What happened so far. ${priorAction}`}
-        accessibilityLiveRegion="polite"
-        style={[styles.plaque, styles.story, styles.aboveHand, placed(layout.story)]}>
-        <Text style={[styles.kicker, display]}>So far</Text>
-        <Text style={styles.storyBody} numberOfLines={2}>
-          {priorAction}
-        </Text>
-      </View>
-      <View
-        accessibilityLabel={`Your stack, ${heroStack} big blinds`}
-        style={[
-          styles.heroStack,
-          styles.aboveHand,
-          placed(layout.heroStack),
-          !heroEnabled && styles.heroStackLocked,
-          heroPressed && styles.heroStackPressed,
-        ]}>
-        <Image
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          source={CHIP_STACK}
-          resizeMode="contain"
-          style={{ width: layout.heroStack.width, height: layout.heroStack.imageHeight }}
+        {showHoleCards ? (
+          <Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={GARDEN_THUMB}
+            resizeMode="stretch"
+            style={[placed(art), styles.heroThumb]}
+          />
+        ) : null}
+        {opponents.map((seat) => (
+          <ChipPile
+            key={seat.slot}
+            label={`Opponent stack, ${seat.stack} big blinds`}
+            frame={layout.opponents[seat.slot]}
+            tier={stackTier(seat.stack)}
+          />
+        ))}
+        <View accessibilityLabel={`Pot, ${pot} big blinds`} style={[styles.pot, styles.aboveHand, placed(layout.pot)]}>
+          <Image
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            source={FAMILY_POT}
+            resizeMode="contain"
+            style={{ width: layout.pot.width, height: layout.pot.chipHeight }}
+          />
+        </View>
+        <BoardCards cards={communityCards} layout={layout} />
+        <ChipPile
+          label={`Your stack, ${heroStack} big blinds`}
+          frame={layout.heroStack}
+          tier={stackTier(heroStack)}
         />
       </View>
-      </View>
+    </View>
+  );
+}
+
+function ChipPile({
+  label,
+  frame,
+  tier,
+}: {
+  label: string;
+  frame: StackFrame;
+  tier: StackTier;
+}) {
+  return (
+    <View accessibilityLabel={label} style={[styles.pile, styles.aboveHand, placed(frame)]}>
+      <Image
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        source={STACK_ART[tier]}
+        resizeMode="contain"
+        style={{ width: frame.width, height: frame.imageHeight }}
+      />
     </View>
   );
 }
@@ -188,30 +174,6 @@ function BoardCards({ cards, layout }: { cards: CardCode[]; layout: HotSeatScene
   );
 }
 
-function OpponentStack({ seat, frame }: { seat: OpponentReadout; frame: StackFrame }) {
-  const tag = actedTag(seat.action);
-  const label = tag
-    ? `${seat.position}, ${seat.stack} big blinds, ${tag}`
-    : `${seat.position}, ${seat.stack} big blinds`;
-
-  return (
-    <View accessibilityLabel={label} style={[styles.opponent, styles.aboveHand, placed(frame)]}>
-      <Image
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        source={CHIP_STACK}
-        resizeMode="contain"
-        style={{ width: frame.width, height: frame.imageHeight }}
-      />
-      {tag ? (
-        <View style={[styles.stackBadge, styles.badgeAbove]}>
-          <Text style={styles.tagText}>{tag}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 function placed(frame: SceneFrame) {
   return {
     position: 'absolute' as const,
@@ -233,7 +195,6 @@ const styles = StyleSheet.create({
   tablePlate: {
     zIndex: 0,
   },
-  /** Above the hole cards. UI layers use a higher zIndex so the glove does not cover them. */
   heroThumb: {
     zIndex: 1,
   },
@@ -251,81 +212,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  plaque: {
-    position: 'absolute',
-    overflow: 'hidden',
-    borderRadius: 16,
-    borderWidth: 3,
-    borderColor: artStyle.colors.gold,
-    backgroundColor: artStyle.colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  position: {
-    color: artStyle.colors.projectorBlack,
-    fontSize: 28,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  story: {
-    alignItems: 'stretch',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  kicker: {
-    color: artStyle.colors.tobacco,
-    fontSize: 16,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  storyBody: {
-    color: artStyle.colors.projectorBlack,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
-  },
-  display: {
-    fontFamily: 'BebasNeue_400Regular',
-  },
-  heroStack: {
+  pile: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'flex-end',
-  },
-  heroStackLocked: {
-    opacity: 0.55,
-  },
-  heroStackPressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.96 }],
-  },
-  opponent: {
-    position: 'absolute',
     overflow: 'visible',
-  },
-  badgeAbove: {
-    position: 'absolute',
-    bottom: '100%',
-    marginBottom: 2,
-    alignSelf: 'center',
-    left: -14,
-    right: -14,
-  },
-  stackBadge: {
-    minHeight: 18,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: artStyle.colors.tobacco,
-    backgroundColor: artStyle.colors.cream,
-    alignItems: 'center',
-  },
-  tagText: {
-    color: artStyle.colors.tobacco,
-    fontSize: 11,
-    fontWeight: '800',
   },
 });

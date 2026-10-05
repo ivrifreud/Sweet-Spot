@@ -24,6 +24,12 @@ function openSeat(story: typeof GARDEN_PREFLOP_STORY, state = begin(story)) {
   return cardCleared(cameraReady(state));
 }
 
+function playSeat(story: typeof GARDEN_PREFLOP_STORY, state = begin(story)) {
+  const open = openSeat(story, state);
+  const seat = story.seats[open.seatIndex]!;
+  return decide(open, seat.scriptedAction, seat.raiseSize);
+}
+
 describe('Hot Seats story engine', () => {
   it('starts the first seat by arriving, with no decision yet', () => {
     const state = begin(GARDEN_PREFLOP_STORY);
@@ -67,8 +73,8 @@ describe('Hot Seats story engine', () => {
 
   it('wins only after four correct decisions', () => {
     let state = begin(CASINO_FLOP_STORY);
-    CASINO_FLOP_STORY.seats.forEach((seat, index) => {
-      state = decide(openSeat(CASINO_FLOP_STORY, state), seat.scriptedAction);
+    CASINO_FLOP_STORY.seats.forEach((_seat, index) => {
+      state = playSeat(CASINO_FLOP_STORY, state);
       if (index < 3) state = cameraLanded(state);
     });
     expect(state.phase).toBe('explaining');
@@ -82,6 +88,18 @@ describe('Hot Seats story engine', () => {
     const live = openSeat(GARDEN_PREFLOP_STORY);
     expect(decide(live, 'check')).toBe(live);
     expect(cameraLanded(live)).toBe(live);
+  });
+
+  it('treats a nearby raise size as a miss on a scripted raise', () => {
+    let state = begin(GARDEN_PREFLOP_STORY);
+    state = playSeat(GARDEN_PREFLOP_STORY, state);
+    state = cameraLanded(state);
+    state = playSeat(GARDEN_PREFLOP_STORY, state);
+    state = cameraLanded(state);
+    const miss = decide(openSeat(GARDEN_PREFLOP_STORY, state), 'raise', 4);
+    expect(miss.outcome).toBe('loss');
+    const hit = decide(openSeat(GARDEN_PREFLOP_STORY, state), 'raise', 6);
+    expect(hit.phase).toBe('swapping');
   });
 });
 
@@ -112,8 +130,8 @@ describe('Hot Seats presentation rules', () => {
     ).toBe('fade');
 
     let finalSeat = begin(GARDEN_PREFLOP_STORY);
-    GARDEN_PREFLOP_STORY.seats.forEach((seat, index) => {
-      finalSeat = decide(openSeat(GARDEN_PREFLOP_STORY, finalSeat), seat.scriptedAction);
+    GARDEN_PREFLOP_STORY.seats.forEach((_seat, index) => {
+      finalSeat = playSeat(GARDEN_PREFLOP_STORY, finalSeat);
       if (index < 3) finalSeat = cameraLanded(finalSeat);
     });
     expect(finalSeat.phase).toBe('explaining');
@@ -135,7 +153,7 @@ describe('Hot Seats presentation rules', () => {
   });
 
   it('explains only the seats already played, and every seat after a clear', () => {
-    const firstMiss = buildHotSeatFeedback(decide(openSeat(GARDEN_PREFLOP_STORY), 'raise'));
+    const firstMiss = buildHotSeatFeedback(decide(openSeat(GARDEN_PREFLOP_STORY), 'raise', 6));
     expect(firstMiss.rows).toHaveLength(1);
     expect(firstMiss.rows[0]).toMatchObject({ missed: true, chosenAction: 'Raise' });
     expect(firstMiss.copy.outcome).toBe('incorrect');
@@ -153,8 +171,8 @@ describe('Hot Seats presentation rules', () => {
     ]);
 
     let cleared = begin(CASINO_FLOP_STORY);
-    CASINO_FLOP_STORY.seats.forEach((seat, index) => {
-      cleared = decide(openSeat(CASINO_FLOP_STORY, cleared), seat.scriptedAction);
+    CASINO_FLOP_STORY.seats.forEach((_seat, index) => {
+      cleared = playSeat(CASINO_FLOP_STORY, cleared);
       if (index < 3) cleared = cameraLanded(cleared);
     });
     const win = buildHotSeatFeedback(cleared);

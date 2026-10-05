@@ -81,7 +81,7 @@ describe('garden seat-swap video cue', () => {
 
     let state = begin(CASINO_FLOP_STORY);
     CASINO_FLOP_STORY.seats.forEach((seat, index) => {
-      state = decide(openSeat(CASINO_FLOP_STORY, state), seat.scriptedAction);
+      state = decide(openSeat(CASINO_FLOP_STORY, state), seat.scriptedAction, seat.raiseSize);
       if (index < 3) state = cameraLanded(state);
     });
     expect(state.phase).toBe('explaining');

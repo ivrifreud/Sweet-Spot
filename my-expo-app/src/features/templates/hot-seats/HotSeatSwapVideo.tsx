@@ -26,6 +26,7 @@ export type HotSeatSwapVideoProps = {
   onCovered: () => void;
   onComplete: () => void;
   onUnavailable: () => void;
+  onProgress?: (sourceTime: number) => void;
 };
 
 export function HotSeatSwapVideo({
@@ -36,6 +37,7 @@ export function HotSeatSwapVideo({
   onCovered,
   onComplete,
   onUnavailable,
+  onProgress,
 }: HotSeatSwapVideoProps) {
   const opacity = useSharedValue(0);
   const generationRef = useRef(generation);
@@ -54,13 +56,15 @@ export function HotSeatSwapVideo({
   const onCoveredRef = useRef(onCovered);
   const onCompleteRef = useRef(onComplete);
   const onUnavailableRef = useRef(onUnavailable);
+  const onProgressRef = useRef(onProgress);
 
   useEffect(() => {
     onCoveredRef.current = onCovered;
     onCompleteRef.current = onComplete;
     onUnavailableRef.current = onUnavailable;
+    onProgressRef.current = onProgress;
     generationRef.current = generation;
-  }, [generation, onComplete, onCovered, onUnavailable]);
+  }, [generation, onComplete, onCovered, onProgress, onUnavailable]);
 
   const player = useVideoPlayer(GARDEN_SWAP_VIDEO, (next) => {
     next.loop = false;
@@ -201,6 +205,7 @@ export function HotSeatSwapVideo({
     const session = sessionRef.current;
     if (!session || completedRef.current || generationRef.current !== session) return;
     playSwapSounds(currentTime);
+    onProgressRef.current?.(currentTime);
     const cue = swapCueAt(currentTime);
     if (cue.showNextHand && !coveredRef.current) {
       coveredRef.current = true;
@@ -281,7 +286,7 @@ export function HotSeatSwapVideo({
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no"
-      style={[StyleSheet.absoluteFill, veil]}>
+      style={[StyleSheet.absoluteFill, { zIndex: 20 }, veil]}>
       <VideoView
         player={player}
         nativeControls={false}
