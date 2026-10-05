@@ -306,6 +306,8 @@ The retired teal/gold photoreal 3D chip is no longer in use.
 
 ## 9. Typography
 
+Chewy and Boogaloo are the main fonts for designing Sweet Spot. Chewy is the display face for short labels and CTAs. Boogaloo is the reading face for lesson cards, tutorial writing, and the settings label. Ordinary paragraphs stay a neutral humanist sans.
+
 ### Display
 
 - Use Chewy for short labels and CTAs. It is the hand-drawn cartoon face.
@@ -317,8 +319,8 @@ The retired teal/gold photoreal 3D chip is no longer in use.
 
 - UI text must remain highly readable.
 - Use Chewy only for short labels and CTAs.
-- Use Boogaloo for the writing on explanation cards and for tutorial instructions.
-- Use a neutral humanist sans for settings and other paragraphs.
+- Use Boogaloo for the writing on explanation cards, tutorial instructions, and the settings label in the track bar (SFX / MUTE).
+- Use a neutral humanist sans for other paragraphs.
 
 ### Copy treatment
 

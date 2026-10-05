@@ -54,9 +54,10 @@ const display = useDisplayFont();
 
 - Display type: tight `letterSpacing` (about 0.3–0.6), gold or cream face, at most one
   offset shadow. Never stack outline, glow, gradient, and bevel on one label.
-- Explanation cards and tutorial instructions use Boogaloo through `useBoogalooFont`.
-- Settings and other paragraphs use the default humanist sans. Do not force Chewy
-  or Boogaloo into those paragraphs.
+- Explanation cards, tutorial instructions, and the track-bar settings label
+  (SFX / MUTE) use Boogaloo through `useBoogalooFont`.
+- Other paragraphs use the default humanist sans. Do not force Chewy or Boogaloo
+  into those paragraphs.
 - Sentence case for instructions. Uppercase only for title-card CTAs such as
   `PRESS TO PLAY`.
 

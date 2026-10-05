@@ -12,7 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { isMuted, setMuted } from '../../lib/audio';
 import { artStyle } from '../../theme/artStyle';
-import { useDisplayFont } from '../../theme/displayFont';
+import { useBoogalooFont, useDisplayFont } from '../../theme/displayFont';
 import { LifeChips } from './LifeChips';
 
 const AVATAR = require('../../assets/brand/artstyle/characters-1930s-canonical-hero.png');
@@ -41,6 +41,7 @@ export function TrackHud({
   /** True phone widths — keep the whole strip on one row. */
   const compact = width < 430;
   const display = useDisplayFont();
+  const boogaloo = useBoogalooFont();
   const avatar = compact ? 34 : 44;
   const chipSize = compact ? 18 : 26;
   const hit = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;
@@ -165,7 +166,7 @@ export function TrackHud({
         ]}
         accessibilityRole="button"
         accessibilityLabel={muted ? 'Unmute sound' : 'Mute sound'}>
-        <Text style={[styles.capsuleValue, compact && styles.capsuleValueCompact, display]}>
+        <Text style={[styles.capsuleValue, compact && styles.capsuleValueCompact, boogaloo]}>
           {muted ? 'MUTE' : 'SFX'}
         </Text>
       </Pressable>
