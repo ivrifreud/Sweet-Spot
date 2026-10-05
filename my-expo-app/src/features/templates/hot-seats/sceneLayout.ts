@@ -3,8 +3,8 @@ import type { HotSeatSkin } from './types';
 /** Painted tables are 571×1024. Both worlds share this blocking. */
 export const TABLE_ART_SIZE = { width: 571, height: 1024 };
 
-/** Trimmed `chip-stack.png` is 640×660. Player stacks keep this pile. */
-const STACK_ASPECT = 660 / 640;
+/** Trimmed stack paintings are close to square. Frames use the tallest pile. */
+const STACK_ASPECT = 773 / 719;
 /** Cropped `family-pot.png` is 1024×683. The shared pot uses this scatter. */
 const FAMILY_POT_ASPECT = 683 / 1024;
 const CARD_ASPECT = 190 / 140;
@@ -15,14 +15,16 @@ const MAX_CARD_WIDTH = 80;
 const MIN_CARD_WIDTH = 48;
 const POT_PREFERRED_WIDTH = 100;
 const POT_MIN_WIDTH = 72;
-const HERO_STACK_WIDTH = 44;
+const HERO_STACK_WIDTH = 48;
 const OPPONENT_STACK_WIDTH = 34;
 
-/** Roomier rhythm for modern phones. Compact keeps the same bands on a short screen. */
-const RHYTHMS = [
-  { gap: 8, positionHeight: 36, storyHeight: 80 },
-  { gap: 8, positionHeight: 36, storyHeight: 64 },
-] as const;
+const TAG_HEIGHT = 48;
+const TAG_WIDTH = 118;
+const TAG_GAP = 10;
+const ACTION_SIZE_ROW = 36;
+const ACTION_ROW = 48;
+const ACTION_GAP = 8;
+export const ACTION_BAND_HEIGHT = ACTION_SIZE_ROW + ACTION_GAP + ACTION_ROW;
 
 /** Opponent stacks end on the felt, just under the painted hands. */
 const OPPONENT_BOTTOM = 0.392;
@@ -51,10 +53,21 @@ const HOLE_SLOTS = [
  * The far stack stays in front of the player across the table.
  */
 const OPPONENT_ANCHORS = {
-  left: 0.38,
+  left: 0.36,
   far: 0.5,
-  right: 0.67,
+  right: 0.66,
 } as const;
+
+/** Crown tops of the three bowlers, plus a near-rim rest for the swapping hero tag. */
+const HAT_CROWNS = {
+  left: { cx: 100, cy: 186 },
+  far: { cx: 286, cy: 178 },
+  right: { cx: 469, cy: 186 },
+  hero: { cx: 286, cy: 640 },
+} as const;
+
+export type HatSlot = 'hero' | 'left' | 'far' | 'right';
+const HAT_SLOTS: HatSlot[] = ['hero', 'left', 'far', 'right'];
 
 export type SceneFrame = {
   x: number;
@@ -83,8 +96,9 @@ export type HotSeatSceneLayout = {
   art: SceneFrame;
   board: SceneFrame & { cardWidth: number; gap: number };
   pot: PotFrame;
-  position: SceneFrame;
-  story: SceneFrame;
+  arrival: SceneFrame;
+  actions: SceneFrame;
+  hats: Record<HatSlot, SceneFrame>;
   heroCards: SceneFrame;
   holeSlots: HoleSlotFrame[];
   heroStack: StackFrame;
@@ -121,6 +135,27 @@ export function opponentSeatIndexes(activeIndex: number) {
   };
 }
 
+export function lerpFrame(from: SceneFrame, to: SceneFrame, progress: number): SceneFrame {
+  const amount = Math.min(1, Math.max(0, progress));
+  return {
+    x: from.x + (to.x - from.x) * amount,
+    y: from.y + (to.y - from.y) * amount,
+    width: from.width + (to.width - from.width) * amount,
+    height: from.height + (to.height - from.height) * amount,
+  };
+}
+
+export function tagHatForSeat(
+  hats: Record<HatSlot, SceneFrame>,
+  seatIndex: number,
+  activeIndex: number,
+  progress: number
+): SceneFrame {
+  const fromSlot = ((seatIndex - activeIndex) % 4 + 4) % 4;
+  const toSlot = (fromSlot + 3) % 4;
+  return lerpFrame(hats[HAT_SLOTS[fromSlot]!], hats[HAT_SLOTS[toSlot]!], progress);
+}
+
 export function layoutHotSeatScene({
   width,
   height,
@@ -129,7 +164,6 @@ export function layoutHotSeatScene({
   communityCount = 0,
 }: LayoutInput): HotSeatSceneLayout {
   const art = coverTableArt(width, height);
-  const rhythm = height >= 800 ? RHYTHMS[0] : RHYTHMS[1];
   const minGap = height >= 800 ? 8 : 4;
   const holeSlots = HOLE_SLOTS.map((slot) => placeHole(art, slot));
   const heroCards = unionFrames(holeSlots);
@@ -138,37 +172,39 @@ export function layoutHotSeatScene({
     width,
     communityCount,
     heroCards.y,
-    rhythm,
     minGap
   );
-  const readoutX = 12 + HERO_STACK_WIDTH + 12;
-  const readoutWidth = Math.min(width - readoutX - 16, 300);
   const clusterBottom = Math.max(board.y + board.height, pot.y + pot.height);
-  const position = {
-    x: readoutX,
-    y: clusterBottom + rhythm.gap,
-    width: readoutWidth,
-    height: rhythm.positionHeight,
+  const side = 16;
+  const actions = {
+    x: side,
+    y: heroCards.y - ACTION_BAND_HEIGHT - minGap,
+    width: width - side * 2,
+    height: ACTION_BAND_HEIGHT,
   };
-  const story = {
-    x: readoutX,
-    y: position.y + position.height + rhythm.gap,
-    width: readoutWidth,
-    height: rhythm.storyHeight,
-  };
-  const heroStack = placeHeroStack(art, height, bottomInset, clusterBottom + minGap, heroCards.y);
   const stackBottom = art.y + art.height * OPPONENT_BOTTOM;
   const opponents = {
     left: placeOpponent(art, OPPONENT_ANCHORS.left, stackBottom),
     far: placeOpponent(art, OPPONENT_ANCHORS.far, stackBottom),
     right: placeOpponent(art, OPPONENT_ANCHORS.right, stackBottom),
   };
+  const heroStack = placeHeroStack(art, actions.y, [board, pot, actions, heroCards, opponents.left, opponents.far, opponents.right]);
+  const arrivalWidth = Math.min(342, width - 32);
+  const arrivalRoom = heroCards.y - (clusterBottom + minGap);
+  const arrivalHeight = Math.min(148, Math.max(44, arrivalRoom));
+  const arrival = {
+    x: (width - arrivalWidth) / 2,
+    y: clusterBottom + minGap,
+    width: arrivalWidth,
+    height: arrivalHeight,
+  };
+  const hats = placeSeatTags(art, width, topInset);
 
   clampBelow(opponents.left, topInset);
   clampBelow(opponents.far, topInset);
   clampBelow(opponents.right, topInset);
 
-  return { art, board, pot, position, story, heroCards, holeSlots, heroStack, opponents };
+  return { art, board, pot, arrival, actions, hats, heroCards, holeSlots, heroStack, opponents };
 }
 
 function placeCluster(
@@ -176,7 +212,6 @@ function placeCluster(
   screenWidth: number,
   communityCount: number,
   heroTop: number,
-  rhythm: (typeof RHYTHMS)[number],
   minGap: number
 ) {
   const centerY = art.y + art.height * CLUSTER_CENTER_Y;
@@ -205,9 +240,8 @@ function placeCluster(
   }
 
   let { cardWidth, potWidth } = fitFamilyRow(screenWidth, communityCount);
-  const plaqueBlock =
-    rhythm.gap + rhythm.positionHeight + rhythm.gap + rhythm.storyHeight + minGap;
-  const maxHalf = Math.max(0, heroTop - plaqueBlock - centerY);
+  const actionBlock = ACTION_BAND_HEIGHT + minGap;
+  const maxHalf = Math.max(0, heroTop - actionBlock - centerY);
   cardWidth = Math.min(cardWidth, (maxHalf * 2) / CARD_ASPECT);
   potWidth = Math.min(potWidth, (maxHalf * 2) / FAMILY_POT_ASPECT);
 
@@ -282,26 +316,23 @@ function unionFrames(frames: SceneFrame[]): SceneFrame {
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
-function placeHeroStack(
-  art: SceneFrame,
-  screenHeight: number,
-  bottomInset: number,
-  minTop: number,
-  heroTop: number
-): StackFrame {
+function placeHeroStack(art: SceneFrame, actionTop: number, obstacles: SceneFrame[]): StackFrame {
   const width = HERO_STACK_WIDTH;
   const imageHeight = width * STACK_ASPECT;
-  const feltBottom = art.y + art.height * 0.58;
-  const maxBottom = Math.min(screenHeight - bottomInset - 8, heroTop);
-  let bottom = Math.min(feltBottom, maxBottom);
-  if (bottom - imageHeight < minTop) bottom = Math.min(maxBottom, minTop + imageHeight);
-  return {
-    x: 12,
-    y: bottom - imageHeight,
-    width,
-    height: imageHeight,
-    imageHeight,
-  };
+  const blocked = obstacles.filter((frame) => frame.width > 8 && frame.height > 8);
+  let chosen = { x: 12, y: actionTop - imageHeight - 8 };
+  for (let y = actionTop - imageHeight - 8; y > art.y + 48; y -= 14) {
+    const candidate = { x: 12, y, width, height: imageHeight };
+    if (blocked.every((frame) => !framesOverlap(candidate, frame))) {
+      chosen = { x: candidate.x, y: candidate.y };
+      break;
+    }
+  }
+  return { ...chosen, width, height: imageHeight, imageHeight };
+}
+
+function framesOverlap(a: SceneFrame, b: SceneFrame) {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
 function placeOpponent(art: SceneFrame, anchorX: number, pileBottom: number): StackFrame {
@@ -313,6 +344,38 @@ function placeOpponent(art: SceneFrame, anchorX: number, pileBottom: number): St
     width: OPPONENT_STACK_WIDTH,
     height: imageHeight,
     imageHeight,
+  };
+}
+
+function placeSeatTags(art: SceneFrame, screenWidth: number, topInset: number): Record<HatSlot, SceneFrame> {
+  const scale = art.width / TABLE_ART_SIZE.width;
+  const center = (crown: { cx: number; cy: number }) => ({
+    x: art.x + crown.cx * scale,
+    y: art.y + crown.cy * scale,
+  });
+  const left = center(HAT_CROWNS.left);
+  const far = center(HAT_CROWNS.far);
+  const right = center(HAT_CROWNS.right);
+  const hero = center(HAT_CROWNS.hero);
+  const edge = 8;
+  const splitLeft = (left.x + far.x) / 2;
+  const splitRight = (far.x + right.x) / 2;
+  const plate = (crownX: number, crownY: number, start: number, end: number): SceneFrame => {
+    const room = Math.max(72, end - start);
+    const width = Math.min(TAG_WIDTH, room);
+    const x = Math.min(Math.max(start, crownX - width / 2), end - width);
+    return {
+      x,
+      y: Math.max(topInset + 4, crownY - TAG_HEIGHT),
+      width,
+      height: TAG_HEIGHT,
+    };
+  };
+  return {
+    left: plate(left.x, left.y, edge, splitLeft - TAG_GAP / 2),
+    far: plate(far.x, far.y, splitLeft + TAG_GAP / 2, splitRight - TAG_GAP / 2),
+    right: plate(right.x, right.y, splitRight + TAG_GAP / 2, screenWidth - edge),
+    hero: plate(hero.x, hero.y, screenWidth / 2 - 70, screenWidth / 2 + 70),
   };
 }
 

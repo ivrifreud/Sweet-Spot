@@ -151,18 +151,6 @@ export function DecisionFeedbackOverlay({
     paddingTop: insets.top + 48,
     paddingBottom: Math.max(insets.bottom, 16) + 8,
   };
-  const handleContinue = () => {
-    if (
-      !continueAfterExplanationTouch({
-        overflows: true,
-        dragged: explanationDragged.current,
-      })
-    ) {
-      explanationDragged.current = false;
-      return;
-    }
-    onContinue();
-  };
   const continueInbox = (
     <ContinueInbox
       reducedMotion={reducedMotion}

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   cancelAnimation,
   runOnJS,
@@ -14,16 +13,19 @@ import * as Haptics from 'expo-haptics';
 
 import { playSfx } from '../../../../lib/audio';
 import { artStyle } from '../../../../theme/artStyle';
-import { labelForAction } from '../../decision-feedback/copy';
 import { ChipToss, type ChipFlight } from '../peek-and-pitch/components/ChipToss';
 import type { SpotDecision } from '../peek-and-pitch/types';
+import { ActionBar } from './ActionBar';
 import { ArrivalCard } from './ArrivalCard';
-import { buildArrivalCopy, positionName } from './arrivalCopy';
+import { buildArrivalCopy } from './arrivalCopy';
 import { HotSeatScene, type OpponentReadout } from './HotSeatScene';
 import { HotSeatSwapVideo } from './HotSeatSwapVideo';
 import { swapRoute } from './hotSeatSwapVideoPlan';
-import { layoutHotSeatScene, opponentSeatIndexes, type SceneFrame } from './sceneLayout';
+import { raiseSizePair } from './raiseSizes';
+import { layoutHotSeatScene, opponentSeatIndexes, tagHatForSeat } from './sceneLayout';
+import { PlayerSeatTag } from './PlayerSeatTag';
 import { REDUCED_FADE_MS, motionPlan } from './seatRail';
+import { seatTagLines } from './seatTag';
 import {
   begin,
   cameraLanded,
@@ -55,7 +57,6 @@ export function HotSeatsTemplate({
   const holeFade = useSharedValue(1);
   const fallbackToken = useRef(0);
   const beginFallbackRef = useRef<() => void>(() => {});
-  const [stackPressed, setStackPressed] = useState(false);
   const [handAhead, setHandAhead] = useState(false);
   const [presentation, setPresentation] = useState<'idle' | 'video' | 'fallback'>('idle');
 
@@ -77,13 +78,15 @@ export function HotSeatsTemplate({
   const around = opponentSeatIndexes(play.seatIndex);
   const opponents: OpponentReadout[] = (['left', 'far', 'right'] as const).map((slot) => {
     const body = story.seats[around[slot]]!;
-    return {
-      slot,
-      position: positionName(body.position),
-      stack: body.stack,
-      action: play.decisions[around[slot]] ?? null,
-    };
+    return { slot, stack: body.stack };
   });
+  const sizes = raiseSizePair({
+    storyId: story.id,
+    seatIndex: play.seatIndex,
+    scriptedAction: seat.scriptedAction,
+    raiseSize: seat.raiseSize,
+    street: story.street,
+  }).sizes;
 
   useEffect(() => {
     reported.current = false;
@@ -166,10 +169,13 @@ export function HotSeatsTemplate({
     };
   }, [holeFade, play.phase, play.seatIndex, reduced, story.skin]);
 
-  function choose(action: SpotDecision) {
+  function choose(action: SpotDecision, raiseSize: number | null = null) {
     if (!unlocked || !seat.legalActions.includes(action)) return;
     playSfx(action);
-    playSfx(action === seat.scriptedAction ? 'correct' : 'incorrect');
+    const correct =
+      action === seat.scriptedAction &&
+      (action !== 'raise' || raiseSize === seat.raiseSize);
+    playSfx(correct ? 'correct' : 'incorrect');
     if (action === 'raise') {
       setFlights([
         {
@@ -191,8 +197,10 @@ export function HotSeatsTemplate({
         },
       ]);
     }
-    setPlay(decide(play, action));
+    setPlay(decide(play, action, raiseSize));
   }
+
+  const videoPlaying = presentation === 'video' && play.phase === 'swapping';
 
   return (
     <View style={styles.root}>
@@ -202,16 +210,13 @@ export function HotSeatsTemplate({
         communityCards={[...story.communityCards]}
         holeCards={[...hand.holeCards]}
         pot={story.pot}
-        position={positionName(seat.position)}
-        priorAction={seat.priorAction}
         heroStack={seat.stack}
-        heroEnabled={unlocked}
-        heroPressed={stackPressed}
         opponents={opponents}
         holeFade={holeFade}
+        showHoleCards={!videoPlaying}
       />
       <HotSeatSwapVideo
-        active={presentation === 'video' && play.phase === 'swapping'}
+        active={videoPlaying}
         generation={`${story.id}-${play.seatIndex}`}
         skin={story.skin}
         reducedMotion={Boolean(reduced)}
@@ -219,19 +224,23 @@ export function HotSeatsTemplate({
         onComplete={completeSwap}
         onUnavailable={() => beginFallbackRef.current()}
       />
-      <GestureLayer
-        legalActions={seat.legalActions}
-        unlocked={unlocked}
-        cards={scene.heroCards}
-        stack={scene.heroStack}
-        felt={scene.board}
-        onStackActive={setStackPressed}
-        onAction={choose}
-      />
+      {videoPlaying ? null : (
+        <SeatTagLayer story={story} play={play} hats={scene.hats} />
+      )}
+      {unlocked ? (
+        <ActionBar
+          frame={scene.actions}
+          legalActions={seat.legalActions}
+          sizes={sizes}
+          unlocked={unlocked}
+          onAction={choose}
+        />
+      ) : null}
       <ChipToss flights={flights} onComplete={() => setFlights([])} />
       {play.phase === 'card' ? (
         <ArrivalCard
           copy={buildArrivalCopy(seat)}
+          frame={scene.arrival}
           onCleared={() => {
             playSfx('arrive');
             Haptics.selectionAsync().catch(() => {});
@@ -243,104 +252,42 @@ export function HotSeatsTemplate({
   );
 }
 
-function GestureLayer({
-  legalActions,
-  unlocked,
-  cards,
-  stack,
-  felt,
-  onStackActive,
-  onAction,
+function SeatTagLayer({
+  story,
+  play,
+  hats,
 }: {
-  legalActions: SpotDecision[];
-  unlocked: boolean;
-  cards: SceneFrame;
-  stack: SceneFrame;
-  felt: SceneFrame;
-  onStackActive: (active: boolean) => void;
-  onAction: (action: SpotDecision) => void;
+  story: HotSeatStory;
+  play: HotSeatPlay;
+  hats: ReturnType<typeof layoutHotSeatScene>['hats'];
 }) {
-  const can = (action: SpotDecision) => unlocked && legalActions.includes(action);
-  const fold = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(can('fold'))
-        .activeOffsetY(-24)
-        .onEnd((event) => {
-          if (event.translationY < -48) runOnJS(onAction)('fold');
-        }),
-    [legalActions, onAction, unlocked]
-  );
-  const check = useMemo(
-    () =>
-      Gesture.Tap()
-        .enabled(can('check'))
-        .numberOfTaps(2)
-        .onEnd(() => runOnJS(onAction)('check')),
-    [legalActions, onAction, unlocked]
-  );
-  const call = useMemo(
-    () =>
-      Gesture.Tap()
-        .enabled(can('call'))
-        .onBegin(() => {
-          runOnJS(onStackActive)(true);
-        })
-        .onFinalize(() => {
-          runOnJS(onStackActive)(false);
-        })
-        .onEnd(() => runOnJS(onAction)('call')),
-    [legalActions, onAction, onStackActive, unlocked]
-  );
-  const raise = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(can('raise'))
-        .activeOffsetY(-20)
-        .onBegin(() => {
-          runOnJS(onStackActive)(true);
-        })
-        .onFinalize(() => {
-          runOnJS(onStackActive)(false);
-        })
-        .onEnd((event) => {
-          if (event.translationY < -36) runOnJS(onAction)('raise');
-        }),
-    [legalActions, onAction, onStackActive, unlocked]
-  );
-
   return (
-    <View
-      accessibilityActions={legalActions.map((action) => ({
-        name: action,
-        label: labelForAction(action),
-      }))}
-      onAccessibilityAction={(event) => {
-        const action = event.nativeEvent.actionName as SpotDecision;
-        if (can(action)) onAction(action);
-      }}
-      style={StyleSheet.absoluteFill}>
-      <GestureDetector gesture={fold}>
-        <View accessibilityLabel="Your hole cards" style={hitStyle(cards)} />
-      </GestureDetector>
-      <GestureDetector gesture={check}>
-        <View accessibilityLabel="Community cards" style={hitStyle(felt)} />
-      </GestureDetector>
-      <GestureDetector gesture={Gesture.Exclusive(raise, call)}>
-        <View accessibilityLabel="Your chip stack" style={hitStyle(stack)} />
-      </GestureDetector>
-    </View>
+    <>
+      {story.seats.map((body, seatIndex) => {
+        if (seatIndex === play.seatIndex) return null;
+        const facingRaise = story.seats.slice(0, seatIndex).some((prior) => prior.scriptedAction === 'raise');
+        const copy = seatTagLines({
+          seatIndex,
+          position: body.position,
+          stack: body.stack,
+          action: play.decisions[seatIndex] ?? null,
+          raiseSize: play.chosenSizes[seatIndex] ?? body.raiseSize,
+          facingRaise,
+          street: story.street,
+        });
+        const frame = tagHatForSeat(hats, seatIndex, play.seatIndex, 0);
+        return (
+          <PlayerSeatTag
+            key={seatIndex}
+            frame={frame}
+            title={copy.title}
+            actionLabel={copy.actionLabel}
+            stackLabel={copy.stackLabel}
+          />
+        );
+      })}
+    </>
   );
-}
-
-function hitStyle(frame: SceneFrame) {
-  return {
-    position: 'absolute' as const,
-    left: frame.x,
-    top: frame.y,
-    width: Math.max(frame.width, 44),
-    height: Math.max(frame.height, 44),
-  };
 }
 
 const styles = StyleSheet.create({
