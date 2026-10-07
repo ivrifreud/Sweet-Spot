@@ -19,7 +19,8 @@ export function dialHandTilt(rotationDeg: number): number {
 const ASPECT = 760 / 900;
 
 /**
- * Legacy wide-right pose (web desktop). Prefer {@link dialHandPhonePose} on phone.
+ * Wide pinch pose drawn by the dial. Size and offset are relative to the
+ * dial's top-left. The sleeve is meant to leave the bottom of the screen.
  */
 export function dialHandPose(rotationDeg: number, dialSize: number) {
   'worklet';
@@ -153,8 +154,8 @@ export function dialHandRotatedBounds(
 }
 
 /**
- * Phone layout: smaller glove rising from the bottom-center. Thumb plants on
- * the right rim; the cuff drops off-screen between the wheel and Lock In.
+ * Smaller bottom-center glove. Layout tests still cover it. The dial draws
+ * {@link dialHandPose}.
  */
 export function dialHandPhonePose(input: {
   dialSize: number;

@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../theme/displayFont';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -33,8 +33,7 @@ type Props = {
  */
 export function LevelRevealScreen({ reveal, onContinue, onSignOut, error }: Props) {
   const insets = useSafeAreaInsets();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   const cardScale = useSharedValue(0.86);
   const cardOpacity = useSharedValue(0);
@@ -184,7 +183,7 @@ const styles = StyleSheet.create({
   kicker: {
     color: artStyle.colors.goldBright,
     fontSize: 16,
-    letterSpacing: 3.5,
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
   kickerNote: {
@@ -197,13 +196,14 @@ const styles = StyleSheet.create({
   levelNumber: {
     color: artStyle.colors.cream,
     fontSize: 22,
-    letterSpacing: 4,
+    letterSpacing: 0.5,
     marginTop: 14,
   },
   levelName: {
     color: artStyle.colors.goldBright,
     fontSize: 58,
-    letterSpacing: 2,
+    lineHeight: 72,
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginTop: 2,
     textShadowColor: 'rgba(0,0,0,0.75)',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   ctaText: {
     color: artStyle.colors.projectorBlack,
     fontSize: 22,
-    letterSpacing: 2.5,
+    letterSpacing: 0.5,
   },
   signOut: {
     minHeight: 44,

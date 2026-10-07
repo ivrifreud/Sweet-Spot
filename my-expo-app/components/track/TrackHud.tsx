@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -40,8 +40,7 @@ export function TrackHud({
   const { width } = useWindowDimensions();
   /** True phone widths — keep the whole strip on one row. */
   const compact = width < 430;
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const avatar = compact ? 34 : 44;
   const chipSize = compact ? 18 : 26;
   const hit = Platform.select({ ios: 44, android: 48, default: 44 }) ?? 44;

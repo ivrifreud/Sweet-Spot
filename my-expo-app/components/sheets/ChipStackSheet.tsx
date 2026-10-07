@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatRegenCountdown } from '../../lib/chip-stack/model';
@@ -25,8 +25,7 @@ export function ChipStackSheet({
   now = new Date(),
   onClose,
 }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const countdown =
     chips < 3 && regenAt ? formatRegenCountdown(regenAt, now) : null;
 
@@ -87,7 +86,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: artStyle.colors.projectorBlack,
     fontSize: 18,
-    letterSpacing: 1.4,
+    letterSpacing: 0.5,
   },
   pressed: {
     opacity: 0.86,

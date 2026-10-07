@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../../../theme/displayFont';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -47,13 +47,12 @@ type ActionBarProps = {
 };
 
 export function ActionBar({ frame, legalActions, sizes, unlocked, onAction }: ActionBarProps) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
   const [sizesOpen, setSizesOpen] = useState(false);
   const callOrCheck: SpotDecision = legalActions.includes('check') ? 'check' : 'call';
   const canRaise = unlocked && legalActions.includes('raise');
   const canFold = unlocked && legalActions.includes('fold');
   const canMatch = unlocked && legalActions.includes(callOrCheck);
-  const display = fontsLoaded ? styles.display : null;
 
   function choose(action: SpotDecision, raiseSize?: number | null) {
     setSizesOpen(false);
@@ -222,12 +221,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 20,
-    letterSpacing: 0.8,
+    lineHeight: 26,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
-    fontWeight: '800',
-  },
-  display: {
-    fontFamily: 'BebasNeue_400Regular',
-    fontWeight: '400',
   },
 });

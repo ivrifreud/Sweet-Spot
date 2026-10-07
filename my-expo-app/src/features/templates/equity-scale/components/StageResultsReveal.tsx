@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useBoogalooFont, useDisplayFont } from '../../../../../theme/displayFont';
 import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Image,
@@ -88,7 +88,8 @@ export function StageResultsReveal({ grade, lesson = null, onComplete }: Props) 
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - press.value * 0.04 }],
   }));
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
+  const reading = useBoogalooFont();
   const [clipDown, setClipDown] = useState(false);
   const clipKind = resultClipKind(grade);
   const showClip = clipKind !== null && !clipDown;
@@ -132,7 +133,6 @@ export function StageResultsReveal({ grade, lesson = null, onComplete }: Props) 
           delay={index * REVEAL_STAMP_MS}
           reducedMotion={Boolean(reducedMotion)}
           size={showClip ? frame.stampSize : 104}
-          fontsLoaded={fontsLoaded}
           cue={index === 2 ? stampFinaleSfx(grade) : null}
         />
       ))}
@@ -198,7 +198,7 @@ export function StageResultsReveal({ grade, lesson = null, onComplete }: Props) 
                   maxWidth: frame.contentWidth,
                 },
               ]}>
-              <Text pointerEvents="none" style={styles.kicker}>
+              <Text pointerEvents="none" style={[styles.kicker, reading]}>
                 {lesson.kicker}
               </Text>
               <ScrollView
@@ -210,24 +210,15 @@ export function StageResultsReveal({ grade, lesson = null, onComplete }: Props) 
                 onScrollBeginDrag={() => {
                   lessonDragged.current = true;
                 }}>
-                <Text style={styles.lesson}>{lesson.explanation}</Text>
+                <Text style={[styles.lesson, reading]}>{lesson.explanation}</Text>
               </ScrollView>
             </View>
           ) : null}
           <View pointerEvents="none" style={[styles.continueBar, { maxWidth: frame.contentWidth }]}>
-            <Text
-              style={[
-                styles.tapCue,
-                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
-              ]}>
-              TAP ANYWHERE
-            </Text>
+            <Text style={[styles.tapCue, display]}>TAP ANYWHERE</Text>
             <Text
               numberOfLines={2}
-              style={[
-                styles.dealCue,
-                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
-              ]}>
+              style={[styles.dealCue, display]}>
               {lesson?.continueLabel ?? 'Deal me the next hand'}
             </Text>
           </View>
@@ -249,7 +240,6 @@ function Stamp({
   delay,
   reducedMotion,
   size,
-  fontsLoaded,
   cue,
 }: {
   label: string;
@@ -257,9 +247,9 @@ function Stamp({
   delay: number;
   reducedMotion: boolean;
   size: number;
-  fontsLoaded: boolean;
   cue: 'correctCasinoCoins' | null;
 }) {
+  const display = useDisplayFont();
   const progress = useSharedValue(reducedMotion ? 1 : 0);
 
   useEffect(() => {
@@ -303,7 +293,7 @@ function Stamp({
         style={[
           styles.stampLabel,
           { fontSize: Math.max(12, Math.round(size * 0.16)) },
-          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+          display,
         ]}>
         {label}
       </Text>
@@ -358,8 +348,8 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 24,
     marginBottom: 6,
   },
   lessonScroll: {
@@ -370,9 +360,8 @@ const styles = StyleSheet.create({
   },
   lesson: {
     color: artStyle.colors.tobacco,
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '600',
+    fontSize: 16,
+    lineHeight: 22,
   },
   continueBar: {
     width: '100%',
@@ -389,7 +378,7 @@ const styles = StyleSheet.create({
   tapCue: {
     color: artStyle.colors.projectorBlack,
     fontSize: 16,
-    letterSpacing: 2,
+    letterSpacing: 0.4,
     textAlign: 'center',
   },
   dealCue: {
@@ -409,12 +398,13 @@ const styles = StyleSheet.create({
   },
   stampLabel: {
     position: 'absolute',
-    top: 10,
+    top: 6,
+    lineHeight: 20,
     left: 8,
     right: 8,
     color: artStyle.colors.cream,
     fontSize: 16,
-    letterSpacing: 1.4,
+    letterSpacing: 0.4,
     textAlign: 'center',
     textShadowColor: artStyle.colors.projectorBlack,
     textShadowOffset: { width: 0, height: 1 },

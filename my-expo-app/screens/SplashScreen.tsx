@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../theme/displayFont';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,7 +11,7 @@ type Props = {
 
 export function SplashScreen({ onPressStart }: Props) {
   const insets = useSafeAreaInsets();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
 
   return (
     <Pressable
@@ -37,7 +37,7 @@ export function SplashScreen({ onPressStart }: Props) {
             <Text
               style={[
                 styles.cta,
-                fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+                display,
                 pressed ? styles.ctaPressed : null,
               ]}>
               {pressed ? 'LETS GO' : 'PRESS TO PLAY'}
@@ -66,7 +66,8 @@ const styles = StyleSheet.create({
   cta: {
     color: brand.goldBright,
     fontSize: 34,
-    letterSpacing: 3,
+    lineHeight: 42,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 0, height: 2 },

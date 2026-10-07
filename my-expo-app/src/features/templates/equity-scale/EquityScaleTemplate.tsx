@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated SharedValues are mutable animation state. */
 /* eslint-disable react-hooks/set-state-in-effect -- Props drive the template state machine and reset cycle. */
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../../../theme/displayFont';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -79,8 +79,7 @@ export function EquityScaleTemplate({
 }: EquityScaleTemplateProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const [selectedOuts, setSelectedOuts] = useState(EQUITY_INITIAL_OUTS);
   const [selectedEquity, setSelectedEquity] = useState(EQUITY_INITIAL_EQUITY);
   const dialAngle = useSharedValue(
@@ -315,7 +314,6 @@ export function EquityScaleTemplate({
   const callEnabled =
     tutorialReady && stage2Live && (!showTutorial || Boolean(tutorialAllowed?.includes('call')));
   const showDialHand = !showTutorial || tutorialStep?.hand !== 'turnDial';
-  const dialColumnHalfWidth = (windowWidth - 2 * sideInset - 2 * buttonSize) / 2;
 
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Equity Scale table">
@@ -363,51 +361,31 @@ export function EquityScaleTemplate({
         </View>
       </View>
 
-      <View style={[styles.dialWrap, { bottom: actionBottom }]}>
-        {showingOuts ? (
+      {revealing ? null : (
+        <View collapsable={false} pointerEvents="box-none" style={styles.dialWrap}>
           <EstimateDial
-            key={`outs-${resetKey}-${spot.id}`}
-            value={selectedOuts}
+            key={`dial-${resetKey}-${spot.id}`}
+            value={showingOuts ? selectedOuts : selectedEquity}
             rotation={dialAngle}
-            min={EQUITY_OUTS_MIN}
-            max={EQUITY_OUTS_MAX}
-            unit={EQUITY_STRINGS.outsUnit}
-            label={EQUITY_STRINGS.outsDialLabel}
-            accessibilityLabel="Outs dial"
+            min={showingOuts ? EQUITY_OUTS_MIN : EQUITY_DIAL_MIN}
+            max={showingOuts ? EQUITY_OUTS_MAX : EQUITY_DIAL_MAX}
+            unit={showingOuts ? EQUITY_STRINGS.outsUnit : EQUITY_STRINGS.equityUnit}
+            label={showingOuts ? EQUITY_STRINGS.outsDialLabel : EQUITY_STRINGS.equityDialLabel}
+            accessibilityLabel={showingOuts ? 'Outs dial' : 'Equity dial'}
             enabled={dialEnabled}
             size={dialSize}
-            bottomClearance={actionBottom}
-            columnHalfWidth={dialColumnHalfWidth}
+            dockBottom={actionBottom}
+            frameWidth={windowWidth}
+            frameHeight={windowHeight}
             showHand={showDialHand}
-            onChange={setSelectedOuts}
+            onChange={showingOuts ? setSelectedOuts : setSelectedEquity}
             onAdjustStart={() => {}}
             onAdjustEnd={() => {
               if (tutorialAllowed?.includes('turnDial')) completeTutorialAction('turnDial');
             }}
           />
-        ) : (
-          <EstimateDial
-            key={`equity-${resetKey}-${spot.id}`}
-            value={selectedEquity}
-            rotation={dialAngle}
-            min={EQUITY_DIAL_MIN}
-            max={EQUITY_DIAL_MAX}
-            unit={EQUITY_STRINGS.equityUnit}
-            label={EQUITY_STRINGS.equityDialLabel}
-            accessibilityLabel="Equity dial"
-            enabled={dialEnabled}
-            size={dialSize}
-            bottomClearance={actionBottom}
-            columnHalfWidth={dialColumnHalfWidth}
-            showHand={showDialHand}
-            onChange={setSelectedEquity}
-            onAdjustStart={() => {}}
-            onAdjustEnd={() => {
-              if (tutorialAllowed?.includes('turnDial')) completeTutorialAction('turnDial');
-            }}
-          />
-        )}
-      </View>
+        </View>
+      )}
 
       {showingOuts ? (
         <View style={[styles.actions, { bottom: actionBottom, paddingHorizontal: sideInset }]}>
@@ -491,8 +469,8 @@ const styles = StyleSheet.create({
   streetTitle: {
     color: artStyle.colors.goldBright,
     fontSize: 34,
-    lineHeight: 36,
-    letterSpacing: 2.2,
+    lineHeight: 42,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textShadowColor: 'rgba(17,23,20,0.65)',
     textShadowOffset: { width: 0, height: 2 },
@@ -560,10 +538,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   dialWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    ...StyleSheet.absoluteFill,
     zIndex: 45,
     overflow: 'visible',
     pointerEvents: 'box-none',

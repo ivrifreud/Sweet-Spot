@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -26,8 +26,7 @@ type Props = {
 export function ParchmentSheet({ visible, title, onClose, children }: Props) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const translateY = useSharedValue(80);
   const scale = useSharedValue(0.94);
   const backdrop = useSharedValue(0);
@@ -126,7 +125,7 @@ const styles = StyleSheet.create({
   title: {
     color: artStyle.colors.projectorBlack,
     fontSize: 28,
-    letterSpacing: 1.6,
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: 12,
   },

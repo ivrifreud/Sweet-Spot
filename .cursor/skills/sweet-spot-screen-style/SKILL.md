@@ -1,6 +1,6 @@
 ---
 name: sweet-spot-screen-style
-description: Applies the Sweet Spot 1930s rubber-hose visual direction to Expo/React Native UI — artStyle color tokens, Bebas Neue display type, cartoon motion timing, and repo screen conventions. Use when building, restyling, or reviewing any screen or component under my-expo-app.
+description: Applies the Sweet Spot 1930s rubber-hose visual direction to Expo/React Native UI — artStyle color tokens, Chewy and Boogaloo design type, cartoon motion timing, and repo screen conventions. Use when building, restyling, or reviewing any screen or component under my-expo-app.
 ---
 
 # Sweet Spot screen style
@@ -43,20 +43,25 @@ Functional rules:
 
 ## Typography
 
-Bebas Neue for display and CTAs, loaded per screen:
+Chewy and Boogaloo are the design fonts. Load them from `theme/displayFont.ts`.
 
 ```tsx
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useBoogalooFont, useDisplayFont } from '../theme/displayFont';
 
-const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+const display = useDisplayFont();
+const reading = useBoogalooFont();
 // <Text style={[styles.title, display]}>
+// <Text style={[styles.explanation, reading]}>
 ```
 
-- Display type: wide `letterSpacing` (1–3.5), gold or cream face, at most one
-  offset shadow. Never stack outline, glow, gradient, and bevel on one label.
-- Body copy, instructions, and settings use the default humanist sans. Do not
-  force the condensed display face into paragraphs.
+- Chewy (`useDisplayFont`) is for short labels, titles, and CTAs. Tracking stays
+  tight, about 0.3–0.6, with enough line height that the letters are not clipped.
+- Boogaloo (`useBoogalooFont`) is for explanation cards, tutorial instructions,
+  and settings-menu writing.
+- Both faces are a single weight. Keep `fontWeight` at 400.
+- Other paragraphs stay the default humanist sans.
+- Gold or cream face, at most one offset shadow. Never stack outline, glow,
+  gradient, and bevel on one label.
 - Sentence case for instructions. Uppercase only for title-card CTAs such as
   `PRESS TO PLAY`.
 
