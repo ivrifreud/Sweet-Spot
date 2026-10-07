@@ -306,22 +306,26 @@ The retired teal/gold photoreal 3D chip is no longer in use.
 
 ## 9. Typography
 
-### Display
+Chewy and Boogaloo are the main design fonts.
 
-- Use bold hand-lettered title cards, slab serifs, or period casino signage.
-- Letters may have a cream/gold face, dark teal inline, and one simple offset shadow.
-- Slightly imperfect baselines and widths are welcome.
+### Display — Chewy
 
-### UI
+- Chewy is the display face for short labels, titles, and CTAs.
+- Keep tracking tight, about 0.3–0.6. Chewy is already wide, so poster tracking stretches it.
+- Give titles enough line height that the rounded letters are not clipped.
+- Letters may have a cream or gold face and one simple offset shadow.
+- The face is a single weight. Leave `fontWeight` at 400.
 
-- UI text must remain highly readable.
-- Use a condensed display face only for short labels and CTAs.
-- Use a neutral humanist sans for paragraphs, settings, and instructions.
-- Do not force decorative lettering into small body copy.
+### Reading — Boogaloo
 
-### Copy treatment
-
+- Boogaloo is for explanation cards, tutorial instructions, and settings-menu writing.
 - Sentence case for instructions.
+- The face is a single weight. Leave `fontWeight` at 400.
+
+### Other UI
+
+- Other paragraphs stay a neutral humanist sans.
+- Do not force decorative lettering into small body copy.
 - Uppercase is appropriate for title-card CTAs such as `PRESS TO PLAY`.
 - Avoid multiple outlines, gradients, glows, and bevels on the same UI label.
 

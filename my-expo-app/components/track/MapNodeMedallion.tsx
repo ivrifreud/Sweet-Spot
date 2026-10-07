@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -49,8 +49,7 @@ export function MapNodeMedallion({
   labelHeight,
   labelClearance = 0,
 }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const reducedMotion = useReducedMotion();
   const phase = nodeRingPhase(status, spotsCompleted);
   const target =
@@ -223,6 +222,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     color: artStyle.colors.projectorBlack,
     fontSize: 13,
-    letterSpacing: 1.4,
+    letterSpacing: 0.5,
   },
 });

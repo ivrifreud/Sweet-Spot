@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../../../../theme/displayFont';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
@@ -30,8 +30,7 @@ export function ActionBanner({
   handLabel,
   onOpenPicker,
 }: ActionBannerProps) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   const pickerTap = Gesture.Tap().onEnd((_event, success) => {
     if (success) {
@@ -138,7 +137,7 @@ const styles = StyleSheet.create({
   positionText: {
     fontSize: 16,
     fontWeight: '400',
-    letterSpacing: 1.4,
+    letterSpacing: 0.5,
     lineHeight: 18,
   },
   copy: {

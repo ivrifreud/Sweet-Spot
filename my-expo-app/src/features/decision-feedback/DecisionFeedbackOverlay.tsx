@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useBoogalooFont, useDisplayFont } from '../../../theme/displayFont';
 import * as Haptics from 'expo-haptics';
 import { VideoView } from 'expo-video';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -120,9 +120,8 @@ export function DecisionFeedbackOverlay({
 }: DecisionFeedbackOverlayProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
   const pace = tempoScale(tempo);
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const explanationDragged = useRef(false);
 
   useEffect(() => {
@@ -169,7 +168,6 @@ export function DecisionFeedbackOverlay({
     <OutcomeMark
       outcome={outcome}
       reducedMotion={reducedMotion}
-      fontsLoaded={fontsLoaded}
       title={title}
       pace={pace}
       prominent={seatReview}
@@ -349,18 +347,17 @@ function ContinueInbox({
 function OutcomeMark({
   outcome,
   reducedMotion,
-  fontsLoaded,
   title,
   pace,
   prominent = false,
 }: {
   outcome: DecisionOutcome;
   reducedMotion: boolean | undefined;
-  fontsLoaded: boolean;
   title: string;
   pace: number;
   prominent?: boolean;
 }) {
+  const display = useDisplayFont();
   const pop = useSharedValue(reducedMotion ? 1 : 0.72);
 
   useEffect(() => {
@@ -399,7 +396,7 @@ function OutcomeMark({
         style={[
           styles.title,
           { color: accent },
-          fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null,
+          display,
         ]}>
         {title}
       </Text>
@@ -422,6 +419,7 @@ function CoachCard({
   restartKey?: string;
   onDragStart: () => void;
 }) {
+  const reading = useBoogalooFont();
   const playEmoteVideo = !reducedMotion;
   const portrait =
     outcome === 'correct' ? artStyle.characters.coachCorrect : artStyle.characters.coachMiss;
@@ -437,7 +435,7 @@ function CoachCard({
         },
       ]}>
       <View pointerEvents={FEEDBACK_PASS_THROUGH} style={styles.cardCopy}>
-        <Text pointerEvents="none" style={styles.kicker}>
+        <Text pointerEvents="none" style={[styles.kicker, reading]}>
           {kicker}
         </Text>
         <ScrollView
@@ -448,7 +446,7 @@ function CoachCard({
           showsVerticalScrollIndicator={false}
           pointerEvents={explanationPointerEvents(true)}
           onScrollBeginDrag={onDragStart}>
-          <Text style={styles.explanation}>{explanation}</Text>
+          <Text style={[styles.explanation, reading]}>{explanation}</Text>
         </ScrollView>
       </View>
 
@@ -806,9 +804,10 @@ function ConfettiShape({ particle }: { particle: Particle }) {
 }
 
 function SeatRows({ rows, takeaway }: { rows: FeedbackSeatRow[]; takeaway: string }) {
+  const reading = useBoogalooFont();
   return (
     <View style={styles.seatList}>
-      <Text style={styles.explanation}>{takeaway}</Text>
+      <Text style={[styles.explanation, reading]}>{takeaway}</Text>
       {rows.map((row) => {
         const stamp = seatResultStamp(row);
         return (
@@ -816,10 +815,10 @@ function SeatRows({ rows, takeaway }: { rows: FeedbackSeatRow[]; takeaway: strin
             key={row.position}
             style={[styles.seatRow, row.missed ? styles.seatRowMissed : styles.seatRowClear]}>
             <View style={styles.seatCopy}>
-              <Text style={styles.kicker}>
+              <Text style={[styles.kicker, reading]}>
                 {row.position} · {row.cards} · {row.stackLabel}
               </Text>
-              <Text style={styles.explanation}>
+              <Text style={[styles.explanation, reading]}>
                 {row.correctAction}. {row.explanation}
               </Text>
               {row.missed ? (
@@ -915,7 +914,8 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 2,
     fontSize: 34,
-    letterSpacing: 2.4,
+    lineHeight: 42,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textShadowColor: 'rgba(17,23,20,0.72)',
     textShadowOffset: { width: 0, height: 2 },
@@ -939,8 +939,8 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: INK,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    lineHeight: 24,
     marginBottom: 6,
   },
   explanationScroll: {
@@ -951,9 +951,8 @@ const styles = StyleSheet.create({
   },
   explanation: {
     color: artStyle.colors.tobacco,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
+    fontSize: 16,
+    lineHeight: 22,
   },
   seatList: {
     gap: 8,
@@ -1041,7 +1040,7 @@ const styles = StyleSheet.create({
   tapCue: {
     color: CREAM,
     fontSize: 16,
-    letterSpacing: 2.6,
+    letterSpacing: 0.4,
     textAlign: 'center',
   },
   dealCueWrap: {

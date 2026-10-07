@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import * as Haptics from 'expo-haptics';
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { useEffect } from 'react';
 import {
   Image,
@@ -141,8 +141,7 @@ function PressSlot({
 }
 
 function RegenTicket({ label }: { label: string }) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   return (
     <View style={styles.ticket} accessibilityRole="text" accessibilityLabel={label}>
       <Text style={[styles.ticketText, display]} numberOfLines={1}>
@@ -203,8 +202,7 @@ export function MarqueeRail({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const compact = width < 430;
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
   const avatar = compact ? 38 : 44;
   const chipSize = compact ? 16 : 20;
   const icon = compact ? 36 : 42;

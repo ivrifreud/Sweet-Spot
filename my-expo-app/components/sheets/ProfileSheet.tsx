@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../../theme/displayFont';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import type { ProfileStats } from '../../lib/hud/profileStats';
@@ -14,8 +14,7 @@ type Props = {
 };
 
 export function ProfileSheet({ visible, stats, onClose }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const display = useDisplayFont();
 
   return (
     <ParchmentSheet visible={visible} title="PLAYER CARD" onClose={onClose}>

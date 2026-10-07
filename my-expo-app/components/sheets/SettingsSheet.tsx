@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useBoogalooFont } from '../../theme/displayFont';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -33,8 +33,7 @@ export function SettingsSheet({
   worldCycleLabel,
   onPlayHotSeats,
 }: Props) {
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
+  const reading = useBoogalooFont();
   const [muted, setMutedState] = useState(isMuted());
   const [hapticsOn, setHapticsOn] = useState(true);
 
@@ -68,7 +67,7 @@ export function SettingsSheet({
   return (
     <ParchmentSheet visible={visible} title="SETTINGS" onClose={onClose}>
       <View style={styles.row}>
-        <Text style={styles.label}>Sound</Text>
+        <Text style={[styles.label, reading]}>Sound</Text>
         <Switch
           value={!muted}
           onValueChange={(on) => {
@@ -80,7 +79,7 @@ export function SettingsSheet({
         />
       </View>
       <View style={styles.row}>
-        <Text style={styles.label}>Haptics</Text>
+        <Text style={[styles.label, reading]}>Haptics</Text>
         <Switch
           value={hapticsOn}
           onValueChange={setHapticsOn}
@@ -94,7 +93,7 @@ export function SettingsSheet({
           style={({ pressed }) => [styles.button, styles.secondary, pressed ? styles.pressed : null]}
           accessibilityRole="button"
           accessibilityLabel="Fog up, preview fog and camera climb">
-          <Text style={[styles.buttonTextDark, display]}>FOG UP</Text>
+          <Text style={[styles.buttonTextDark, reading]}>FOG UP</Text>
         </Pressable>
       ) : null}
 
@@ -104,7 +103,7 @@ export function SettingsSheet({
           style={({ pressed }) => [styles.button, styles.secondary, pressed ? styles.pressed : null]}
           accessibilityRole="button"
           accessibilityLabel="Preview chip lockout">
-          <Text style={[styles.buttonTextDark, display]}>LOCKOUT</Text>
+          <Text style={[styles.buttonTextDark, reading]}>LOCKOUT</Text>
         </Pressable>
       ) : null}
 
@@ -118,7 +117,7 @@ export function SettingsSheet({
               ? "Switch preview to Benny's Garden"
               : 'Switch preview to A Local Casino'
           }>
-          <Text style={[styles.buttonTextDark, display]}>
+          <Text style={[styles.buttonTextDark, reading]}>
             {worldCycleLabel ?? 'CASINO / GARDEN'}
           </Text>
         </Pressable>
@@ -130,7 +129,7 @@ export function SettingsSheet({
           style={({ pressed }) => [styles.button, styles.secondary, pressed ? styles.pressed : null]}
           accessibilityRole="button"
           accessibilityLabel="Play The Hot Seats">
-          <Text style={[styles.buttonTextDark, display]}>THE HOT SEATS</Text>
+          <Text style={[styles.buttonTextDark, reading]}>THE HOT SEATS</Text>
         </Pressable>
       ) : null}
 
@@ -139,7 +138,7 @@ export function SettingsSheet({
         style={({ pressed }) => [styles.button, styles.secondary, pressed ? styles.pressed : null]}
         accessibilityRole="button"
         accessibilityLabel="Retake placement test">
-        <Text style={[styles.buttonTextDark, display]}>RETAKE PLACEMENT</Text>
+        <Text style={[styles.buttonTextDark, reading]}>RETAKE PLACEMENT</Text>
       </Pressable>
 
       <Pressable
@@ -150,7 +149,7 @@ export function SettingsSheet({
         style={({ pressed }) => [styles.button, styles.danger, pressed ? styles.pressed : null]}
         accessibilityRole="button"
         accessibilityLabel="Sign out">
-        <Text style={[styles.buttonText, display]}>SIGN OUT</Text>
+        <Text style={[styles.buttonText, reading]}>SIGN OUT</Text>
       </Pressable>
       <Text style={styles.version}>Sweet Spot</Text>
     </ParchmentSheet>
@@ -171,7 +170,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 16,
+    fontSize: 18,
+    lineHeight: 24,
   },
   button: {
     minHeight: 48,
@@ -189,13 +189,15 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: artStyle.colors.cream,
-    fontSize: 17,
-    letterSpacing: 1.2,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: 0.4,
   },
   buttonTextDark: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 17,
-    letterSpacing: 1.2,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: 0.4,
   },
   pressed: {
     opacity: 0.86,

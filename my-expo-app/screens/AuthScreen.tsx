@@ -1,4 +1,4 @@
-import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
+import { useDisplayFont } from '../theme/displayFont';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
@@ -38,7 +38,7 @@ type Props = {
 
 export function AuthScreen({ onContinue, onDevBypass }: Props) {
   const insets = useSafeAreaInsets();
-  const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
+  const display = useDisplayFont();
   const [mode, setMode] = useState<Mode>(canUseDevBypass() ? 'signIn' : 'signUp');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -51,7 +51,6 @@ export function AuthScreen({ onContinue, onDevBypass }: Props) {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const display = fontsLoaded ? { fontFamily: 'BebasNeue_400Regular' } : null;
   const isSignUp = mode === 'signUp';
 
   function switchMode(next: Mode) {
@@ -342,16 +341,16 @@ const styles = StyleSheet.create({
   wordmark: {
     color: artStyle.colors.goldBright,
     fontSize: 18,
-    letterSpacing: 3.5,
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: 12,
   },
   title: {
     color: artStyle.colors.cream,
     fontSize: 26,
-    letterSpacing: 1,
+    letterSpacing: 0.4,
     textAlign: 'center',
-    lineHeight: 30,
+    lineHeight: 34,
   },
   sub: {
     color: 'rgba(232,215,167,0.82)',
@@ -398,7 +397,7 @@ const styles = StyleSheet.create({
   primaryText: {
     color: '#111714',
     fontSize: 20,
-    letterSpacing: 2,
+    letterSpacing: 0.5,
   },
   pressed: {
     opacity: 0.88,
