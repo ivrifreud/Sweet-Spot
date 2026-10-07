@@ -8,10 +8,16 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 
 import { playSfx, type SfxName } from '../../../../lib/audio';
 import { safePauseVideoPlayer } from '../../../../lib/video/safePause';
-import { GARDEN_SWAP_CUE, swapCueAt, swapSoundsDue, type SwapSound } from './hotSeatSwapVideoPlan';
+import {
+  GARDEN_SWAP_CUE,
+  swapCueAt,
+  swapSeekNeeded,
+  swapSoundsDue,
+  type SwapSound,
+} from './hotSeatSwapVideoPlan';
 import type { HotSeatSkin } from './types';
 
-const GARDEN_SWAP_VIDEO = require('../../../../assets/hot-seats/garden-seat-swap.mp4');
+const GARDEN_SWAP_VIDEO = require('../../../../assets/hot-seats/garden-seat-swap-play.mp4');
 
 const SWAP_SFX: Record<SwapSound, SfxName> = {
   'enter-body': 'hotSeatEnterBody',
@@ -43,15 +49,14 @@ export function HotSeatSwapVideo({
   const generationRef = useRef(generation);
   const sessionRef = useRef<string | null>(null);
   const readyRef = useRef(false);
-  const frameReadyRef = useRef(false);
   const coveredRef = useRef(false);
   const completedRef = useRef(false);
   const landingDoneRef = useRef(false);
   const sourceFinishedRef = useRef(false);
   const startedRef = useRef(false);
-  const revealedRef = useRef(false);
-  const soundHeardRef = useRef(0);
+  const soundHeardRef = useRef(-1);
   const mountedRef = useRef(true);
+  const visibleRef = useRef(false);
   const cueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCoveredRef = useRef(onCovered);
   const onCompleteRef = useRef(onComplete);
@@ -119,12 +124,6 @@ export function HotSeatSwapVideo({
     finish(session);
   };
 
-  const reveal = (session: string) => {
-    if (revealedRef.current || completedRef.current || sessionRef.current !== session) return;
-    revealedRef.current = true;
-    opacity.value = withTiming(1, { duration: GARDEN_SWAP_CUE.revealMs });
-  };
-
   const armCueTimeout = (session: string) => {
     clearCue();
     cueTimeoutRef.current = setTimeout(() => {
@@ -162,11 +161,12 @@ export function HotSeatSwapVideo({
     try {
       player.muted = true;
       player.playbackRate = GARDEN_SWAP_CUE.playbackRate;
-      player.currentTime = GARDEN_SWAP_CUE.sourceInSeconds;
+      if (swapSeekNeeded(player.currentTime)) {
+        player.currentTime = GARDEN_SWAP_CUE.sourceInSeconds;
+      }
       playSwapSounds(GARDEN_SWAP_CUE.sourceInSeconds);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       player.play();
-      if (frameReadyRef.current) reveal(session);
       armCueTimeout(session);
     } catch {
       fail(session);
@@ -197,7 +197,6 @@ export function HotSeatSwapVideo({
     if (isPlaying) {
       startedRef.current = true;
       clearCue();
-      if (frameReadyRef.current) reveal(session);
     }
   });
 
@@ -270,14 +269,18 @@ export function HotSeatSwapVideo({
     landingDoneRef.current = false;
     sourceFinishedRef.current = false;
     startedRef.current = false;
-    revealedRef.current = false;
-    soundHeardRef.current = 0;
-    opacity.value = 0;
+    soundHeardRef.current = -1;
+    opacity.value = 1;
     sessionRef.current = generation;
     startPlayback(generation);
     // Playback starts only on the active edge for this generation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, generation, player, reducedMotion, skin]);
+
+  if (active !== visibleRef.current) {
+    visibleRef.current = active;
+    opacity.value = active ? 1 : 0;
+  }
 
   const veil = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -293,11 +296,6 @@ export function HotSeatSwapVideo({
         contentFit="cover"
         playsInline
         {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : null)}
-        onFirstFrameRender={() => {
-          frameReadyRef.current = true;
-          const session = sessionRef.current;
-          if (session) reveal(session);
-        }}
         style={StyleSheet.absoluteFill}
       />
     </Animated.View>
