@@ -26,6 +26,10 @@ export const artStyle = {
     gold: '#C89B3C',
     goldBright: '#E6C46A',
     cream: '#E8D7A7',
+    /** Waiting seat tags: warm ivory into tan, before an action color takes over. */
+    tagPaper: '#F8E4C0',
+    tagAsh: '#E0B56A',
+    tagRim: '#A06A38',
     tobacco: '#765337',
     oxblood: '#A43E32',
     feltGreen: '#4D8A5B',

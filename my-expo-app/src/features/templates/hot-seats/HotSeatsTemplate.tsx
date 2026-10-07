@@ -58,7 +58,19 @@ export function HotSeatsTemplate({
   const fallbackToken = useRef(0);
   const beginFallbackRef = useRef<() => void>(() => {});
   const [handAhead, setHandAhead] = useState(false);
-  const [presentation, setPresentation] = useState<'idle' | 'video' | 'fallback'>('idle');
+  const reducedMotion = Boolean(reduced);
+  const swapKind = useMemo(() => {
+    if (play.phase !== 'swapping') return 'none' as const;
+    return swapRoute({
+      skin: story.skin,
+      reducedMotion,
+      videoReady: true,
+      phase: 'swapping',
+    }) === 'video'
+      ? ('video' as const)
+      : ('fallback' as const);
+  }, [play.phase, reducedMotion, story.skin]);
+  const videoPlaying = swapKind === 'video';
 
   const seat = story.seats[play.seatIndex]!;
   const hand = story.seats[handAhead ? play.seatIndex + 1 : play.seatIndex] ?? seat;
@@ -93,7 +105,6 @@ export function HotSeatsTemplate({
     fallbackToken.current += 1;
     holeFade.value = 1;
     setHandAhead(false);
-    setPresentation('idle');
     setPlay(begin(story));
   }, [holeFade, story]);
 
@@ -107,12 +118,10 @@ export function HotSeatsTemplate({
   const completeSwap = () => {
     fallbackToken.current += 1;
     setHandAhead(false);
-    setPresentation('idle');
     setPlay((current) => (current.phase === 'swapping' ? cameraLanded(current) : current));
   };
   beginFallbackRef.current = () => {
     const token = ++fallbackToken.current;
-    setPresentation('fallback');
     const half = REDUCED_FADE_MS / 2;
     holeFade.value = withSequence(
       withTiming(0, { duration: half }, (finished) => {
@@ -146,17 +155,9 @@ export function HotSeatsTemplate({
       fallbackToken.current += 1;
       cancelAnimation(holeFade);
       holeFade.value = 1;
-      setPresentation('idle');
       return;
     }
-    const route = swapRoute({
-      skin: story.skin,
-      reducedMotion: Boolean(reduced),
-      videoReady: true,
-      phase: 'swapping',
-    });
-    if (route === 'video') {
-      setPresentation('video');
+    if (swapKind === 'video') {
       return () => {
         fallbackToken.current += 1;
       };
@@ -167,7 +168,7 @@ export function HotSeatsTemplate({
       cancelAnimation(holeFade);
       holeFade.value = 1;
     };
-  }, [holeFade, play.phase, play.seatIndex, reduced, story.skin]);
+  }, [holeFade, play.phase, play.seatIndex, swapKind]);
 
   function choose(action: SpotDecision, raiseSize: number | null = null) {
     if (!unlocked || !seat.legalActions.includes(action)) return;
@@ -199,8 +200,6 @@ export function HotSeatsTemplate({
     }
     setPlay(decide(play, action, raiseSize));
   }
-
-  const videoPlaying = presentation === 'video' && play.phase === 'swapping';
 
   return (
     <View style={styles.root}>
@@ -283,6 +282,7 @@ function SeatTagLayer({
             title={copy.title}
             actionLabel={copy.actionLabel}
             stackLabel={copy.stackLabel}
+            tone={copy.tone}
           />
         );
       })}

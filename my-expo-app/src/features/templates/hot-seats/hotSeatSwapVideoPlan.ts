@@ -1,16 +1,20 @@
 import type { HotSeatPhase } from './storyEngine';
 import type { HotSeatSkin } from './types';
 
-/** Middle of the garden orbit clip. Blank foreground cards sit outside 1.5–8.5s. */
+/**
+ * `garden-seat-swap-play.mp4` is the 1.5–8.5s orbit already sped to 4× (30fps).
+ * Play it at 1×. A phone cannot decode the original 24fps file at 4× from the first frame.
+ */
 export const GARDEN_SWAP_CUE = {
-  sourceInSeconds: 1.5,
-  landingStartSeconds: 8.15,
-  nextHandSeconds: 8.15,
-  sourceOutSeconds: 8.5,
-  playbackRate: 4,
+  sourceInSeconds: 0,
+  landingStartSeconds: 1.6625,
+  nextHandSeconds: 1.6625,
+  sourceOutSeconds: 1.75,
+  playbackRate: 1,
   revealMs: 100,
   landingMs: 100,
   timeoutMs: 1000,
+  seekEpsilonSeconds: 0.04,
 } as const;
 
 export type SwapVideoEvent = 'show-video' | 'show-next-hand' | 'finish' | 'fallback';
@@ -55,11 +59,18 @@ export function swapCueAt(sourceTime: number): { showNextHand: boolean; finishSo
   };
 }
 
-/** Source times on the 4× orbit. Playback stays muted so these cues keep their pitch. */
+export function swapSeekNeeded(
+  currentTime: number,
+  cue: typeof GARDEN_SWAP_CUE = GARDEN_SWAP_CUE
+): boolean {
+  return Math.abs(currentTime - cue.sourceInSeconds) > cue.seekEpsilonSeconds;
+}
+
+/** Times on the baked 4× clip. Playback stays muted so these cues keep their pitch. */
 export const GARDEN_SWAP_SOUNDS = [
-  { sourceSeconds: 1.5, sound: 'enter-body' },
-  { sourceSeconds: 3.6, sound: 'swish' },
-  { sourceSeconds: 7.6, sound: 'enter-body' },
+  { sourceSeconds: 0, sound: 'enter-body' },
+  { sourceSeconds: 0.525, sound: 'swish' },
+  { sourceSeconds: 1.525, sound: 'enter-body' },
 ] as const;
 
 export type SwapSound = (typeof GARDEN_SWAP_SOUNDS)[number]['sound'];

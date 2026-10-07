@@ -41,6 +41,14 @@ export function formatSeatAction(
   return `${who} checked`;
 }
 
+export type SeatTagTone = 'idle' | 'fold' | 'call' | 'raise';
+
+/** Fold reads red, call reads teal, raise reads gold. Check and a waiting seat stay white and grey. */
+export function seatTagTone(action: SpotDecision | null): SeatTagTone {
+  if (action === 'fold' || action === 'call' || action === 'raise') return action;
+  return 'idle';
+}
+
 export function seatTagLines(input: {
   seatIndex: number;
   position: string | HeroPosition;
@@ -49,10 +57,11 @@ export function seatTagLines(input: {
   raiseSize: number | null;
   facingRaise: boolean;
   street: HotSeatStreet;
-}): { title: string; detail: string; actionLabel: string | null; stackLabel: string } {
+}): { title: string; detail: string; actionLabel: string | null; stackLabel: string; tone: SeatTagTone } {
   const title = positionShort(String(input.position));
   const stackLabel = `${input.stack} BB`;
-  if (!input.action) return { title, detail: stackLabel, actionLabel: null, stackLabel };
+  const tone = seatTagTone(input.action);
+  if (!input.action) return { title, detail: stackLabel, actionLabel: null, stackLabel, tone };
   const actionLabel = formatSeatAction(
     title,
     input.action,
@@ -65,6 +74,7 @@ export function seatTagLines(input: {
     detail: stackLabel,
     actionLabel,
     stackLabel,
+    tone,
   };
 }
 

@@ -22,11 +22,11 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 ## Do next
 
-1. **B-16** — The Hot Seats orbit starts choppy on the phone. High. 2h.
-2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
-3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
-4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
-5. **B-09** — Call and raise chips look flat in the air. High. half day.
+1. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
+2. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+3. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+4. **B-09** — Call and raise chips look flat in the air. High. half day.
+5. **B-03** — Map tiles change color when the fog lifts. High. half day.
 
 ## Open
 
@@ -118,14 +118,6 @@ No open items.
 
 ### Motion
 
-### B-16 — The Hot Seats orbit starts choppy on the phone
-
-- Area: Motion
-- Where: The Hot Seats
-- Pain: High
-- Time: 2h
-- Fix: When the orbit starts in the Hot Seats template, `HotSeatSwapVideo` plays `garden-seat-swap.mp4` at a low frame rate on the phone and then smooths out. The same clip in the web preview is clean from the first moment it is shown. Phone playback should be smooth from the first revealed frame, the way the web preview already is. The earlier note about a freeze before the orbit starts does not describe this bug.
-
 ### B-11 — The glove hovers instead of grabbing the chips
 
 - Area: Motion
@@ -162,6 +154,7 @@ No open items.
 
 ## Done
 
+- 2026-10-07 — B-16 — The Hot Seats orbit starts choppy on the phone
 - 2026-10-07 — B-01 — The hand that turns the Equity Scale dial
 - 2026-10-04 — B-05 — The player leaves the node and stays on the map
 - 2026-10-02 — B-15 — Every result should explain the right move

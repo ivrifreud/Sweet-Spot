@@ -5,6 +5,7 @@ import {
   swapCueAt,
   swapRoute,
   swapRuntimeSeconds,
+  swapSeekNeeded,
   swapSoundsDue,
 } from '../../src/features/templates/hot-seats/hotSeatSwapVideoPlan';
 import { REDUCED_FADE_MS } from '../../src/features/templates/hot-seats/seatRail';
@@ -98,22 +99,29 @@ describe('garden seat-swap video cue', () => {
   it('changes the hand before the clip ends and runs the middle in 1.75s', () => {
     expect(GARDEN_SWAP_CUE.nextHandSeconds).toBeLessThan(GARDEN_SWAP_CUE.sourceOutSeconds);
     expect(swapRuntimeSeconds()).toBeCloseTo(1.75);
-    expect(swapCueAt(8.14)).toEqual({ showNextHand: false, finishSource: false });
-    expect(swapCueAt(8.15)).toEqual({ showNextHand: true, finishSource: false });
-    expect(swapCueAt(8.5)).toEqual({ showNextHand: true, finishSource: true });
+    expect(swapCueAt(1.66)).toEqual({ showNextHand: false, finishSource: false });
+    expect(swapCueAt(1.6625)).toEqual({ showNextHand: true, finishSource: false });
+    expect(swapCueAt(1.75)).toEqual({ showNextHand: true, finishSource: true });
   });
 
   it('plays the body sound on the way out and the way in, and the swish during the spin', () => {
-    expect(swapSoundsDue(0, 1.5)).toEqual(['enter-body']);
-    expect(swapSoundsDue(1.5, 3.59)).toEqual([]);
-    expect(swapSoundsDue(1.5, 3.6)).toEqual(['swish']);
-    expect(swapSoundsDue(3.6, 7.6)).toEqual(['enter-body']);
-    expect(swapSoundsDue(7.6, 8.5)).toEqual([]);
-    expect(swapSoundsDue(0, 8.5)).toEqual(['enter-body', 'swish', 'enter-body']);
+    expect(swapSoundsDue(-1, 0)).toEqual(['enter-body']);
+    expect(swapSoundsDue(0, 0.524)).toEqual([]);
+    expect(swapSoundsDue(0, 0.525)).toEqual(['swish']);
+    expect(swapSoundsDue(0.525, 1.525)).toEqual(['enter-body']);
+    expect(swapSoundsDue(1.525, 1.75)).toEqual([]);
+    expect(swapSoundsDue(-1, 1.75)).toEqual(['enter-body', 'swish', 'enter-body']);
   });
 
-  it('keeps a fallback timer without hiding the clip behind a warm-up gate', () => {
+  it('plays the baked orbit at normal speed from the first frame', () => {
+    expect(GARDEN_SWAP_CUE.playbackRate).toBe(1);
+    expect(GARDEN_SWAP_CUE.sourceInSeconds).toBe(0);
     expect(GARDEN_SWAP_CUE.timeoutMs).toBe(1000);
-    expect(GARDEN_SWAP_CUE.sourceInSeconds).toBe(1.5);
+  });
+
+  it('skips a redundant seek when already parked on the in-point', () => {
+    expect(swapSeekNeeded(0, GARDEN_SWAP_CUE)).toBe(false);
+    expect(swapSeekNeeded(0.02, GARDEN_SWAP_CUE)).toBe(false);
+    expect(swapSeekNeeded(0.2, GARDEN_SWAP_CUE)).toBe(true);
   });
 });

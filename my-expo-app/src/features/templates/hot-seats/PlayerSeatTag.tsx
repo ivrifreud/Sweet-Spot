@@ -3,16 +3,49 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { artStyle } from '../../../../theme/artStyle';
 import type { SceneFrame } from './sceneLayout';
+import type { SeatTagTone } from './seatTag';
+
+const TAG_FACE: Record<SeatTagTone, { colors: [string, string]; ink: string; rim: string }> = {
+  idle: {
+    colors: [artStyle.colors.tagPaper, artStyle.colors.tagAsh],
+    ink: artStyle.colors.projectorBlack,
+    rim: artStyle.colors.tagRim,
+  },
+  fold: {
+    colors: [artStyle.colors.oxblood, artStyle.colors.oxblood],
+    ink: artStyle.colors.cream,
+    rim: artStyle.colors.tobacco,
+  },
+  call: {
+    colors: [artStyle.colors.teal, artStyle.colors.teal],
+    ink: artStyle.colors.cream,
+    rim: artStyle.colors.tobacco,
+  },
+  raise: {
+    colors: [artStyle.colors.goldBright, artStyle.colors.gold],
+    ink: artStyle.colors.projectorBlack,
+    rim: artStyle.colors.tobacco,
+  },
+};
 
 type PlayerSeatTagProps = {
   frame: SceneFrame;
   title: string;
   actionLabel: string | null;
   stackLabel: string;
+  tone?: SeatTagTone;
   opacity?: number;
 };
 
-export function PlayerSeatTag({ frame, title, actionLabel, stackLabel, opacity = 1 }: PlayerSeatTagProps) {
+export function PlayerSeatTag({
+  frame,
+  title,
+  actionLabel,
+  stackLabel,
+  tone = 'idle',
+  opacity = 1,
+}: PlayerSeatTagProps) {
+  const face = TAG_FACE[tone];
   return (
     <View
       accessibilityRole="text"
@@ -25,21 +58,22 @@ export function PlayerSeatTag({ frame, title, actionLabel, stackLabel, opacity =
           width: frame.width,
           height: frame.height,
           opacity,
+          backgroundColor: face.rim,
         },
       ]}>
       <LinearGradient
-        colors={[artStyle.colors.cream, artStyle.colors.goldBright]}
+        colors={face.colors}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.face}>
         <Text
-          style={actionLabel ? styles.action : styles.title}
+          style={[actionLabel ? styles.action : styles.title, { color: face.ink }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.72}>
           {actionLabel ?? title}
         </Text>
-        <Text style={styles.detail} numberOfLines={1}>
+        <Text style={[styles.detail, { color: face.ink }]} numberOfLines={1}>
           {stackLabel}
         </Text>
       </LinearGradient>
@@ -53,7 +87,6 @@ const styles = StyleSheet.create({
     zIndex: 40,
     borderRadius: 12,
     padding: 2,
-    backgroundColor: artStyle.colors.tobacco,
   },
   face: {
     flex: 1,
@@ -70,13 +103,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   detail: {
-    color: artStyle.colors.projectorBlack,
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '700',
   },
   action: {
-    color: artStyle.colors.teal,
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '800',

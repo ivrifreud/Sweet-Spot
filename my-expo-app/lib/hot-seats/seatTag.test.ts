@@ -4,6 +4,7 @@ import { GARDEN_PREFLOP_STORY } from '../../src/features/templates/hot-seats/fix
 import {
   formatSeatAction,
   seatTagLines,
+  seatTagTone,
   stackTier,
 } from '../../src/features/templates/hot-seats/seatTag';
 import { raiseSizePair } from '../../src/features/templates/hot-seats/raiseSizes';
@@ -22,6 +23,7 @@ describe('seat tags', () => {
     expect(waiting.title).toBe('CO');
     expect(waiting.detail).toBe('42 BB');
     expect(waiting.actionLabel).toBeNull();
+    expect(waiting.tone).toBe('idle');
 
     const acted = seatTagLines({
       seatIndex: 2,
@@ -34,6 +36,7 @@ describe('seat tags', () => {
     });
     expect(acted.title).toBe('CO');
     expect(acted.actionLabel).toBe('CO raised 6BB');
+    expect(acted.tone).toBe('raise');
     expect(acted.stackLabel).toBe('42 BB');
   });
 
@@ -44,6 +47,14 @@ describe('seat tags', () => {
     expect(formatSeatAction('HJ', 'call', null, false, 'preflop')).toBe('HJ limped');
     expect(formatSeatAction('BB', 'call', null, true, 'preflop')).toBe('BB called');
     expect(formatSeatAction('SB', 'check', null, false, 'flop')).toBe('SB checked');
+  });
+
+  it('paints fold red, call teal, and raise gold', () => {
+    expect(seatTagTone('fold')).toBe('fold');
+    expect(seatTagTone('call')).toBe('call');
+    expect(seatTagTone('raise')).toBe('raise');
+    expect(seatTagTone('check')).toBe('idle');
+    expect(seatTagTone(null)).toBe('idle');
   });
 });
 
