@@ -18,10 +18,33 @@ const POSITION_SHORT: Record<string, string> = {
   'big blind': 'BB',
 };
 
+/** Words on the top banner. A long name is drawn smaller so it stays inside that banner. */
+const POSITION_BANNER: Record<string, string> = {
+  UTG: 'UTG',
+  'under the gun': 'UTG',
+  MP: 'middle',
+  'middle position': 'middle',
+  HJ: 'hijack',
+  hijack: 'hijack',
+  CO: 'cut off',
+  cutoff: 'cut off',
+  'cut off': 'cut off',
+  BTN: 'button',
+  button: 'button',
+  SB: 'small blind',
+  'small blind': 'small blind',
+  BB: 'big blind',
+  'big blind': 'big blind',
+};
+
 export type StackTier = 'small' | 'medium' | 'large';
 
 export function positionShort(position: string): string {
   return POSITION_SHORT[position] ?? POSITION_SHORT[position.toLowerCase()] ?? position;
+}
+
+export function positionBanner(position: string): string {
+  return POSITION_BANNER[position] ?? POSITION_BANNER[position.toLowerCase()] ?? position;
 }
 
 export function formatSeatAction(
@@ -43,11 +66,26 @@ export function formatSeatAction(
 
 export type SeatTagTone = 'idle' | 'fold' | 'call' | 'raise';
 
-/** Fold reads red, call reads teal, raise reads gold. Check and a waiting seat stay white and grey. */
+/** Fold reads red, call reads cyan, raise reads yellow. Check and a waiting seat stay on the natural plate. */
 export function seatTagTone(action: SpotDecision | null): SeatTagTone {
   if (action === 'fold' || action === 'call' || action === 'raise') return action;
   return 'idle';
 }
+
+export type SeatTagCopy = {
+  title: string;
+  detail: string;
+  actionLabel: string | null;
+  stackLabel: string;
+  tone: SeatTagTone;
+  /** Seat name on the upper banner. */
+  banner: string;
+  /** Stack on the lower banner. Blank after a fold. */
+  ribbon: string | null;
+  /** Action between the banners. Empty until the seat acts. */
+  center: string | null;
+  spoken: string;
+};
 
 export function seatTagLines(input: {
   seatIndex: number;
@@ -57,11 +95,24 @@ export function seatTagLines(input: {
   raiseSize: number | null;
   facingRaise: boolean;
   street: HotSeatStreet;
-}): { title: string; detail: string; actionLabel: string | null; stackLabel: string; tone: SeatTagTone } {
+}): SeatTagCopy {
   const title = positionShort(String(input.position));
-  const stackLabel = `${input.stack} BB`;
+  const banner = positionBanner(String(input.position));
+  const stackLabel = `${input.stack}BB`;
   const tone = seatTagTone(input.action);
-  if (!input.action) return { title, detail: stackLabel, actionLabel: null, stackLabel, tone };
+  if (!input.action) {
+    return {
+      title,
+      detail: stackLabel,
+      actionLabel: null,
+      stackLabel,
+      tone,
+      banner,
+      ribbon: stackLabel,
+      center: null,
+      spoken: `${banner}. ${stackLabel}`,
+    };
+  }
   const actionLabel = formatSeatAction(
     title,
     input.action,
@@ -69,12 +120,28 @@ export function seatTagLines(input: {
     input.facingRaise,
     input.street
   );
+  const action =
+    input.action === 'fold'
+      ? 'Folded'
+      : input.action === 'raise'
+        ? input.raiseSize == null
+          ? 'Raised'
+          : `Raised ${input.raiseSize} BB`
+        : input.action === 'call'
+          ? input.street === 'preflop' && !input.facingRaise
+            ? 'Limped'
+            : 'Called'
+          : 'Checked';
   return {
     title,
     detail: stackLabel,
     actionLabel,
     stackLabel,
     tone,
+    banner,
+    ribbon: input.action === 'fold' ? null : stackLabel,
+    center: action,
+    spoken: input.action === 'fold' ? `${banner}. ${action}` : `${banner}. ${action}. ${stackLabel}`,
   };
 }
 

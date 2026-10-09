@@ -10,6 +10,7 @@ import {
 } from '../src/features/decision-feedback';
 import { buildHotSeatFeedback } from '../src/features/templates/hot-seats/feedback';
 import { HotSeatsTemplate } from '../src/features/templates/hot-seats/HotSeatsTemplate';
+import { LEAVE_BUTTON } from '../src/features/templates/hot-seats/sceneLayout';
 import type { HotSeatStory } from '../src/features/templates/hot-seats/types';
 import { artStyle } from '../theme/artStyle';
 
@@ -55,7 +56,7 @@ export function HotSeatsPreview({ story, onClose }: Props) {
         accessibilityLabel="Leave Hot Seats"
         hitSlop={8}
         onPress={onClose}
-        style={[styles.exitButton, { top: insets.top + 8 }]}>
+        style={[styles.exitButton, { top: LEAVE_BUTTON.top(insets.top) }]}>
         <Image source={EXIT_X} style={styles.exitArt} resizeMode="contain" />
       </Pressable>
       <DecisionFeedbackOverlay

@@ -22,17 +22,24 @@ Time values: `30m`, `2h`, `half day`, `1–2 days`.
 
 ## Do next
 
-1. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
-2. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
-3. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
-4. **B-09** — Call and raise chips look flat in the air. High. half day.
-5. **B-03** — Map tiles change color when the fog lifts. High. half day.
+1. **B-19** — A wrong answer on The Equity Scale crashes the app. High. 2h.
+2. **B-17** — The Hot Seats card outlines are uneven. High. 2h.
+3. **B-11** — The glove hovers instead of grabbing the chips. High. half day.
+4. **B-12** — The hero chip stack looks copied, not stacked. High. half day.
+5. **B-09** — Call and raise chips look flat in the air. High. half day.
+6. **B-03** — Map tiles change color when the fog lifts. High. half day.
 
 ## Open
 
 ### Bug
 
-No open items.
+### B-19 — A wrong answer on The Equity Scale crashes the app
+
+- Area: Bug
+- Where: The Equity Scale
+- Pain: High
+- Time: 2h
+- Fix: One miss is enough to kill the app, and three misses in the same spot do it too. The miss should stay inside `EquityScaleTemplate` (`incorrect` / `revealing`) and show `ScaleResultClip` / `StageResultsReveal` without throwing. Trace the throw on a single wrong outs, equity, or call/fold, and on a 0/3 reveal, and keep the stage on screen after the miss.
 
 ### Look
 

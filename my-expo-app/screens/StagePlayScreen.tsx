@@ -44,6 +44,7 @@ import {
   settleHotSeatResult,
 } from '../src/features/templates/hot-seats/feedback';
 import type { HotSeatPlay } from '../src/features/templates/hot-seats/storyEngine';
+import { LEAVE_BUTTON } from '../src/features/templates/hot-seats/sceneLayout';
 import { StageTemplateRenderer } from '../src/features/templates/StageTemplateRenderer';
 import { artStyle } from '../theme/artStyle';
 
@@ -431,7 +432,7 @@ export function StagePlayScreen({
         accessibilityLabel="Leave level"
         hitSlop={8}
         onPress={onBack}
-        style={[styles.exitButton, { top: insets.top + 8 }]}>
+        style={[styles.exitButton, { top: LEAVE_BUTTON.top(insets.top) }]}>
         <Image source={EXIT_X} style={styles.exitArt} resizeMode="contain" />
       </Pressable>
 

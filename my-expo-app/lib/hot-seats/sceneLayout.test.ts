@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  LEAVE_BUTTON,
   layoutHotSeatScene,
   opponentSeatIndexes,
   type SceneFrame,
@@ -59,6 +60,13 @@ describe('layoutHotSeatScene', () => {
       expect(overlaps(hat, scene.pot)).toBe(false);
       expect(hat.y + hat.height).toBeLessThan(scene.opponents.far.y + scene.opponents.far.height);
     }
+    const leave = {
+      x: LEAVE_BUTTON.left,
+      y: LEAVE_BUTTON.top(phone.topInset),
+      width: LEAVE_BUTTON.size,
+      height: LEAVE_BUTTON.size,
+    };
+    expect(overlaps(scene.hats.left, leave)).toBe(false);
     expect(overlaps(scene.hats.left, scene.hats.far)).toBe(false);
     expect(overlaps(scene.hats.far, scene.hats.right)).toBe(false);
     expect(scene.hats.left.height).toBeGreaterThanOrEqual(44);

@@ -65,7 +65,22 @@ export function SettingsSheet({
   }
 
   return (
-    <ParchmentSheet visible={visible} title="SETTINGS" onClose={onClose}>
+    <ParchmentSheet
+      visible={visible}
+      title="SETTINGS"
+      onClose={onClose}
+      footer={
+        <Pressable
+          onPress={() => {
+            onClose();
+            onSignOut();
+          }}
+          style={({ pressed }) => [styles.button, styles.danger, pressed ? styles.pressed : null]}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out">
+          <Text style={[styles.buttonText, reading]}>SIGN OUT</Text>
+        </Pressable>
+      }>
       <View style={styles.row}>
         <Text style={[styles.label, reading]}>Sound</Text>
         <Switch
@@ -140,17 +155,6 @@ export function SettingsSheet({
         accessibilityLabel="Retake placement test">
         <Text style={[styles.buttonTextDark, reading]}>RETAKE PLACEMENT</Text>
       </Pressable>
-
-      <Pressable
-        onPress={() => {
-          onClose();
-          onSignOut();
-        }}
-        style={({ pressed }) => [styles.button, styles.danger, pressed ? styles.pressed : null]}
-        accessibilityRole="button"
-        accessibilityLabel="Sign out">
-        <Text style={[styles.buttonText, reading]}>SIGN OUT</Text>
-      </Pressable>
       <Text style={styles.version}>Sweet Spot</Text>
     </ParchmentSheet>
   );
@@ -166,15 +170,15 @@ const styles = StyleSheet.create({
     borderColor: artStyle.colors.tobacco,
     backgroundColor: 'rgba(232,215,167,0.55)',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 6,
   },
   label: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 20,
   },
   button: {
-    minHeight: 48,
+    minHeight: 44,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: artStyle.colors.projectorBlack,
@@ -189,14 +193,14 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: artStyle.colors.cream,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 20,
     letterSpacing: 0.4,
   },
   buttonTextDark: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 20,
     letterSpacing: 0.4,
   },
   pressed: {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useDisplayFont } from '../../theme/displayFont';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -20,11 +20,19 @@ type Props = {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Last line of the card. Stays on screen under the scrolling rows. */
+  footer?: ReactNode;
 };
 
 /** Centered parchment card over a dimmed map — swipe down or tap scrim to close. */
-export function ParchmentSheet({ visible, title, onClose, children }: Props) {
+export function ParchmentSheet({ visible, title, onClose, children, footer }: Props) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const edge = 12;
+  const available = Math.max(240, windowHeight - insets.top - insets.bottom - edge * 2);
+  const footerBlock = footer ? 56 : 0;
+  const bodyMaxHeight = Math.max(120, available - 72 - footerBlock);
+  const bodyHeight = footer ? Math.min(220, bodyMaxHeight) : undefined;
   const reducedMotion = useReducedMotion();
   const display = useDisplayFont();
   const translateY = useSharedValue(80);
@@ -69,7 +77,7 @@ export function ParchmentSheet({ visible, title, onClose, children }: Props) {
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View
-        style={[styles.root, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+        style={[styles.root, { paddingTop: insets.top + edge, paddingBottom: insets.bottom + edge }]}
         accessibilityViewIsModal>
         <Animated.View style={[styles.backdrop, backdropStyle]}>
           <Pressable
@@ -79,13 +87,23 @@ export function ParchmentSheet({ visible, title, onClose, children }: Props) {
             accessibilityLabel="Close sheet"
           />
         </Animated.View>
-        <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.sheet, sheetStyle]}>
-            <View style={styles.handle} accessibilityElementsHidden />
-            <Text style={[styles.title, display]}>{title}</Text>
-            <View style={styles.body}>{children}</View>
-          </Animated.View>
-        </GestureDetector>
+        <Animated.View style={[styles.sheet, { maxHeight: available }, sheetStyle]}>
+          <GestureDetector gesture={pan}>
+            <View>
+              <View style={styles.handle} accessibilityElementsHidden />
+              <Text style={[styles.title, display]}>{title}</Text>
+            </View>
+          </GestureDetector>
+          <ScrollView
+            style={[styles.bodyScroll, { maxHeight: bodyMaxHeight }, bodyHeight != null ? { height: bodyHeight } : null]}
+            contentContainerStyle={styles.body}
+            showsVerticalScrollIndicator
+            bounces={false}
+            keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -111,8 +129,8 @@ const styles = StyleSheet.create({
     backgroundColor: artStyle.colors.cream,
     paddingHorizontal: 18,
     paddingTop: 10,
-    paddingBottom: 18,
-    maxHeight: '88%',
+    paddingBottom: 14,
+    overflow: 'hidden',
   },
   handle: {
     alignSelf: 'center',
@@ -124,12 +142,20 @@ const styles = StyleSheet.create({
   },
   title: {
     color: artStyle.colors.projectorBlack,
-    fontSize: 28,
+    fontSize: 22,
     letterSpacing: 0.5,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  bodyScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   body: {
-    gap: 12,
+    gap: 8,
+    paddingBottom: 4,
+  },
+  footer: {
+    marginTop: 8,
   },
 });
