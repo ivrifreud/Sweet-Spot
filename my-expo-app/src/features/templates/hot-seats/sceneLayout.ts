@@ -18,9 +18,19 @@ const POT_MIN_WIDTH = 72;
 const HERO_STACK_WIDTH = 48;
 const OPPONENT_STACK_WIDTH = 34;
 
-const TAG_HEIGHT = 48;
+/** One rounded label above each opponent. The ends are full circles. */
+const TAG_LABEL = { width: 112, height: 68 };
+
+/** Leave control. The left seat's words have to sit clear of this square. */
+export const LEAVE_BUTTON = {
+  left: 12,
+  size: 48,
+  top(topInset: number) {
+    return Math.max(2, topInset - 34);
+  },
+};
 const TAG_WIDTH = 118;
-const TAG_GAP = 10;
+const TAG_GAP = 8;
 const ACTION_SIZE_ROW = 36;
 const ACTION_ROW = 48;
 const ACTION_GAP = 8;
@@ -354,29 +364,51 @@ function placeSeatTags(art: SceneFrame, screenWidth: number, topInset: number): 
     y: art.y + crown.cy * scale,
   });
   const left = center(HAT_CROWNS.left);
-  const far = center(HAT_CROWNS.far);
+  const farCrown = center(HAT_CROWNS.far);
   const right = center(HAT_CROWNS.right);
   const hero = center(HAT_CROWNS.hero);
   const edge = 8;
-  const splitLeft = (left.x + far.x) / 2;
-  const splitRight = (far.x + right.x) / 2;
+  const splitLeft = (left.x + farCrown.x) / 2;
+  const splitRight = (farCrown.x + right.x) / 2;
   const plate = (crownX: number, crownY: number, start: number, end: number): SceneFrame => {
     const room = Math.max(72, end - start);
-    const width = Math.min(TAG_WIDTH, room);
+    const width = Math.min(TAG_LABEL.width, TAG_WIDTH, room);
+    const height = TAG_LABEL.height;
     const x = Math.min(Math.max(start, crownX - width / 2), end - width);
-    return {
-      x,
-      y: Math.max(topInset + 4, crownY - TAG_HEIGHT),
-      width,
-      height: TAG_HEIGHT,
-    };
+    const y = Math.max(topInset + 2, crownY - height - 10);
+    return { x, y, width, height };
   };
+  const far = plate(farCrown.x, farCrown.y, splitLeft + TAG_GAP / 2, splitRight - TAG_GAP / 2);
   return {
-    left: plate(left.x, left.y, edge, splitLeft - TAG_GAP / 2),
-    far: plate(far.x, far.y, splitLeft + TAG_GAP / 2, splitRight - TAG_GAP / 2),
+    left: clearLeaveButton(
+      plate(left.x, left.y, edge, splitLeft - TAG_GAP / 2),
+      topInset,
+      far.x
+    ),
+    far,
     right: plate(right.x, right.y, splitRight + TAG_GAP / 2, screenWidth - edge),
     hero: plate(hero.x, hero.y, screenWidth / 2 - 70, screenWidth / 2 + 70),
   };
+}
+
+/** Drop the left words below the leave button so they are not covered. */
+function clearLeaveButton(plate: SceneFrame, topInset: number, farX: number): SceneFrame {
+  const leave = {
+    x: LEAVE_BUTTON.left,
+    y: LEAVE_BUTTON.top(topInset),
+    width: LEAVE_BUTTON.size,
+    height: LEAVE_BUTTON.size,
+  };
+  const y = Math.max(plate.y, leave.y + leave.height + 8);
+  let next = { ...plate, y };
+  const limit = farX - TAG_GAP;
+  for (let step = 0; step < 8; step += 1) {
+    if (!framesOverlap(next, leave)) return next;
+    const shifted = next.x + 8;
+    if (shifted + next.width > limit) break;
+    next = { ...next, x: shifted };
+  }
+  return next;
 }
 
 function clampBelow(frame: StackFrame, topInset: number) {

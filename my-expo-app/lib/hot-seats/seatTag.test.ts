@@ -21,9 +21,13 @@ describe('seat tags', () => {
       street: 'preflop',
     });
     expect(waiting.title).toBe('CO');
-    expect(waiting.detail).toBe('42 BB');
+    expect(waiting.detail).toBe('42BB');
     expect(waiting.actionLabel).toBeNull();
     expect(waiting.tone).toBe('idle');
+    expect(waiting.banner).toBe('cut off');
+    expect(waiting.ribbon).toBe('42BB');
+    expect(waiting.center).toBeNull();
+    expect(waiting.spoken).toBe('cut off. 42BB');
 
     const acted = seatTagLines({
       seatIndex: 2,
@@ -37,7 +41,56 @@ describe('seat tags', () => {
     expect(acted.title).toBe('CO');
     expect(acted.actionLabel).toBe('CO raised 6BB');
     expect(acted.tone).toBe('raise');
-    expect(acted.stackLabel).toBe('42 BB');
+    expect(acted.stackLabel).toBe('42BB');
+    expect(acted.banner).toBe('cut off');
+    expect(acted.center).toBe('Raised 6 BB');
+    expect(acted.ribbon).toBe('42BB');
+    expect(acted.spoken).toBe('cut off. Raised 6 BB. 42BB');
+  });
+
+  it('hides the stack on a fold and keeps it on a call', () => {
+    const folded = seatTagLines({
+      seatIndex: 0,
+      position: 'UTG',
+      stack: 40,
+      action: 'fold',
+      raiseSize: null,
+      facingRaise: false,
+      street: 'preflop',
+    });
+    expect(folded.tone).toBe('fold');
+    expect(folded.banner).toBe('UTG');
+    expect(folded.center).toBe('Folded');
+    expect(folded.ribbon).toBeNull();
+    expect(folded.spoken).toBe('UTG. Folded');
+    expect(folded.spoken).not.toContain('40');
+
+    const called = seatTagLines({
+      seatIndex: 3,
+      position: 'BB',
+      stack: 36,
+      action: 'call',
+      raiseSize: null,
+      facingRaise: true,
+      street: 'preflop',
+    });
+    expect(called.tone).toBe('call');
+    expect(called.banner).toBe('big blind');
+    expect(called.center).toBe('Called');
+    expect(called.ribbon).toBe('36BB');
+
+    const limped = seatTagLines({
+      seatIndex: 1,
+      position: 'HJ',
+      stack: 38,
+      action: 'call',
+      raiseSize: null,
+      facingRaise: false,
+      street: 'preflop',
+    });
+    expect(limped.banner).toBe('hijack');
+    expect(limped.center).toBe('Limped');
+    expect(limped.ribbon).toBe('38BB');
   });
 
   it('says folded, raised, limped, or called', () => {

@@ -279,10 +279,11 @@ function SeatTagLayer({
           <PlayerSeatTag
             key={seatIndex}
             frame={frame}
-            title={copy.title}
-            actionLabel={copy.actionLabel}
-            stackLabel={copy.stackLabel}
+            banner={copy.banner}
+            ribbon={copy.ribbon}
+            center={copy.center}
             tone={copy.tone}
+            spoken={copy.spoken}
           />
         );
       })}
